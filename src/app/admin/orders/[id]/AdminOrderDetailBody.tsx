@@ -81,7 +81,7 @@ export default function AdminOrderDetailBody({ order, masters, tailors }: Props)
         {/* Status + date */}
         <div className="flex items-center gap-3">
           <StatusBadge status={order.status} />
-          <span className="text-xs text-[#9A9A9A]">Due {formatDate(order.due)}</span>
+          <span className="text-[13px] text-[#9A9A9A]">Due {formatDate(order.due)}</span>
         </div>
 
         {/* Order info */}
@@ -158,7 +158,7 @@ export default function AdminOrderDetailBody({ order, masters, tailors }: Props)
           {order.lineItems?.length > 0 && (
             <div className="space-y-1.5 mb-3">
               {order.lineItems.map((li, i) => (
-                <div key={i} className="flex justify-between text-xs text-[#6B6B6B]">
+                <div key={i} className="flex justify-between text-[13px] text-[#6B6B6B]">
                   <span>{li.particulars} ×{li.qty}</span>
                   <span>{formatCurrency(li.amount)}</span>
                 </div>
@@ -169,8 +169,8 @@ export default function AdminOrderDetailBody({ order, masters, tailors }: Props)
             <Row label="Order total"  value={formatCurrency(order.amount)} />
             <Row label="Advance paid" value={formatCurrency(order.advance)} />
             <div className="flex justify-between pt-2 border-t border-[#F0EDE6] mt-1">
-              <span className="text-sm font-semibold">Balance due</span>
-              <span className={`text-sm font-bold ${balance > 0 ? "text-[#C9A84C]" : "text-[#1B6B3A]"}`}>
+              <span className="text-[15px] font-semibold">Balance due</span>
+              <span className={`text-[15px] font-bold ${balance > 0 ? "text-[#C9A84C]" : "text-[#1B6B3A]"}`}>
                 {formatCurrency(balance > 0 ? balance : 0)}
               </span>
             </div>
@@ -197,9 +197,9 @@ export default function AdminOrderDetailBody({ order, masters, tailors }: Props)
 
         <button
           onClick={() => setDeleteOpen(true)}
-          className="w-full flex items-center justify-center gap-2 py-3 text-sm font-medium text-[#B04A4A]"
+          className="w-full flex items-center justify-center gap-2 py-3.5 text-[14px] font-medium text-[#B04A4A] active:scale-[0.98] transition-all"
         >
-          <Trash2 size={16} />
+          <Trash2 size={18} />
           Delete order
         </button>
 
@@ -223,8 +223,8 @@ export default function AdminOrderDetailBody({ order, masters, tailors }: Props)
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between items-start gap-4">
-      <span className="text-xs text-[#9A9A9A] shrink-0">{label}</span>
-      <span className="text-sm text-[#0F0F0F] text-right">{value}</span>
+      <span className="text-[13px] text-[#9A9A9A] shrink-0">{label}</span>
+      <span className="text-[14px] text-[#0F0F0F] text-right">{value}</span>
     </div>
   );
 }

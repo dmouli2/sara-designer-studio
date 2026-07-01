@@ -36,15 +36,15 @@ export default function OrderDetailBody({ order }: { order: Order }) {
         {/* Status */}
         <div className="flex items-center gap-3">
           <StatusBadge status={order.status} />
-          <span className="text-xs text-[#9A9A9A]">Due {formatDate(order.due)}</span>
+          <span className="text-[13px] text-[#9A9A9A]">Due {formatDate(order.due)}</span>
         </div>
 
         {/* Dress & material */}
         <div className="card-gold">
-          <p className="text-sm font-semibold text-[#7A6020]">{order.dress}</p>
-          <p className="text-sm text-[#A8882E] mt-0.5">{order.material}</p>
+          <p className="text-[16px] font-semibold text-[#7A6020]">{order.dress}</p>
+          <p className="text-[14px] text-[#A8882E] mt-0.5">{order.material}</p>
           {order.notes && (
-            <p className="text-xs text-[#A8882E]/80 mt-2 italic">"{order.notes}"</p>
+            <p className="text-[13px] text-[#A8882E]/80 mt-2 italic">"{order.notes}"</p>
           )}
         </div>
 
@@ -83,10 +83,10 @@ export default function OrderDetailBody({ order }: { order: Order }) {
 
         {/* Action */}
         {alreadyDone || confirmed ? (
-          <div className="card-gold text-center py-5">
-            <p className="text-2xl mb-1">✂️</p>
-            <p className="text-sm font-semibold text-[#7A6020]">Cutting marked done</p>
-            <p className="text-xs text-[#A8882E] mt-1">Admin will assign a tailor next</p>
+          <div className="card-gold text-center py-6">
+            <p className="text-3xl mb-1.5">✂️</p>
+            <p className="text-[16px] font-semibold text-[#7A6020]">Cutting marked done</p>
+            <p className="text-[13px] text-[#A8882E] mt-1">Admin will assign a tailor next</p>
           </div>
         ) : (
           <button onClick={handleMarkDone} disabled={marking} className="btn-gold disabled:opacity-40">

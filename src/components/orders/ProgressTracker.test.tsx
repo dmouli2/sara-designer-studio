@@ -32,7 +32,7 @@ describe("ProgressTracker", () => {
   it("marks four steps done for delivered and renders a connector between every step", () => {
     const { container } = render(<ProgressTracker status="delivered" />);
     expect(screen.getAllByText("✓")).toHaveLength(4);
-    const connectors = container.querySelectorAll(".h-0\\.5");
+    const connectors = container.querySelectorAll(".h-\\[3px\\]");
     expect(connectors).toHaveLength(4);
   });
 });

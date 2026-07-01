@@ -1,5 +1,5 @@
-import PageLoader from "@/components/layout/PageLoader";
+import OrderDetailLoader from "@/components/orders/OrderDetailLoader";
 
 export default function Loading() {
-  return <PageLoader />;
+  return <OrderDetailLoader />;
 }

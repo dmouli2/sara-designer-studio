@@ -167,16 +167,22 @@ describe("OrdersBody", () => {
     expect(screen.queryByText("Filter orders")).not.toBeInTheDocument();
   });
 
-  it("navigates to the new-order page, logout and staff pages via the top bar actions", async () => {
+  it("navigates to the staff and logout pages via the top bar actions", async () => {
     const user = userEvent.setup();
     render(<OrdersBody orders={orders} />);
-    const buttons = screen.getAllByRole("button").filter((b) => !b.className.includes("flex-none"));
-    const [newOrderBtn, logoutBtn, staffBtn] = buttons;
-    await user.click(newOrderBtn);
-    expect(mockRouter.push).toHaveBeenCalledWith("/admin/orders/new");
-    await user.click(logoutBtn);
-    expect(mockRouter.push).toHaveBeenCalledWith("/logout");
-    await user.click(staffBtn);
+
+    await user.click(screen.getByLabelText("Staff"));
     expect(mockRouter.push).toHaveBeenCalledWith("/admin/staff");
+
+    await user.click(screen.getByLabelText("Log out"));
+    expect(mockRouter.push).toHaveBeenCalledWith("/logout");
+  });
+
+  it("navigates to the new-order page via the floating action button", async () => {
+    const user = userEvent.setup();
+    render(<OrdersBody orders={orders} />);
+
+    await user.click(screen.getByLabelText("New order"));
+    expect(mockRouter.push).toHaveBeenCalledWith("/admin/orders/new");
   });
 });

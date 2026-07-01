@@ -17,24 +17,24 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
     <div
       onClick={onClick}
       className={cn(
-        "card mb-3 cursor-pointer active:scale-[0.98] transition-transform",
+        "card mb-3.5 cursor-pointer active:scale-[0.98] transition-all active:shadow-none",
         className
       )}
     >
-      <div className="flex items-start justify-between mb-2">
+      <div className="flex items-start justify-between mb-2.5">
         <div>
-          <span className="text-[13px] font-semibold text-[#0F0F0F]">{order.id}</span>
-          <span className="text-[13px] text-[#6B6B6B] ml-1.5">· {order.customer}</span>
+          <span className="text-[15px] font-semibold text-[#0F0F0F]">{order.id}</span>
+          <span className="text-[15px] text-[#6B6B6B] ml-1.5">· {order.customer}</span>
         </div>
         <StatusBadge status={order.status} />
       </div>
 
-      <p className="text-xs text-[#6B6B6B] mb-3">
+      <p className="text-[13px] text-[#6B6B6B] mb-3">
         {order.dress} · {order.material}
       </p>
 
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs text-[#9A9A9A]">
+        <div className="flex items-center gap-2 text-[12px] text-[#9A9A9A]">
           <span>Due {formatDate(order.due)}</span>
           {order.master && (
             <>
@@ -45,9 +45,9 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
         </div>
         {showPrice && (
           <div className="text-right">
-            <p className="text-sm font-semibold text-[#0F0F0F]">{formatCurrency(order.amount)}</p>
+            <p className="text-[15px] font-semibold text-[#0F0F0F]">{formatCurrency(order.amount)}</p>
             {balance > 0 && (
-              <p className="text-[10px] text-[#C9A84C] font-medium">
+              <p className="text-[11px] text-[#C9A84C] font-medium">
                 Bal {formatCurrency(balance)}
               </p>
             )}

@@ -33,9 +33,9 @@ export default function ProgressTracker({ status }: { status: OrderStatus }) {
             <div className="flex flex-col items-center">
               <div
                 className={cn(
-                  "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all",
-                  done    && "bg-[#C9A84C] text-[#0F0F0F]",
-                  active  && "bg-[#0F0F0F] text-white ring-4 ring-[#C9A84C]/30",
+                  "w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-bold transition-all",
+                  done    && "bg-[#C9A84C] text-[#0F0F0F] shadow-[0_2px_8px_-1px_rgba(201,168,76,0.5)]",
+                  active  && "bg-[#0F0F0F] text-white ring-[5px] ring-[#C9A84C]/30",
                   !done && !active && "bg-[#E5E0D5] text-[#9A9A9A]"
                 )}
               >
@@ -43,7 +43,7 @@ export default function ProgressTracker({ status }: { status: OrderStatus }) {
               </div>
               <span
                 className={cn(
-                  "text-[9px] mt-1.5 whitespace-nowrap font-medium",
+                  "text-[10px] mt-2 whitespace-nowrap font-medium",
                   active ? "text-[#0F0F0F]" : done ? "text-[#C9A84C]" : "text-[#9A9A9A]"
                 )}
               >
@@ -53,7 +53,7 @@ export default function ProgressTracker({ status }: { status: OrderStatus }) {
             {i < STEPS.length - 1 && (
               <div
                 className={cn(
-                  "h-0.5 flex-1 mb-4 mx-1 rounded-full transition-all",
+                  "h-[3px] flex-1 mb-4.5 mx-1 rounded-full transition-all",
                   i < currentStep ? "bg-[#C9A84C]" : "bg-[#E5E0D5]"
                 )}
               />

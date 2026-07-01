@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import LoginPage from "./page";
 import { login } from "@/app/actions/auth";
@@ -11,6 +11,27 @@ vi.mock("@/app/actions/auth", () => ({
 describe("LoginPage", () => {
   beforeEach(() => {
     vi.mocked(login).mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("shows a full-screen splash logo that fades out to reveal the login form", () => {
+    vi.useFakeTimers();
+    const { container } = render(<LoginPage />);
+
+    expect(container.querySelectorAll('img[src*="logo-white"]')).toHaveLength(2);
+
+    act(() => {
+      vi.advanceTimersByTime(1300);
+    });
+    expect(container.querySelectorAll('img[src*="logo-white"]')).toHaveLength(2);
+
+    act(() => {
+      vi.advanceTimersByTime(550);
+    });
+    expect(container.querySelectorAll('img[src*="logo-white"]')).toHaveLength(1);
   });
 
   it("renders username and password fields", () => {

@@ -70,22 +70,18 @@ export default function OrdersBody({ orders }: { orders: Order[] }) {
         right={
           <div className="flex items-center gap-2">
             <button
-              onClick={() => router.push("/admin/orders/new")}
-              className="w-9 h-9 bg-[#C9A84C] rounded-xl flex items-center justify-center active:opacity-80"
+              onClick={() => router.push("/admin/staff")}
+              aria-label="Staff"
+              className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center active:bg-white/20 active:scale-95 transition-all"
             >
-              <Plus size={18} color="#0F0F0F" strokeWidth={2.5} />
+              <Users size={18} color="white" />
             </button>
             <button
               onClick={() => router.push("/logout")}
-              className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center active:bg-white/20"
+              aria-label="Log out"
+              className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center active:bg-white/20 active:scale-95 transition-all"
             >
-              <LogOut size={16} color="white" />
-            </button>
-            <button
-              onClick={() => router.push("/admin/staff")}
-              className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center active:bg-white/20"
-            >
-              <Users size={16} color="white" />
+              <LogOut size={18} color="white" />
             </button>
           </div>
         }
@@ -98,9 +94,12 @@ export default function OrdersBody({ orders }: { orders: Order[] }) {
           { label: "Ready Pickup", value: stats.ready },
           { label: "Active",       value: stats.active },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-[#E5E0D5] p-3 text-center">
-            <p className="text-xl font-bold text-[#0F0F0F]">{s.value}</p>
-            <p className="text-[10px] text-[#9A9A9A] mt-0.5">{s.label}</p>
+          <div
+            key={s.label}
+            className="bg-white rounded-xl border border-[#E5E0D5] p-3.5 text-center shadow-[0_1px_2px_rgba(15,15,15,0.04)]"
+          >
+            <p className="text-2xl font-bold text-[#0F0F0F]">{s.value}</p>
+            <p className="text-[11px] text-[#9A9A9A] mt-0.5">{s.label}</p>
           </div>
         ))}
       </div>
@@ -112,11 +111,11 @@ export default function OrdersBody({ orders }: { orders: Order[] }) {
           aria-label="More filters"
           onClick={() => setFiltersOpen(true)}
           className={cn(
-            "relative flex-none w-8 h-8 rounded-full flex items-center justify-center border transition-all",
+            "relative flex-none w-9 h-9 rounded-full flex items-center justify-center border active:scale-95 transition-all",
             filtersActive ? "bg-[#0F0F0F] border-[#0F0F0F] text-white" : "bg-white border-[#E5E0D5] text-[#6B6B6B]"
           )}
         >
-          <SlidersHorizontal size={14} />
+          <SlidersHorizontal size={16} />
           {filtersActive && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#C9A84C]" />}
         </button>
 
@@ -125,9 +124,9 @@ export default function OrdersBody({ orders }: { orders: Order[] }) {
             <button
               key={f.id}
               onClick={() => setFilter(f.id)}
-              className={`flex-none px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+              className={`flex-none px-4 py-2 rounded-full text-[13px] font-medium active:scale-95 transition-all ${
                 filter === f.id
-                  ? "bg-[#0F0F0F] text-white"
+                  ? "bg-[#0F0F0F] text-white shadow-[0_2px_8px_-1px_rgba(15,15,15,0.3)]"
                   : "bg-white border border-[#E5E0D5] text-[#6B6B6B]"
               }`}
             >
@@ -154,6 +153,19 @@ export default function OrdersBody({ orders }: { orders: Order[] }) {
           ))
         )}
       </PullToRefresh>
+
+      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-40 pointer-events-none">
+        <div className="flex justify-end pr-5">
+          <button
+            type="button"
+            aria-label="New order"
+            onClick={() => router.push("/admin/orders/new")}
+            className="fab-glow pointer-events-auto w-14 h-14 rounded-full bg-[#C9A84C] flex items-center justify-center active:scale-90 transition-transform"
+          >
+            <Plus size={26} color="#0F0F0F" strokeWidth={2.5} />
+          </button>
+        </div>
+      </div>
 
       <BottomNav tabs={NAV_TABS} active="orders" onChange={() => {}} />
 

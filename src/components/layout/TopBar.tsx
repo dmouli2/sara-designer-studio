@@ -15,29 +15,29 @@ interface TopBarProps {
 
 export default function TopBar({ title, subtitle, onBack, backHref, right }: TopBarProps) {
   return (
-    <div className="bg-[#0F0F0F] text-white px-4 pt-12 pb-5 sticky top-0 z-40">
+    <div className="bg-[#0F0F0F] text-white px-4 pt-13 pb-6 sticky top-0 z-40 shadow-[0_4px_20px_rgba(15,15,15,0.15)]">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {onBack && (
             <button
               onClick={onBack}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 active:bg-white/20 transition-all"
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-white/10 active:bg-white/20 active:scale-95 transition-all"
             >
-              <ArrowLeft size={16} />
+              <ArrowLeft size={18} />
             </button>
           )}
           {!onBack && backHref && (
             <Link
               href={backHref}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 active:bg-white/20 transition-all"
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-white/10 active:bg-white/20 active:scale-95 transition-all"
             >
-              <ArrowLeft size={16} />
+              <ArrowLeft size={18} />
             </Link>
           )}
           <div>
-            <h1 className="text-base font-semibold leading-tight">{title}</h1>
+            <h1 className="text-[17px] font-semibold leading-tight">{title}</h1>
             {subtitle && (
-              <p className="text-[12px] text-[#C9A84C] mt-0.5 font-medium">{subtitle}</p>
+              <p className="text-[13px] text-[#C9A84C] mt-0.5 font-medium">{subtitle}</p>
             )}
           </div>
         </div>

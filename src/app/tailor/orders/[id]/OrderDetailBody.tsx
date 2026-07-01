@@ -38,14 +38,14 @@ export default function OrderDetailBody({ order }: { order: Order }) {
         {/* Status */}
         <div className="flex items-center gap-3">
           <StatusBadge status={order.status} />
-          <span className="text-xs text-[#9A9A9A]">Due {formatDate(order.due)}</span>
+          <span className="text-[13px] text-[#9A9A9A]">Due {formatDate(order.due)}</span>
         </div>
 
         {/* Dress info */}
         <div className="card-gold">
-          <p className="text-sm font-semibold text-[#7A6020]">{order.dress} · {order.material}</p>
+          <p className="text-[16px] font-semibold text-[#7A6020]">{order.dress} · {order.material}</p>
           {order.notes && (
-            <p className="text-xs text-[#A8882E]/80 mt-1.5 italic">"{order.notes}"</p>
+            <p className="text-[13px] text-[#A8882E]/80 mt-1.5 italic">"{order.notes}"</p>
           )}
         </div>
 
@@ -93,13 +93,13 @@ export default function OrderDetailBody({ order }: { order: Order }) {
                   onClick={() => handleStatus(status)}
                   disabled={updating}
                   className={cn(
-                    "w-full py-3.5 rounded-xl text-sm font-medium border transition-all text-left px-4 flex items-center gap-3 disabled:opacity-40",
+                    "w-full py-4 rounded-xl text-[14px] font-medium border active:scale-[0.98] transition-all text-left px-4 flex items-center gap-3 disabled:opacity-40",
                     order.status === status
-                      ? "bg-[#0F0F0F] text-white border-[#0F0F0F]"
+                      ? "bg-[#0F0F0F] text-white border-[#0F0F0F] shadow-[0_4px_14px_-2px_rgba(15,15,15,0.3)]"
                       : "border-[#E5E0D5] text-[#6B6B6B] bg-white"
                   )}
                 >
-                  <span>{icon}</span>
+                  <span className="text-[17px]">{icon}</span>
                   <span>{label}</span>
                   {order.status === status && <span className="ml-auto text-[#C9A84C]">●</span>}
                 </button>
@@ -107,10 +107,10 @@ export default function OrderDetailBody({ order }: { order: Order }) {
             </div>
           </div>
         ) : (
-          <div className="card-gold text-center py-5">
-            <p className="text-2xl mb-1">🎉</p>
-            <p className="text-sm font-semibold text-[#1B6B3A]">Order is ready for pickup!</p>
-            <p className="text-xs text-[#6B6B6B] mt-1">Customer will be notified</p>
+          <div className="card-gold text-center py-6">
+            <p className="text-3xl mb-1.5">🎉</p>
+            <p className="text-[16px] font-semibold text-[#1B6B3A]">Order is ready for pickup!</p>
+            <p className="text-[13px] text-[#6B6B6B] mt-1">Customer will be notified</p>
           </div>
         )}
 

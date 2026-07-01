@@ -31,9 +31,9 @@ export default function QueueBody({ myOrders, readyOrders }: Props) {
         right={
           <button
             onClick={() => router.push("/logout")}
-            className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center active:bg-white/20"
+            className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center active:bg-white/20 active:scale-95 transition-all"
           >
-            <LogOut size={16} color="white" />
+            <LogOut size={18} color="white" />
           </button>
         }
       />
