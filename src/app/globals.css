@@ -1,26 +1,81 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-gold:          #C9A84C;
+  --color-gold-50:       #FBF6E8;
+  --color-gold-100:      #F5E9BB;
+  --color-gold-200:      #EDD98A;
+  --color-gold-700:      #A8882E;
+  --color-gold-800:      #7A6020;
+  --color-ink:           #0F0F0F;
+  --color-ink-soft:      #1C1C1E;
+  --color-ink-muted:     #3A3A3C;
+  --color-surface:       #FFFFFF;
+  --color-bg:            #F9F8F6;
+  --color-muted:         #6B6B6B;
+  --color-subtle:        #9A9A9A;
+  --color-border:        #E5E0D5;
+  --color-border-soft:   #F0EDE6;
+  --color-success:       #1B6B3A;
+  --color-success-light: #D5F0E1;
+  --font-sans:           'Inter', system-ui, sans-serif;
+  --font-display:        'Playfair Display', Georgia, serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * { box-sizing: border-box; }
+  body {
+    font-family: var(--font-sans);
+    background: #F9F8F6;
+    color: #0F0F0F;
+    -webkit-font-smoothing: antialiased;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .screen        { @apply flex flex-col min-h-screen bg-[#F9F8F6]; }
+  .scroll-area   { @apply flex-1 overflow-y-auto pb-24; }
+
+  .card          { @apply bg-white rounded-2xl border border-[#E5E0D5] p-4; }
+  .card-gold     { @apply bg-[#FBF6E8] rounded-2xl border border-[#EDD98A] p-4; }
+
+  .input {
+    @apply w-full bg-white border border-[#E5E0D5] rounded-xl px-4 py-3 text-sm text-[#0F0F0F]
+           focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/40 focus:border-[#C9A84C]
+           placeholder:text-[#9A9A9A] transition-all;
+  }
+
+  .btn-primary {
+    @apply w-full bg-[#0F0F0F] text-white rounded-xl py-3.5 text-sm font-semibold
+           active:opacity-80 transition-all tracking-wide;
+  }
+  .btn-gold {
+    @apply w-full bg-[#C9A84C] text-[#0F0F0F] rounded-xl py-3.5 text-sm font-semibold
+           active:opacity-80 transition-all tracking-wide;
+  }
+  .btn-outline {
+    @apply w-full border border-[#E5E0D5] bg-white text-[#0F0F0F] rounded-xl py-3.5 text-sm font-medium
+           active:bg-[#F9F8F6] transition-all;
+  }
+
+  .section-label { @apply text-[11px] font-semibold text-[#9A9A9A] uppercase tracking-widest mb-2; }
+
+  .badge-base         { @apply inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide; }
+  .badge-new          { @apply inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide bg-[#FBF6E8] text-[#A8882E]; }
+  .badge-cutting      { @apply inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide bg-[#0F0F0F] text-white; }
+  .badge-cutting_done { @apply inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide bg-[#EDD98A] text-[#7A6020]; }
+  .badge-stitching    { @apply inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide bg-[#F5E9BB] text-[#7A6020]; }
+  .badge-ready        { @apply inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide bg-[#D5F0E1] text-[#1B6B3A]; }
+  .badge-delivered    { @apply inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide bg-[#F0EDE6] text-[#6B6B6B]; }
+
+  .bottom-nav {
+    @apply fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50
+           flex bg-white border-t border-[#E5E0D5];
+  }
+  .nav-item       { @apply flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-[10px] text-[#9A9A9A] font-medium transition-all; }
+  .nav-item.active { @apply text-[#C9A84C]; }
+
+  .divider        { @apply h-px bg-[#F0EDE6] my-4; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar   { -ms-overflow-style: none; scrollbar-width: none; }
 }
