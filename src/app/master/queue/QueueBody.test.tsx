@@ -39,7 +39,7 @@ describe("QueueBody", () => {
     expect(screen.getByText("1 order to cut")).toBeInTheDocument();
   });
 
-  it("lists active and cutting-done orders in separate sections and navigates on click", async () => {
+  it("shows only active orders on the Queue tab, not cutting-done ones", async () => {
     const user = userEvent.setup();
     render(
       <QueueBody
@@ -49,23 +49,39 @@ describe("QueueBody", () => {
     );
 
     expect(screen.getByText("Active")).toBeInTheDocument();
-    expect(screen.getByText("Cutting done — awaiting tailor")).toBeInTheDocument();
     expect(screen.getByText("A1")).toBeInTheDocument();
     expect(screen.getByText("A2")).toBeInTheDocument();
-    expect(screen.getByText("A3")).toBeInTheDocument();
+    expect(screen.queryByText("A3")).not.toBeInTheDocument();
 
     await user.click(screen.getByText("A1").closest(".card")!);
     expect(mockRouter.push).toHaveBeenCalledWith("/master/orders/A1");
+  });
+
+  it("moves an order to the Completed tab once cutting is marked done, out of the Queue tab", async () => {
+    const user = userEvent.setup();
+    render(
+      <QueueBody
+        myOrders={[order({ id: "A1", status: "new" })]}
+        doneOrders={[order({ id: "A3", status: "cutting_done" })]}
+      />
+    );
+
+    expect(screen.queryByText("A3")).not.toBeInTheDocument();
+
+    await user.click(screen.getByText("Completed"));
+    expect(screen.getByText("Cutting done — awaiting tailor")).toBeInTheDocument();
+    expect(screen.getByText("A3")).toBeInTheDocument();
+    expect(screen.queryByText("A1")).not.toBeInTheDocument();
 
     await user.click(screen.getByText("A3").closest(".card")!);
     expect(mockRouter.push).toHaveBeenCalledWith("/master/orders/A3");
   });
 
-  it("does not crash when the inactive bottom nav tab is clicked", async () => {
+  it("shows an empty state on the Completed tab when nothing is done yet", async () => {
     const user = userEvent.setup();
-    render(<QueueBody myOrders={[]} doneOrders={[]} />);
+    render(<QueueBody myOrders={[order({ id: "A1" })]} doneOrders={[]} />);
     await user.click(screen.getByText("Completed"));
-    expect(screen.getByText("No orders assigned yet")).toBeInTheDocument();
+    expect(screen.getByText("No completed orders yet")).toBeInTheDocument();
   });
 
   it("navigates to /logout from the top bar action", async () => {

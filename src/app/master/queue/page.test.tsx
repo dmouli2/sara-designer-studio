@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import MasterQueuePage from "./page";
 import { requireRole } from "@/lib/dal";
 import { getOrders } from "@/app/actions/orders";
@@ -39,6 +40,7 @@ describe("MasterQueuePage", () => {
   });
 
   it("requires a master session and filters to orders assigned to this master", async () => {
+    const user = userEvent.setup();
     const orders: Order[] = [
       order({ id: "A1", master: { id: "m1", name: "Ramesh K." }, status: "new" }),
       order({ id: "A2", master: { id: "m1", name: "Ramesh K." }, status: "cutting" }),
@@ -53,9 +55,12 @@ describe("MasterQueuePage", () => {
     expect(requireRole).toHaveBeenCalledWith(["master"]);
     expect(screen.getByText("A1")).toBeInTheDocument();
     expect(screen.getByText("A2")).toBeInTheDocument();
-    expect(screen.getByText("A3")).toBeInTheDocument();
+    expect(screen.queryByText("A3")).not.toBeInTheDocument();
     expect(screen.queryByText("A4")).not.toBeInTheDocument();
     expect(screen.queryByText("A5")).not.toBeInTheDocument();
+
+    await user.click(screen.getByText("Completed"));
+    expect(screen.getByText("A3")).toBeInTheDocument();
   });
 
   it("shows an empty state when there are no assigned orders", async () => {

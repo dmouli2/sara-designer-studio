@@ -116,6 +116,7 @@ describe("AdminOrderDetailBody", () => {
 
     expect(assignStaff).toHaveBeenCalledWith("AD1", "m1", "t1");
     expect(screen.getByText("✓ Saved!")).toBeInTheDocument();
+    expect(mockRouter.refresh).toHaveBeenCalled();
 
     act(() => {
       vi.advanceTimersByTime(2000);
@@ -136,12 +137,13 @@ describe("AdminOrderDetailBody", () => {
     expect(screen.getByDisplayValue("Anitha K.")).toBeInTheDocument();
   });
 
-  it("shows the next status transition button and triggers it", async () => {
+  it("shows the next status transition button, triggers it, and refreshes the route", async () => {
     const user = userEvent.setup();
     renderBody(order({ status: "new" }));
     const btn = screen.getByText("Move to Cutting →");
     await user.click(btn);
     expect(updateOrderStatus).toHaveBeenCalledWith("AD1", "cutting");
+    expect(mockRouter.refresh).toHaveBeenCalled();
   });
 
   it("shows the delivered state and hides the transition button", () => {
@@ -172,11 +174,11 @@ describe("AdminOrderDetailBody", () => {
     expect(screen.getByText("No reference photo attached")).toBeInTheDocument();
   });
 
-  it("navigates back when the top bar back button is clicked", async () => {
+  it("navigates to the admin orders list (fresh, not a cached back-nav) when the top bar back button is clicked", async () => {
     const user = userEvent.setup();
     const { container } = renderBody(order({ status: "new" }));
     await user.click(container.querySelector(".rounded-full")!);
-    expect(mockRouter.back).toHaveBeenCalled();
+    expect(mockRouter.push).toHaveBeenCalledWith("/admin/orders");
   });
 
   it("opens a confirmation dialog before deleting and does nothing on cancel", async () => {

@@ -23,6 +23,7 @@ export default function OrderDetailBody({ order }: { order: Order }) {
     setUpdating(true);
     await updateOrderStatus(order.id, s);
     setUpdating(false);
+    router.refresh();
   }
 
   return (
@@ -30,7 +31,7 @@ export default function OrderDetailBody({ order }: { order: Order }) {
       <TopBar
         title={`${order.id} · ${order.customer}`}
         subtitle={order.dress}
-        onBack={() => router.back()}
+        onBack={() => router.push("/tailor/queue")}
       />
 
       <div className="scroll-area px-4 pt-4 space-y-4">

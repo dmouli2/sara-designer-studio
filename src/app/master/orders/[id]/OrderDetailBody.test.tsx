@@ -44,13 +44,14 @@ describe("OrderDetailBody", () => {
     expect(screen.getByText('"Heavy embroidery border"')).toBeInTheDocument();
   });
 
-  it("shows a mark-done button for an in-progress order and marks it done on click", async () => {
+  it("shows a mark-done button for an in-progress order, marks it done, and refreshes the route", async () => {
     const user = userEvent.setup();
     render(<OrderDetailBody order={order({ status: "new" })} />);
     await user.click(screen.getByText("✓ Mark Cutting Done"));
 
     expect(updateOrderStatus).toHaveBeenCalledWith("M1", "cutting_done");
     expect(screen.getByText("Cutting marked done")).toBeInTheDocument();
+    expect(mockRouter.refresh).toHaveBeenCalled();
   });
 
   it("shows the already-done state without a button when cutting is already done", () => {
@@ -74,10 +75,10 @@ describe("OrderDetailBody", () => {
     expect(screen.getByText("No reference photo")).toBeInTheDocument();
   });
 
-  it("navigates back when the top bar back button is clicked", async () => {
+  it("navigates to the master queue (fresh, not a cached back-nav) when the top bar back button is clicked", async () => {
     const user = userEvent.setup();
     const { container } = render(<OrderDetailBody order={order({ status: "new" })} />);
     await user.click(container.querySelector(".rounded-full")!);
-    expect(mockRouter.back).toHaveBeenCalled();
+    expect(mockRouter.push).toHaveBeenCalledWith("/master/queue");
   });
 });

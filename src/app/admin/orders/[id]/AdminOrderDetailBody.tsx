@@ -47,12 +47,14 @@ export default function AdminOrderDetailBody({ order, masters, tailors }: Props)
     setAssigning(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+    router.refresh();
   }
 
   async function handleStatusChange(to: OrderStatus) {
     setChangingStatus(true);
     await updateOrderStatus(order.id, to);
     setChangingStatus(false);
+    router.refresh();
   }
 
   async function handleDelete() {
@@ -66,7 +68,7 @@ export default function AdminOrderDetailBody({ order, masters, tailors }: Props)
       <TopBar
         title={order.id}
         subtitle={`${order.customer} · ${order.dress}`}
-        onBack={() => router.back()}
+        onBack={() => router.push("/admin/orders")}
       />
 
       <div className="scroll-area px-4 pt-4 space-y-4">

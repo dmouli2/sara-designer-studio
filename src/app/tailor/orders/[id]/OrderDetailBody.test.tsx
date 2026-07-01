@@ -56,11 +56,12 @@ describe("OrderDetailBody", () => {
     expect(btn).toHaveClass("bg-[#0F0F0F]");
   });
 
-  it("updates the order status when a status button is clicked", async () => {
+  it("updates the order status and refreshes the route when a status button is clicked", async () => {
     const user = userEvent.setup();
     render(<OrderDetailBody order={order({ status: "cutting_done" })} />);
     await user.click(screen.getByText("Mark as Ready"));
     expect(updateOrderStatus).toHaveBeenCalledWith("T1", "ready");
+    expect(mockRouter.refresh).toHaveBeenCalled();
   });
 
   it("shows the ready-for-pickup message once status is ready", () => {
@@ -89,10 +90,10 @@ describe("OrderDetailBody", () => {
     expect(screen.getByAltText("Reference")).toHaveAttribute("src", "data:image/png;base64,ref");
   });
 
-  it("navigates back when the top bar back button is clicked", async () => {
+  it("navigates to the tailor queue (fresh, not a cached back-nav) when the top bar back button is clicked", async () => {
     const user = userEvent.setup();
     const { container } = render(<OrderDetailBody order={order({ status: "stitching" })} />);
     await user.click(container.querySelector(".rounded-full")!);
-    expect(mockRouter.back).toHaveBeenCalled();
+    expect(mockRouter.push).toHaveBeenCalledWith("/tailor/queue");
   });
 });

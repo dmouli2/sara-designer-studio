@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
@@ -20,6 +21,7 @@ interface Props {
 
 export default function QueueBody({ myOrders, readyOrders }: Props) {
   const router = useRouter();
+  const [tab, setTab] = useState<"queue" | "done">("queue");
 
   return (
     <div className="screen">
@@ -37,47 +39,49 @@ export default function QueueBody({ myOrders, readyOrders }: Props) {
       />
 
       <PullToRefresh className="scroll-area px-4 pt-4">
-        {myOrders.length === 0 && readyOrders.length === 0 ? (
+        {tab === "queue" ? (
+          myOrders.length === 0 ? (
+            <div className="text-center pt-16">
+              <p className="text-4xl mb-3">🧵</p>
+              <p className="text-sm font-medium text-[#0F0F0F]">No jobs assigned yet</p>
+              <p className="text-xs text-[#9A9A9A] mt-1">Admin will assign jobs after cutting is done</p>
+            </div>
+          ) : (
+            <>
+              <p className="section-label">In progress</p>
+              {myOrders.map((o) => (
+                <OrderCard
+                  key={o.id}
+                  order={o}
+                  onClick={() => router.push(`/tailor/orders/${o.id}`)}
+                  showPrice={false}
+                />
+              ))}
+            </>
+          )
+        ) : readyOrders.length === 0 ? (
           <div className="text-center pt-16">
-            <p className="text-4xl mb-3">🧵</p>
-            <p className="text-sm font-medium text-[#0F0F0F]">No jobs assigned yet</p>
-            <p className="text-xs text-[#9A9A9A] mt-1">Admin will assign jobs after cutting is done</p>
+            <p className="text-4xl mb-3">✓</p>
+            <p className="text-sm font-medium text-[#0F0F0F]">No completed jobs yet</p>
+            <p className="text-xs text-[#9A9A9A] mt-1">Orders you finish stitching will appear here</p>
           </div>
         ) : (
           <>
-            {myOrders.length > 0 && (
-              <>
-                <p className="section-label">In progress</p>
-                {myOrders.map((o) => (
-                  <OrderCard
-                    key={o.id}
-                    order={o}
-                    onClick={() => router.push(`/tailor/orders/${o.id}`)}
-                    showPrice={false}
-                  />
-                ))}
-              </>
-            )}
-
-            {readyOrders.length > 0 && (
-              <>
-                <p className="section-label mt-4">Ready for pickup</p>
-                {readyOrders.map((o) => (
-                  <OrderCard
-                    key={o.id}
-                    order={o}
-                    onClick={() => router.push(`/tailor/orders/${o.id}`)}
-                    className="opacity-70"
-                    showPrice={false}
-                  />
-                ))}
-              </>
-            )}
+            <p className="section-label">Ready for pickup</p>
+            {readyOrders.map((o) => (
+              <OrderCard
+                key={o.id}
+                order={o}
+                onClick={() => router.push(`/tailor/orders/${o.id}`)}
+                className="opacity-70"
+                showPrice={false}
+              />
+            ))}
           </>
         )}
       </PullToRefresh>
 
-      <BottomNav tabs={NAV_TABS} active="queue" onChange={() => {}} />
+      <BottomNav tabs={NAV_TABS} active={tab} onChange={(id) => setTab(id as "queue" | "done")} />
     </div>
   );
 }

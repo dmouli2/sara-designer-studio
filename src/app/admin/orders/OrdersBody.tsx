@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, LogOut, Users } from "lucide-react";
+import { Plus, LogOut, Users, SlidersHorizontal } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import BottomNav from "@/components/layout/BottomNav";
 import PullToRefresh from "@/components/layout/PullToRefresh";
 import OrderCard from "@/components/orders/OrderCard";
-import type { Order, OrderStatus } from "@/types";
+import OrderFiltersSheet, {
+  EMPTY_ORDER_FILTERS,
+  hasActiveFilters,
+  type OrderFilterValues,
+} from "@/components/orders/OrderFiltersSheet";
+import { cn } from "@/lib/utils";
+import type { AssignedStaff, Order, OrderStatus } from "@/types";
 
 const FILTERS: { id: OrderStatus | "all"; label: string }[] = [
   { id: "all",          label: "All" },
@@ -24,11 +30,31 @@ const NAV_TABS = [
   { id: "reports", label: "Reports", icon: "📊" },
 ];
 
+function uniqueStaff(list: (AssignedStaff | null)[]): AssignedStaff[] {
+  const map = new Map<string, AssignedStaff>();
+  for (const s of list) if (s) map.set(s.id, s);
+  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export default function OrdersBody({ orders }: { orders: Order[] }) {
   const router = useRouter();
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
+  const [advanced, setAdvanced] = useState<OrderFilterValues>(EMPTY_ORDER_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const filtered = filter === "all" ? orders : orders.filter((o) => o.status === filter);
+  const masters = useMemo(() => uniqueStaff(orders.map((o) => o.master)), [orders]);
+  const tailors = useMemo(() => uniqueStaff(orders.map((o) => o.tailor)), [orders]);
+
+  const filtered = orders
+    .filter((o) => filter === "all" || o.status === filter)
+    .filter((o) => !advanced.masterId || o.master?.id === advanced.masterId)
+    .filter((o) => !advanced.tailorId || o.tailor?.id === advanced.tailorId)
+    .filter((o) => !advanced.dueFrom || o.due.slice(0, 10) >= advanced.dueFrom)
+    .filter((o) => !advanced.dueTo || o.due.slice(0, 10) <= advanced.dueTo)
+    .filter((o) => !advanced.createdFrom || o.createdAt.slice(0, 10) >= advanced.createdFrom)
+    .filter((o) => !advanced.createdTo || o.createdAt.slice(0, 10) <= advanced.createdTo);
+
+  const filtersActive = hasActiveFilters(advanced);
 
   const stats = {
     total:   orders.length,
@@ -80,20 +106,35 @@ export default function OrdersBody({ orders }: { orders: Order[] }) {
       </div>
 
       {/* Filter chips */}
-      <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar border-b border-[#F0EDE6]">
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            onClick={() => setFilter(f.id)}
-            className={`flex-none px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
-              filter === f.id
-                ? "bg-[#0F0F0F] text-white"
-                : "bg-white border border-[#E5E0D5] text-[#6B6B6B]"
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+      <div className="px-4 py-3 flex items-center gap-2 border-b border-[#F0EDE6]">
+        <button
+          type="button"
+          aria-label="More filters"
+          onClick={() => setFiltersOpen(true)}
+          className={cn(
+            "relative flex-none w-8 h-8 rounded-full flex items-center justify-center border transition-all",
+            filtersActive ? "bg-[#0F0F0F] border-[#0F0F0F] text-white" : "bg-white border-[#E5E0D5] text-[#6B6B6B]"
+          )}
+        >
+          <SlidersHorizontal size={14} />
+          {filtersActive && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#C9A84C]" />}
+        </button>
+
+        <div className="flex gap-2 overflow-x-auto no-scrollbar flex-1">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id)}
+              className={`flex-none px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+                filter === f.id
+                  ? "bg-[#0F0F0F] text-white"
+                  : "bg-white border border-[#E5E0D5] text-[#6B6B6B]"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Order list */}
@@ -115,6 +156,16 @@ export default function OrdersBody({ orders }: { orders: Order[] }) {
       </PullToRefresh>
 
       <BottomNav tabs={NAV_TABS} active="orders" onChange={() => {}} />
+
+      <OrderFiltersSheet
+        open={filtersOpen}
+        values={advanced}
+        masters={masters}
+        tailors={tailors}
+        onChange={setAdvanced}
+        onClear={() => setAdvanced(EMPTY_ORDER_FILTERS)}
+        onClose={() => setFiltersOpen(false)}
+      />
     </div>
   );
 }
