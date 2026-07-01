@@ -7,6 +7,7 @@ import {
   toIndianMobileDigits,
   buildOrderWhatsAppMessage,
   buildWhatsAppShareUrl,
+  ORDER_TERMS,
 } from "./utils";
 
 describe("cn", () => {
@@ -122,6 +123,21 @@ describe("buildOrderWhatsAppMessage", () => {
       due: "2026-07-10",
     });
     expect(message).toContain("Balance due: ₹0");
+  });
+
+  it("includes the numbered order-form policy notes", () => {
+    const message = buildOrderWhatsAppMessage({
+      orderId: "SDS-101",
+      customer: "Priya",
+      dress: "Blouse",
+      total: 1000,
+      advance: 1000,
+      due: "2026-07-10",
+    });
+    expect(message).toContain("Note:");
+    ORDER_TERMS.forEach((term, i) => {
+      expect(message).toContain(`${i + 1}. ${term}`);
+    });
   });
 });
 

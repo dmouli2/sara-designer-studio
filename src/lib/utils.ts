@@ -37,6 +37,16 @@ export interface OrderShareDetails {
   due: string;
 }
 
+// Same policy notes printed on the physical order form/receipt.
+export const ORDER_TERMS: string[] = [
+  "Firm will not be responsible for losses/damages of clothes after 1 month from the date of delivery.",
+  "Delivery date can be extended for any reasons.",
+  "Cancellation not available. 40% cancellation fee applies if requested.",
+  "No design changes after order confirmation.",
+  "No bargaining.",
+  "Alterations will be done within 2 weeks. If not possible, additional charges will apply.",
+];
+
 export function buildOrderWhatsAppMessage(details: OrderShareDetails): string {
   const balance = details.total - details.advance;
   return [
@@ -48,6 +58,9 @@ export function buildOrderWhatsAppMessage(details: OrderShareDetails): string {
     `Delivery date: ${formatDate(details.due)}`,
     "",
     "Thank you for choosing us!",
+    "",
+    "Note:",
+    ...ORDER_TERMS.map((term, i) => `${i + 1}. ${term}`),
   ].join("\n");
 }
 
