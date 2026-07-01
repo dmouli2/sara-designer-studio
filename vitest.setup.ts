@@ -46,9 +46,11 @@ vi.mock("next/headers", () => ({
 
 // ---- next/cache -------------------------------------------------------------
 export const mockRevalidatePath = vi.fn();
+export const mockRefresh = vi.fn();
 
 vi.mock("next/cache", () => ({
   revalidatePath: mockRevalidatePath,
+  refresh: mockRefresh,
 }));
 
 // ---- next/font/google ----------------------------------------------------
@@ -124,6 +126,7 @@ beforeEach(() => {
   mockCookieStore.delete.mockClear();
   cookieStoreValues.clear();
   mockRevalidatePath.mockClear();
+  mockRefresh.mockClear();
   if (typeof window !== "undefined") {
     window.localStorage.clear();
     window.sessionStorage.clear();

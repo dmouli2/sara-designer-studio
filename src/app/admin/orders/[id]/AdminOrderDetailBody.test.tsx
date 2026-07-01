@@ -47,9 +47,9 @@ function renderBody(o: Order) {
 describe("AdminOrderDetailBody", () => {
   beforeEach(() => {
     vi.mocked(assignStaff).mockReset();
-    vi.mocked(assignStaff).mockResolvedValue(undefined);
+    vi.mocked(assignStaff).mockResolvedValue(order({ status: "new" }));
     vi.mocked(updateOrderStatus).mockReset();
-    vi.mocked(updateOrderStatus).mockResolvedValue(undefined);
+    vi.mocked(updateOrderStatus).mockResolvedValue(order({ status: "new" }));
     vi.mocked(deleteOrder).mockReset();
     vi.mocked(deleteOrder).mockResolvedValue(undefined);
   });
@@ -105,6 +105,9 @@ describe("AdminOrderDetailBody", () => {
 
   it("saves the master/tailor assignment and shows a confirmation that clears after a delay", async () => {
     vi.useFakeTimers();
+    vi.mocked(assignStaff).mockResolvedValue(
+      order({ status: "stitching", master: { id: "m1", name: "Ramesh K." }, tailor: { id: "t1", name: "Anitha K." } })
+    );
     renderBody(order({ status: "stitching" }));
 
     fireEvent.change(screen.getByDisplayValue("Select master…"), { target: { value: "m1" } });
@@ -116,7 +119,6 @@ describe("AdminOrderDetailBody", () => {
 
     expect(assignStaff).toHaveBeenCalledWith("AD1", "m1", "t1");
     expect(screen.getByText("✓ Saved!")).toBeInTheDocument();
-    expect(mockRouter.refresh).toHaveBeenCalled();
 
     act(() => {
       vi.advanceTimersByTime(2000);
@@ -137,13 +139,16 @@ describe("AdminOrderDetailBody", () => {
     expect(screen.getByDisplayValue("Anitha K.")).toBeInTheDocument();
   });
 
-  it("shows the next status transition button, triggers it, and refreshes the route", async () => {
+  it("shows the next status transition button, triggers it, and reflects the new status immediately", async () => {
+    vi.mocked(updateOrderStatus).mockResolvedValue(order({ status: "cutting" }));
     const user = userEvent.setup();
     renderBody(order({ status: "new" }));
     const btn = screen.getByText("Move to Cutting →");
     await user.click(btn);
     expect(updateOrderStatus).toHaveBeenCalledWith("AD1", "cutting");
-    expect(mockRouter.refresh).toHaveBeenCalled();
+    await screen.findByText("Assign tailor"); // only shown once status has moved past "new"
+    expect(screen.getAllByText("Cutting").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Move to Cutting →")).not.toBeInTheDocument();
   });
 
   it("shows the delivered state and hides the transition button", () => {

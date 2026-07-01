@@ -9,8 +9,9 @@ import { updateOrderStatus } from "@/app/actions/orders";
 import { formatDate } from "@/lib/utils";
 import type { Order } from "@/types";
 
-export default function OrderDetailBody({ order }: { order: Order }) {
+export default function OrderDetailBody({ order: initialOrder }: { order: Order }) {
   const router = useRouter();
+  const [order, setOrder] = useState(initialOrder);
   const [confirmed, setConfirmed] = useState(false);
   const [marking, setMarking] = useState(false);
 
@@ -18,10 +19,10 @@ export default function OrderDetailBody({ order }: { order: Order }) {
 
   async function handleMarkDone() {
     setMarking(true);
-    await updateOrderStatus(order.id, "cutting_done");
+    const updated = await updateOrderStatus(order.id, "cutting_done");
+    setOrder(updated);
     setMarking(false);
     setConfirmed(true);
-    router.refresh();
   }
 
   return (

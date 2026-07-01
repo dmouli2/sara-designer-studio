@@ -36,7 +36,7 @@ function order(overrides: Partial<Order>): Order {
 describe("OrderDetailBody", () => {
   beforeEach(() => {
     vi.mocked(updateOrderStatus).mockReset();
-    vi.mocked(updateOrderStatus).mockResolvedValue(undefined);
+    vi.mocked(updateOrderStatus).mockResolvedValue(order({ status: "cutting_done" }));
   });
 
   it("shows the style notes when present", () => {
@@ -44,14 +44,13 @@ describe("OrderDetailBody", () => {
     expect(screen.getByText('"Heavy embroidery border"')).toBeInTheDocument();
   });
 
-  it("shows a mark-done button for an in-progress order, marks it done, and refreshes the route", async () => {
+  it("shows a mark-done button for an in-progress order and marks it done immediately from the action's response", async () => {
     const user = userEvent.setup();
     render(<OrderDetailBody order={order({ status: "new" })} />);
     await user.click(screen.getByText("✓ Mark Cutting Done"));
 
     expect(updateOrderStatus).toHaveBeenCalledWith("M1", "cutting_done");
     expect(screen.getByText("Cutting marked done")).toBeInTheDocument();
-    expect(mockRouter.refresh).toHaveBeenCalled();
   });
 
   it("shows the already-done state without a button when cutting is already done", () => {

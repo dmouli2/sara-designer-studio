@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, refresh } from "next/cache";
 import { requireRole } from "@/lib/dal";
 import { getDb, type OrderWriteInput } from "@/lib/db";
 import { getImageStorage } from "@/lib/storage";
@@ -65,16 +65,20 @@ export async function assignStaff(
   id: string,
   masterId: string | null,
   tailorId: string | null
-): Promise<void> {
+): Promise<Order> {
   await requireRole(["admin"]);
-  await getDb().orders.update(id, { masterId, tailorId });
+  const updated = await getDb().orders.update(id, { masterId, tailorId });
   revalidateOrderPaths(id);
+  refresh();
+  return updated;
 }
 
-export async function updateOrderStatus(id: string, status: OrderStatus): Promise<void> {
+export async function updateOrderStatus(id: string, status: OrderStatus): Promise<Order> {
   await requireRole([...ALL_ROLES]);
-  await getDb().orders.updateStatus(id, status);
+  const updated = await getDb().orders.updateStatus(id, status);
   revalidateOrderPaths(id);
+  refresh();
+  return updated;
 }
 
 export async function deleteOrder(id: string): Promise<void> {

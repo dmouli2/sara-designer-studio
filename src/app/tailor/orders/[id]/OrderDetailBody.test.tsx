@@ -36,7 +36,7 @@ function order(overrides: Partial<Order>): Order {
 describe("OrderDetailBody", () => {
   beforeEach(() => {
     vi.mocked(updateOrderStatus).mockReset();
-    vi.mocked(updateOrderStatus).mockResolvedValue(undefined);
+    vi.mocked(updateOrderStatus).mockResolvedValue(order({ status: "stitching" }));
   });
 
   it("shows the style notes when present", () => {
@@ -56,12 +56,13 @@ describe("OrderDetailBody", () => {
     expect(btn).toHaveClass("bg-[#0F0F0F]");
   });
 
-  it("updates the order status and refreshes the route when a status button is clicked", async () => {
+  it("updates the order status and reflects the new status immediately from the action's response", async () => {
+    vi.mocked(updateOrderStatus).mockResolvedValue(order({ status: "ready" }));
     const user = userEvent.setup();
     render(<OrderDetailBody order={order({ status: "cutting_done" })} />);
     await user.click(screen.getByText("Mark as Ready"));
     expect(updateOrderStatus).toHaveBeenCalledWith("T1", "ready");
-    expect(mockRouter.refresh).toHaveBeenCalled();
+    expect(await screen.findByText("Order is ready for pickup!")).toBeInTheDocument();
   });
 
   it("shows the ready-for-pickup message once status is ready", () => {

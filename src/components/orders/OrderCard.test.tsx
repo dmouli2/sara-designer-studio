@@ -10,7 +10,7 @@ const baseOrder: Order = {
   phone: "9876543210",
   dress: "Blouse",
   material: "Silk (shop)",
-  status: "new",
+  status: "cutting",
   amount: 4200,
   advance: 1000,
   due: "2026-07-10",
@@ -38,13 +38,39 @@ describe("OrderCard", () => {
   it("shows the assigned master when present", () => {
     const order: Order = { ...baseOrder, master: { id: "m1", name: "Ramesh K." } };
     render(<OrderCard order={order} />);
-    expect(screen.getByText("Ramesh K.")).toBeInTheDocument();
+    expect(screen.getByText("✂️ Ramesh K.")).toBeInTheDocument();
   });
 
-  it("hides master info when not assigned", () => {
+  it("shows 'Not assigned' for master when not set", () => {
     const order: Order = { ...baseOrder, master: null };
     render(<OrderCard order={order} />);
-    expect(screen.queryByText("Ramesh K.")).not.toBeInTheDocument();
+    expect(screen.getByText("✂️ Not assigned")).toBeInTheDocument();
+  });
+
+  it("shows the assigned tailor when present", () => {
+    const order: Order = { ...baseOrder, tailor: { id: "t1", name: "Anitha K." } };
+    render(<OrderCard order={order} />);
+    expect(screen.getByText("🧵 Anitha K.")).toBeInTheDocument();
+  });
+
+  it("shows 'Not assigned' for tailor when not set", () => {
+    const order: Order = { ...baseOrder, tailor: null };
+    render(<OrderCard order={order} />);
+    expect(screen.getByText("🧵 Not assigned")).toBeInTheDocument();
+  });
+
+  it("highlights a new order with a gold accent border and pulsing dot", () => {
+    const order: Order = { ...baseOrder, status: "new" };
+    const { container } = render(<OrderCard order={order} />);
+    expect(container.firstChild).toHaveClass("border-l-[#C9A84C]");
+    expect(container.querySelector(".animate-ping")).toBeInTheDocument();
+  });
+
+  it("does not show the new-order highlight for other statuses", () => {
+    const order: Order = { ...baseOrder, status: "cutting" };
+    const { container } = render(<OrderCard order={order} />);
+    expect(container.firstChild).not.toHaveClass("border-l-[#C9A84C]");
+    expect(container.querySelector(".animate-ping")).not.toBeInTheDocument();
   });
 
   it("shows price and balance by default when there is a balance due", () => {

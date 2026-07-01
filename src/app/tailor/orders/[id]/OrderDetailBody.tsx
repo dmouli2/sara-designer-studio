@@ -10,8 +10,9 @@ import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/utils";
 import type { Order, OrderStatus } from "@/types";
 
-export default function OrderDetailBody({ order }: { order: Order }) {
+export default function OrderDetailBody({ order: initialOrder }: { order: Order }) {
   const router = useRouter();
+  const [order, setOrder] = useState(initialOrder);
   const [updating, setUpdating] = useState(false);
 
   const STATUS_BUTTONS: { status: OrderStatus; label: string; icon: string }[] = [
@@ -21,9 +22,9 @@ export default function OrderDetailBody({ order }: { order: Order }) {
 
   async function handleStatus(s: OrderStatus) {
     setUpdating(true);
-    await updateOrderStatus(order.id, s);
+    const updated = await updateOrderStatus(order.id, s);
+    setOrder(updated);
     setUpdating(false);
-    router.refresh();
   }
 
   return (

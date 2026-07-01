@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/dal";
 import { getDb } from "@/lib/db";
 import { getImageStorage } from "@/lib/storage";
 import { getOrders, getOrder, createOrder, assignStaff, updateOrderStatus, deleteOrder } from "./orders";
+import { mockRefresh } from "../../../vitest.setup";
 import type { GarmentMeasurements, OrderLineItem, Order } from "@/types";
 
 vi.mock("@/lib/dal", () => ({ requireRole: vi.fn() }));
@@ -135,19 +136,23 @@ describe("orders actions", () => {
     );
   });
 
-  it("assignStaff requires admin and updates master/tailor ids", async () => {
+  it("assignStaff requires admin, updates master/tailor ids, refreshes the router, and returns the updated order", async () => {
     update.mockResolvedValue(order);
-    await assignStaff("SDS-001", "m1", "t1");
+    const result = await assignStaff("SDS-001", "m1", "t1");
     expect(requireRole).toHaveBeenCalledWith(["admin"]);
     expect(update).toHaveBeenCalledWith("SDS-001", { masterId: "m1", tailorId: "t1" });
+    expect(mockRefresh).toHaveBeenCalled();
+    expect(result).toEqual(order);
   });
 
-  it("updateOrderStatus allows any staff role and updates status", async () => {
+  it("updateOrderStatus allows any staff role, updates status, refreshes the router, and returns the updated order", async () => {
     vi.mocked(requireRole).mockResolvedValue({ staffId: "t1", username: "anitha", role: "tailor", name: "Anitha K." });
     updateStatus.mockResolvedValue(order);
-    await updateOrderStatus("SDS-001", "ready");
+    const result = await updateOrderStatus("SDS-001", "ready");
     expect(requireRole).toHaveBeenCalledWith(["admin", "master", "tailor"]);
     expect(updateStatus).toHaveBeenCalledWith("SDS-001", "ready");
+    expect(mockRefresh).toHaveBeenCalled();
+    expect(result).toEqual(order);
   });
 
   it("deleteOrder requires admin, permanently deletes the order, and cleans up its stored images", async () => {

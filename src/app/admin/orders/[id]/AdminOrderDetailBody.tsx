@@ -26,9 +26,10 @@ interface Props {
   tailors: StaffListItem[];
 }
 
-export default function AdminOrderDetailBody({ order, masters, tailors }: Props) {
+export default function AdminOrderDetailBody({ order: initialOrder, masters, tailors }: Props) {
   const router = useRouter();
 
+  const [order, setOrder] = useState(initialOrder);
   const [masterId, setMasterId] = useState(order.master?.id ?? "");
   const [tailorId, setTailorId] = useState(order.tailor?.id ?? "");
   const [saved, setSaved]       = useState(false);
@@ -43,18 +44,18 @@ export default function AdminOrderDetailBody({ order, masters, tailors }: Props)
 
   async function handleAssign() {
     setAssigning(true);
-    await assignStaff(order.id, masterId || null, tailorId || null);
+    const updated = await assignStaff(order.id, masterId || null, tailorId || null);
+    setOrder(updated);
     setAssigning(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-    router.refresh();
   }
 
   async function handleStatusChange(to: OrderStatus) {
     setChangingStatus(true);
-    await updateOrderStatus(order.id, to);
+    const updated = await updateOrderStatus(order.id, to);
+    setOrder(updated);
     setChangingStatus(false);
-    router.refresh();
   }
 
   async function handleDelete() {
