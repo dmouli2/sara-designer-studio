@@ -42,7 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ServiceWorkerRegister />
         <div className="min-h-screen bg-[#E8E4DA] flex justify-center">
-          <div className="w-full max-w-[430px] min-h-screen bg-[#F9F8F6] shadow-2xl relative">
+          <div className="w-full max-w-[430px] sm:max-w-[600px] md:max-w-[700px] lg:max-w-[820px] min-h-screen bg-[#F9F8F6] shadow-2xl relative">
             {children}
           </div>
         </div>

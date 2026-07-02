@@ -154,7 +154,7 @@ export default function OrdersBody({ orders }: { orders: Order[] }) {
         )}
       </PullToRefresh>
 
-      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-40 pointer-events-none">
+      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-[430px] sm:max-w-[600px] md:max-w-[700px] lg:max-w-[820px] z-40 pointer-events-none">
         <div className="flex justify-end pr-5">
           <button
             type="button"
