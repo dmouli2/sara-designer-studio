@@ -36,7 +36,6 @@ export default function ReferenceImageUpload({ value, onChange }: Props) {
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         onChange={handleFile}
       />
