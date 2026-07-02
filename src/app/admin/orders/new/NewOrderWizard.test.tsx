@@ -80,7 +80,7 @@ describe("NewOrderWizard", () => {
       await chooseOrderType(user, "Salwar");
       await fillStep1AndAdvance(user);
 
-      expect(screen.getByText("Outer Shalwar")).toBeInTheDocument();
+      expect(screen.getByText("O.Shalwar")).toBeInTheDocument();
     });
   });
 
@@ -168,7 +168,7 @@ describe("NewOrderWizard", () => {
     await fillStep1AndAdvance(user);
 
     expect(screen.getByText("New Order · Step 2/3")).toBeInTheDocument();
-    expect(screen.getByText("L.B")).toBeInTheDocument(); // blouse form dual header
+    expect(screen.getByText("L.B")).toBeInTheDocument(); // blouse form column header
 
     await user.click(container.querySelector(".rounded-full")!);
     expect(screen.getByText("New Order · Step 1/3")).toBeInTheDocument();

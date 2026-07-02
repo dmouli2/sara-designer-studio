@@ -16,17 +16,17 @@ describe("emptySalwar", () => {
 describe("SalwarMeasurementForm", () => {
   it("shows the top-measurement tab by default", () => {
     render(<SalwarMeasurementForm value={emptySalwar()} onChange={() => {}} />);
-    expect(screen.getByText("Outer Shalwar")).toBeInTheDocument();
-    expect(screen.queryByText("Knee Length")).not.toBeInTheDocument();
+    expect(screen.getByText("O.Shalwar")).toBeInTheDocument();
+    expect(screen.queryByText("KL")).not.toBeInTheDocument();
   });
 
   it("switches to the pant tab and shows pant fields plus shawl", async () => {
     const user = userEvent.setup();
     render(<SalwarMeasurementForm value={emptySalwar()} onChange={() => {}} />);
     await user.click(screen.getByText("M. Pant"));
-    expect(screen.getByText("Knee Length")).toBeInTheDocument();
+    expect(screen.getByText("KL")).toBeInTheDocument();
     expect(screen.getByText("Shawl")).toBeInTheDocument();
-    expect(screen.queryByText("Outer Shalwar")).not.toBeInTheDocument();
+    expect(screen.queryByText("O.Shalwar")).not.toBeInTheDocument();
   });
 
   it("updates a top field", async () => {

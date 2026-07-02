@@ -23,7 +23,7 @@ describe("MeasurementForm", () => {
 
   it("renders the salwar form when dress is Salwar and value matches", () => {
     render(<MeasurementForm dress="Salwar" value={emptySalwar()} onChange={() => {}} />);
-    expect(screen.getByText("Outer Shalwar")).toBeInTheDocument();
+    expect(screen.getByText("O.Shalwar")).toBeInTheDocument();
   });
 
   it("resets to fresh measurements and renders nothing when dress/value type mismatch", () => {

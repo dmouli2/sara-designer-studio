@@ -18,29 +18,30 @@ export function emptySalwar(): SalwarMeasurements {
   };
 }
 
+// Labels match the physical order form exactly (see MeasurementGrid.tsx).
 const TOP_FIELDS: { key: keyof SalwarMeasurements["top"]; label: string }[] = [
-  { key: "oShalwar", label: "Outer Shalwar" },
-  { key: "lShalwar", label: "Lining Shalwar" },
+  { key: "oShalwar", label: "O.Shalwar" },
+  { key: "lShalwar", label: "L.Shalwar" },
   { key: "length",   label: "Length" },
   { key: "shoulder", label: "Shoulder" },
-  { key: "hs",       label: "Half Shoulder" },
-  { key: "sl",       label: "Sleeve Length" },
+  { key: "hs",       label: "HS" },
+  { key: "sl",       label: "S.L" },
   { key: "tlcs",     label: "TLCS" },
-  { key: "ah",       label: "Arm Hole" },
+  { key: "ah",       label: "AH" },
   { key: "bust",     label: "Bust" },
-  { key: "ub",       label: "Under Bust" },
+  { key: "ub",       label: "UB" },
   { key: "waist",    label: "Waist" },
   { key: "hip",      label: "Hip" },
-  { key: "fnNr",     label: "Front Neck / NR" },
-  { key: "bn",       label: "Back Neck" },
+  { key: "fnNr",     label: "FN / NR" },
+  { key: "bn",       label: "BN" },
   { key: "height",   label: "Height" },
 ];
 
 const PANT_FIELDS: { key: keyof SalwarMeasurements["pant"]; label: string }[] = [
   { key: "hip",        label: "Hip" },
   { key: "waist",      label: "Waist" },
-  { key: "kl",         label: "Knee Length" },
-  { key: "tl",         label: "Thigh Length" },
+  { key: "kl",         label: "KL" },
+  { key: "tl",         label: "TL" },
   { key: "fullLength", label: "Full Length" },
   { key: "yoke",       label: "Yoke" },
 ];

@@ -1,26 +1,24 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import MeasurementGrid from "./MeasurementGrid";
-import type { BlouseMeasurements, SalwarMeasurements, GenericMeasurements, DualMeas } from "@/types";
-
-const d = (lb: string, ob: string): DualMeas => ({ lb, ob });
+import type { BlouseMeasurements, SalwarMeasurements, GenericMeasurements } from "@/types";
 
 describe("MeasurementGrid", () => {
-  it("renders dual and single fields for a blouse, hiding empty ones", () => {
+  it("renders blouse fields with the physical-order-form abbreviations, hiding empty ones", () => {
     const m: BlouseMeasurements = {
       type: "blouse",
-      length: d("52", "52"),
-      shoulder: d("14", ""),
-      hs: d("", "7"),
-      sl: d("", ""),
-      mlos: d("14", "14"),
-      tlos: d("24", "24"),
-      ahs: d("15", "15"),
-      bust: d("36", "38"),
-      ub: d("32", "32"),
-      waist: d("30", "30"),
-      fnNr: d("8", "9"),
-      bn: d("6", "7"),
+      length: "52",
+      shoulder: "14",
+      hs: "",
+      sl: "",
+      mlos: "14",
+      tlos: "24",
+      ahs: "15",
+      bust: "36",
+      ub: "32",
+      waist: "30",
+      fnNr: "8",
+      bn: "6",
       dart: "11",
       dbd: "",
       p: "3",
@@ -30,14 +28,20 @@ describe("MeasurementGrid", () => {
     render(<MeasurementGrid measurements={m} />);
 
     expect(screen.getByText("Length")).toBeInTheDocument();
-    expect(screen.getAllByText("52")).toHaveLength(2);
-    expect(screen.getByText("Shoulder")).toBeInTheDocument();
+    expect(screen.getByText("52 in")).toBeInTheDocument();
+    expect(screen.getByText("UB")).toBeInTheDocument();
+    expect(screen.getByText("32 in")).toBeInTheDocument();
+    expect(screen.getByText("MLOS")).toBeInTheDocument();
+    expect(screen.getByText("TLOS")).toBeInTheDocument();
+    expect(screen.getByText("AHS")).toBeInTheDocument();
+    expect(screen.getByText("FN / NR")).toBeInTheDocument();
+    expect(screen.getByText("BN")).toBeInTheDocument();
     expect(screen.getByText("Dart")).toBeInTheDocument();
-    expect(
-      screen.getByText((_, el) => el?.tagName === "P" && el.textContent === "11 in")
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Dist. Btwn Darts")).not.toBeInTheDocument();
-    expect(screen.queryByText("Sleeve Length")).not.toBeInTheDocument();
+    expect(screen.getByText("11 in")).toBeInTheDocument();
+    expect(screen.getByText("P")).toBeInTheDocument();
+    expect(screen.queryByText("HS")).not.toBeInTheDocument();
+    expect(screen.queryByText("S.L")).not.toBeInTheDocument();
+    expect(screen.queryByText("DBD")).not.toBeInTheDocument();
   });
 
   it("renders top and pant fields for a salwar, plus shawl when present", () => {
@@ -55,9 +59,13 @@ describe("MeasurementGrid", () => {
     render(<MeasurementGrid measurements={m} />);
 
     expect(screen.getByText("M. Top")).toBeInTheDocument();
-    expect(screen.getByText("Outer Shalwar")).toBeInTheDocument();
+    expect(screen.getByText("O.Shalwar")).toBeInTheDocument();
+    expect(screen.getByText("L.Shalwar")).toBeInTheDocument();
+    expect(screen.getByText("AH")).toBeInTheDocument();
+    expect(screen.getByText("TLCS")).toBeInTheDocument();
     expect(screen.getByText("M. Pant")).toBeInTheDocument();
-    expect(screen.getByText("Knee Length")).toBeInTheDocument();
+    expect(screen.getByText("KL")).toBeInTheDocument();
+    expect(screen.getByText("TL")).toBeInTheDocument();
     expect(screen.getByText("Shawl")).toBeInTheDocument();
     expect(screen.getByText("Given")).toBeInTheDocument();
   });

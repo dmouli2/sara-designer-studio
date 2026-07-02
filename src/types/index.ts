@@ -13,27 +13,22 @@ export const MAX_REFERENCE_IMAGES = 8;
 
 export type Role = "admin" | "master" | "tailor";
 
-// Dual measurement (Lining / Outer) used in blouse forms
-export interface DualMeas {
-  lb: string; // lining blouse
-  ob: string; // outer blouse
-}
-
-// Blouse & Pattu Saree Blouse
+// Blouse & Pattu Saree Blouse — L.B (Lining Blouse) only, per the physical
+// order form; there is no separate O.B (Outer Blouse) column.
 export interface BlouseMeasurements {
   type: "blouse";
-  length:    DualMeas;
-  shoulder:  DualMeas;
-  hs:        DualMeas; // Half Shoulder
-  sl:        DualMeas; // Sleeve Length
-  mlos:      DualMeas; // Mid-sleeve
-  tlos:      DualMeas; // Total sleeve length
-  ahs:       DualMeas; // Arm Hole Size
-  bust:      DualMeas;
-  ub:        DualMeas; // Under Bust
-  waist:     DualMeas;
-  fnNr:      DualMeas; // Front Neck / Neck Round
-  bn:        DualMeas; // Back Neck
+  length:    string;
+  shoulder:  string;
+  hs:        string; // Half Shoulder
+  sl:        string; // Sleeve Length
+  mlos:      string; // Mid-sleeve
+  tlos:      string; // Total sleeve length
+  ahs:       string; // Arm Hole Size
+  bust:      string;
+  ub:        string; // Under Bust
+  waist:     string;
+  fnNr:      string; // Front Neck / Neck Round
+  bn:        string; // Back Neck
   dart:      string;
   dbd:       string;   // Distance Between Darts
   p:         string;   // Dart point
