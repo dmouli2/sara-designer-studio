@@ -64,25 +64,30 @@ vi.mock("next/image", () => ({
   default: (props: Record<string, unknown>) => React.createElement("img", props),
 }));
 
+// ---- Canvas 2D context (shared by SketchCanvas tests) ----------------------
+// Exported (like the mocks above) so tests can assert on tool-dependent
+// context properties (lineWidth, globalCompositeOperation) instead of just
+// the vi.fn() call mocks.
+export const fakeCtx = {
+  clearRect: vi.fn(),
+  beginPath: vi.fn(),
+  moveTo: vi.fn(),
+  lineTo: vi.fn(),
+  stroke: vi.fn(),
+  drawImage: vi.fn(),
+  strokeStyle: "",
+  lineWidth: 0,
+  lineCap: "",
+  lineJoin: "",
+  globalCompositeOperation: "source-over",
+};
+
 // ---- DOM-only shims (skipped under `@vitest-environment node`) -------------
 // jose's webapi build fails an `instanceof Uint8Array` check across the
 // jsdom vm realm, so purely server-side lib tests opt into the node
 // environment via a `@vitest-environment node` file comment. Guard every
 // DOM global reference here so this shared setup file still loads there.
 if (typeof window !== "undefined") {
-  const fakeCtx = {
-    clearRect: vi.fn(),
-    beginPath: vi.fn(),
-    moveTo: vi.fn(),
-    lineTo: vi.fn(),
-    stroke: vi.fn(),
-    drawImage: vi.fn(),
-    strokeStyle: "",
-    lineWidth: 0,
-    lineCap: "",
-    lineJoin: "",
-  };
-
   HTMLCanvasElement.prototype.getContext = vi.fn(() => fakeCtx) as unknown as HTMLCanvasElement["getContext"];
   HTMLCanvasElement.prototype.toDataURL = vi.fn(() => "data:image/png;base64,mock");
 
@@ -127,6 +132,17 @@ beforeEach(() => {
   cookieStoreValues.clear();
   mockRevalidatePath.mockClear();
   mockRefresh.mockClear();
+  fakeCtx.clearRect.mockClear();
+  fakeCtx.beginPath.mockClear();
+  fakeCtx.moveTo.mockClear();
+  fakeCtx.lineTo.mockClear();
+  fakeCtx.stroke.mockClear();
+  fakeCtx.drawImage.mockClear();
+  fakeCtx.strokeStyle = "";
+  fakeCtx.lineWidth = 0;
+  fakeCtx.lineCap = "";
+  fakeCtx.lineJoin = "";
+  fakeCtx.globalCompositeOperation = "source-over";
   if (typeof window !== "undefined") {
     window.localStorage.clear();
     window.sessionStorage.clear();
