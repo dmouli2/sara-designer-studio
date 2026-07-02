@@ -33,6 +33,8 @@ npx vercel
 
 ### Deploy to production
 
+**Get explicit user approval before running this** — each round of changes needs its own go-ahead, even mid-task. Finish and verify the build first, then ask "ready to deploy?" and wait for a clear yes.
+
 ```bash
 npx vercel --prod
 ```
@@ -52,6 +54,6 @@ After deploying, open the URL in Chrome DevTools → Application → Service Wor
 
 ## Notes
 
-- No environment variables are required currently (no backend, all client-side mock data).
-- When a real backend is added, set env vars in the Vercel dashboard under Project → Settings → Environment Variables, prefixed with `NEXT_PUBLIC_` for client-side vars.
+- Requires `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SESSION_SECRET` — already set on all three Vercel environments (production/preview/development) via `vercel env add`. These are server-only secrets (used only in Server Actions/Server Components) and must **not** get a `NEXT_PUBLIC_` prefix — that would ship the service-role key to the browser.
+- Orders and staff live in Supabase Postgres (`src/lib/db/`); `src/lib/mock.ts` only holds static reference data now.
 - The `npm run start` command runs the production server locally on port 3000 — useful for testing the production build before pushing.
