@@ -21,6 +21,17 @@ describe("NewStaffForm", () => {
     expect(screen.getByLabelText("Role")).toHaveValue("tailor");
   });
 
+  it("toggles the password field between hidden and visible", async () => {
+    const user = userEvent.setup();
+    render(<NewStaffForm />);
+
+    expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
+    await user.click(screen.getByLabelText("Show password"));
+    expect(screen.getByLabelText("Password")).toHaveAttribute("type", "text");
+    await user.click(screen.getByLabelText("Hide password"));
+    expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
+  });
+
   it("shows a server-returned error after a failed submit", async () => {
     vi.mocked(createStaff).mockResolvedValue({ error: "That username is already taken." });
     const user = userEvent.setup();

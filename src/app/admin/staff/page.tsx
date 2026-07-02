@@ -45,7 +45,11 @@ export default async function StaffListPage() {
                   @{s.username} · {ROLE_LABEL[s.role]}
                 </p>
               </div>
-              {!s.active && (
+              {s.active ? (
+                <span className="text-[10px] font-semibold text-[#1B6B3A] bg-[#D5F0E1] rounded-full px-2 py-1">
+                  Active
+                </span>
+              ) : (
                 <span className="text-[10px] font-semibold text-[#B04A4A] bg-[#F7E6E6] rounded-full px-2 py-1">
                   Deactivated
                 </span>

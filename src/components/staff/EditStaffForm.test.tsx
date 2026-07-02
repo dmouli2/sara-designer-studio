@@ -34,6 +34,18 @@ describe("EditStaffForm", () => {
     expect(screen.getByLabelText("Status")).toHaveValue("false");
   });
 
+  it("toggles the new-password field between hidden and visible", async () => {
+    const user = userEvent.setup();
+    render(<EditStaffForm staff={staff} />);
+
+    const passwordInput = screen.getByLabelText("New password (leave blank to keep current)");
+    expect(passwordInput).toHaveAttribute("type", "password");
+    await user.click(screen.getByLabelText("Show password"));
+    expect(passwordInput).toHaveAttribute("type", "text");
+    await user.click(screen.getByLabelText("Hide password"));
+    expect(passwordInput).toHaveAttribute("type", "password");
+  });
+
   it("shows a server-returned error", async () => {
     vi.mocked(updateStaff).mockResolvedValue({ error: "Name is required." });
     const user = userEvent.setup();

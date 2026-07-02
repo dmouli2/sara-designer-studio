@@ -42,6 +42,7 @@ describe("StaffListPage", () => {
     expect(screen.getByText("Anitha K.")).toBeInTheDocument();
     expect(screen.getByText("@anitha · Tailor")).toBeInTheDocument();
     expect(screen.getByText("Suresh M.")).toBeInTheDocument();
+    expect(screen.getByText("Active")).toBeInTheDocument();
     expect(screen.getByText("Deactivated")).toBeInTheDocument();
   });
 });

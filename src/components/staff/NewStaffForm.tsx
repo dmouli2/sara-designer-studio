@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { createStaff, type StaffFormState } from "@/app/actions/staff";
 import type { Role } from "@/types";
 
@@ -14,6 +15,7 @@ const ROLES: { value: Role; label: string }[] = [
 
 export default function NewStaffForm() {
   const [state, formAction, pending] = useActionState(createStaff, initialState);
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <form action={formAction} className="space-y-3">
@@ -35,13 +37,23 @@ export default function NewStaffForm() {
         <label htmlFor="password" className="text-xs text-[#9A9A9A] mb-1 block">
           Password
         </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          className="input"
-          autoComplete="new-password"
-        />
+        <div className="relative">
+          <input
+            id="password"
+            name="password"
+            type={showPassword ? "text" : "password"}
+            className="input pr-11"
+            autoComplete="new-password"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9A9A9A] active:text-[#0F0F0F]"
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
       </div>
 
       <div>
