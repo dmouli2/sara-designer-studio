@@ -142,10 +142,11 @@ describe("NewOrderWizard", () => {
     expect(screen.getByText(/Fabric cost:/)).toHaveTextContent("₹360"); // Cotton 120 * 3m
   });
 
-  it("updates the style notes field", async () => {
+  it("updates the style notes field on the measurements step", async () => {
     const user = userEvent.setup();
     render(<NewOrderWizard />);
     await chooseOrderType(user);
+    await fillStep1AndAdvance(user);
     const notesInput = screen.getByPlaceholderText("Embroidery, piping, closures, special requests…");
     await user.type(notesInput, "Special request");
     expect(notesInput).toHaveValue("Special request");

@@ -40,12 +40,12 @@ export default function NewOrderWizard() {
   const [fabric, setFabric]         = useState(FABRICS[0]);
   const [metres, setMetres]         = useState("2");
   const [custFabric, setCustFabric] = useState("");
-  const [notes, setNotes]           = useState("");
 
-  // Step 2 — measurements + sketch + image
+  // Step 2 — measurements + notes + sketch + images
   const [meas, setMeas]             = useState<GarmentMeasurements>(() => emptyMeasurementsForDress(DRESS_TYPES[0]));
+  const [notes, setNotes]           = useState("");
   const [sketch, setSketch]         = useState<string | null>(null);
-  const [refImage, setRefImage]     = useState<string | null>(null);
+  const [refImages, setRefImages]   = useState<string[]>([]);
 
   // Step 3 — pricing
   const [lineItems, setLineItems]   = useState<OrderLineItem[]>(() => defaultLineItems(DRESS_TYPES[0]));
@@ -88,7 +88,7 @@ export default function NewOrderWizard() {
       lineItems: activeItems,
       notes,
       sketchDataUrl: sketch,
-      referenceImageUrl: refImage,
+      referenceImageUrls: refImages,
     });
     setPlacedOrder({ id: created.id, publicToken: created.publicToken });
   }
@@ -221,13 +221,6 @@ export default function NewOrderWizard() {
               </div>
             )}
 
-            <div>
-              <p className="section-label">Style notes</p>
-              <textarea className="input resize-none" rows={3}
-                placeholder="Embroidery, piping, closures, special requests…"
-                value={notes} onChange={(e) => setNotes(e.target.value)} />
-            </div>
-
             <button onClick={() => setStep(2)} disabled={!name.trim() || !isValidIndianMobile(phone)} className="btn-primary disabled:opacity-40">
               Next: Measurements →
             </button>
@@ -235,7 +228,7 @@ export default function NewOrderWizard() {
           </>
         )}
 
-        {/* ── STEP 2: Measurements + Sketch + Photo ────────── */}
+        {/* ── STEP 2: Measurements + Notes + Sketch + Photos ── */}
         {step === 2 && (
           <>
             <div>
@@ -244,13 +237,20 @@ export default function NewOrderWizard() {
             </div>
 
             <div>
+              <p className="section-label">Style notes</p>
+              <textarea className="input resize-none" rows={3}
+                placeholder="Embroidery, piping, closures, special requests…"
+                value={notes} onChange={(e) => setNotes(e.target.value)} />
+            </div>
+
+            <div>
               <p className="section-label">Garment sketch</p>
               <SketchCanvas value={sketch} onChange={setSketch} />
             </div>
 
             <div>
-              <p className="section-label">Reference photo</p>
-              <ReferenceImageUpload value={refImage} onChange={setRefImage} />
+              <p className="section-label">Reference photos</p>
+              <ReferenceImageUpload value={refImages} onChange={setRefImages} />
             </div>
 
             <button onClick={() => setStep(3)} className="btn-primary">
