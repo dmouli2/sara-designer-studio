@@ -69,13 +69,15 @@ const staffRows = [{ id: "m1", name: "Ramesh K." }];
 
 describe("createSupabaseOrderRepository", () => {
   const from = vi.fn();
+  const rpc = vi.fn();
   const getSignedUrl = vi.fn();
 
   beforeEach(() => {
     from.mockReset();
+    rpc.mockReset();
     getSignedUrl.mockReset();
     getSignedUrl.mockImplementation(async (path: string) => `https://signed.example/${path}`);
-    vi.mocked(getSupabaseClient).mockReturnValue({ from } as never);
+    vi.mocked(getSupabaseClient).mockReturnValue({ from, rpc } as never);
     vi.mocked(getImageStorage).mockReturnValue({
       upload: vi.fn(),
       getSignedUrl,
@@ -370,5 +372,27 @@ describe("createSupabaseOrderRepository", () => {
     mockTables({ data: null, error: { message: "token lookup failed" } });
     const repo = createSupabaseOrderRepository();
     await expect(repo.findByPublicToken("bad")).rejects.toThrow("token lookup failed");
+  });
+
+  it("nextOrderId calls the next_order_id RPC with the dress type and returns the generated id", async () => {
+    rpc.mockResolvedValue({ data: "S2131", error: null });
+    const repo = createSupabaseOrderRepository();
+    const id = await repo.nextOrderId("Salwar");
+    expect(rpc).toHaveBeenCalledWith("next_order_id", { dress_type: "Salwar" });
+    expect(id).toBe("S2131");
+  });
+
+  it("nextOrderId returns a blouse-series id for a blouse dress type", async () => {
+    rpc.mockResolvedValue({ data: "B2401", error: null });
+    const repo = createSupabaseOrderRepository();
+    const id = await repo.nextOrderId("Blouse");
+    expect(rpc).toHaveBeenCalledWith("next_order_id", { dress_type: "Blouse" });
+    expect(id).toBe("B2401");
+  });
+
+  it("nextOrderId throws on db error", async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: "sequence exhausted" } });
+    const repo = createSupabaseOrderRepository();
+    await expect(repo.nextOrderId("Blouse")).rejects.toThrow("sequence exhausted");
   });
 });

@@ -63,6 +63,10 @@ export interface OrderRepository {
   updateStatus(id: string, status: OrderStatus, extra?: OrderUpdateInput): Promise<Order>;
   delete(id: string): Promise<void>;
   findByPublicToken(token: string): Promise<PublicOrder | null>;
+  // Atomically reserves the next id in the dress-category's series (Salwar:
+  // S2131.., Blouse: B2401..) via the Postgres sequence backing it — never
+  // derive an order id from client randomness or `select max(id)+1`.
+  nextOrderId(dress: string): Promise<string>;
 }
 
 export interface Database {

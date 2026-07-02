@@ -45,18 +45,24 @@ export async function getOrder(id: string): Promise<Order | null> {
   return getDb().orders.findById(id);
 }
 
-export async function createOrder(input: OrderWriteInput): Promise<Order & { publicToken: string }> {
+export async function createOrder(
+  input: Omit<OrderWriteInput, "id">
+): Promise<Order & { publicToken: string }> {
   await requireRole(["admin"]);
   if (!input.due) {
     throw new Error("Delivery date is required.");
   }
 
+  // Reserved once per order, from the dress-category's own DB sequence —
+  // never generated client-side. See supabase/migrations/0003_order_id_sequences.sql.
+  const id = await getDb().orders.nextOrderId(input.dress);
+
   const [sketchDataUrl, referenceImageUrl] = await Promise.all([
-    storeImage(input.id, "sketch", input.sketchDataUrl),
-    storeImage(input.id, "reference", input.referenceImageUrl),
+    storeImage(id, "sketch", input.sketchDataUrl),
+    storeImage(id, "reference", input.referenceImageUrl),
   ]);
 
-  const created = await getDb().orders.create({ ...input, sketchDataUrl, referenceImageUrl });
+  const created = await getDb().orders.create({ ...input, id, sketchDataUrl, referenceImageUrl });
   revalidatePath("/admin/orders");
   return created;
 }

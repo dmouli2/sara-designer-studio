@@ -15,6 +15,6 @@ describe("NewOrderPage", () => {
   it("requires an admin session and renders the wizard", async () => {
     render(await NewOrderPage());
     expect(requireRole).toHaveBeenCalledWith(["admin"]);
-    expect(screen.getByText("New Order · Step 1/3")).toBeInTheDocument();
+    expect(screen.getByText("Choose order type")).toBeInTheDocument();
   });
 });

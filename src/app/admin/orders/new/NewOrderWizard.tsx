@@ -28,10 +28,14 @@ export default function NewOrderWizard() {
   const [submitting, setSubmitting] = useState(false);
   const [placedOrder, setPlacedOrder] = useState<{ id: string; publicToken: string } | null>(null);
 
-  // Step 1 — customer + dress + material
+  // Order type — gates the rest of the wizard; customer details etc. can't
+  // be entered until one of Blouse/Salwar is chosen (also picks which
+  // per-category id series — S2131.. or B2401.. — the order will get).
+  const [dress, setDress]           = useState<string | null>(null);
+
+  // Step 1 — customer + material
   const [name, setName]             = useState("");
   const [phone, setPhone]           = useState("");
-  const [dress, setDress]           = useState(DRESS_TYPES[0]);
   const [matSource, setMatSource]   = useState<"shop" | "customer">("shop");
   const [fabric, setFabric]         = useState(FABRICS[0]);
   const [metres, setMetres]         = useState("2");
@@ -64,12 +68,10 @@ export default function NewOrderWizard() {
   }
 
   async function handleSubmit() {
-    if (submitting) return;
+    if (submitting || !dress) return;
     setSubmitting(true);
     const activeItems = lineItems.filter((li) => li.qty > 0 && li.amount > 0);
-    const id = `SDS-${String(Math.floor(Math.random() * 900) + 100)}`;
     const created = await createOrder({
-      id,
       customer: name,
       phone,
       dress,
@@ -88,11 +90,11 @@ export default function NewOrderWizard() {
       sketchDataUrl: sketch,
       referenceImageUrl: refImage,
     });
-    setPlacedOrder({ id, publicToken: created.publicToken });
+    setPlacedOrder({ id: created.id, publicToken: created.publicToken });
   }
 
   function handleShareOnWhatsApp() {
-    if (!placedOrder) return;
+    if (!placedOrder || !dress) return;
     const trackingUrl = `${window.location.origin}/track/${placedOrder.publicToken}`;
     const message = buildOrderWhatsAppMessage({
       orderId: placedOrder.id,
@@ -106,6 +108,35 @@ export default function NewOrderWizard() {
     window.open(buildWhatsAppShareUrl(phone, message), "_blank");
   }
 
+  // Order type gates everything else — customer details, measurements and
+  // pricing only appear once Blouse or Salwar is chosen, since that choice
+  // also picks the order's id series (S2131.. / B2401..).
+  if (!dress) {
+    return (
+      <div className="screen">
+        <TopBar title="New Order" subtitle="Choose order type" onBack={() => router.back()} />
+        <div className="scroll-area px-4 pt-6 space-y-4">
+          <p className="section-label">What are we stitching?</p>
+          {DRESS_TYPES.map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => handleDressChange(d)}
+              className={`w-full text-left p-5 rounded-2xl border transition-all active:scale-[0.98] ${
+                d === "Salwar" ? "border-[#E5E0D5] bg-white" : "border-[#EDD98A] bg-[#FBF6E8]"
+              }`}
+            >
+              <p className={`text-lg font-semibold ${d === "Salwar" ? "text-[#0F0F0F]" : "text-[#7A6020]"}`}>{d}</p>
+              <p className={`text-xs mt-1 ${d === "Salwar" ? "text-[#6B6B6B]" : "text-[#A8882E]"}`}>
+                {d === "Salwar" ? "Salwar Kameez & Churidar" : "Blouse & Pattu Saree Blouse"}
+              </p>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   const STEPS = ["Details", "Measurements", "Pricing"];
 
   return (
@@ -113,7 +144,7 @@ export default function NewOrderWizard() {
       <TopBar
         title={`New Order · Step ${step}/${STEPS.length}`}
         subtitle={STEPS[step - 1]}
-        onBack={() => (step > 1 ? setStep(step - 1) : router.back())}
+        onBack={() => (step > 1 ? setStep(step - 1) : setDress(null))}
       />
 
       {/* Step indicator */}
@@ -145,10 +176,13 @@ export default function NewOrderWizard() {
             </div>
 
             <div>
-              <p className="section-label">Dress type</p>
-              <select className="input" value={dress} onChange={(e) => handleDressChange(e.target.value)}>
-                {DRESS_TYPES.map((d) => <option key={d}>{d}</option>)}
-              </select>
+              <p className="section-label">Order type</p>
+              <div className="flex items-center justify-between rounded-xl border border-[#E5E0D5] bg-white px-4 py-3.5">
+                <span className="text-[15px] font-semibold text-[#0F0F0F]">{dress}</span>
+                <button type="button" onClick={() => setDress(null)} className="text-xs font-medium text-[#C9A84C]">
+                  Change
+                </button>
+              </div>
             </div>
 
             <div>

@@ -202,5 +202,14 @@ export function createSupabaseOrderRepository(): OrderRepository {
       const { master, tailor, ...publicOrder } = order;
       return publicOrder;
     },
+
+    // Wraps the `next_order_id` Postgres function (S2131.. / B2401..) —
+    // see supabase/migrations/0003_order_id_sequences.sql. A single RPC
+    // round trip keeps the sequence bump and prefix formatting atomic.
+    async nextOrderId(dress: string) {
+      const { data, error } = await getSupabaseClient().rpc("next_order_id", { dress_type: dress });
+      if (error) throw new Error(error.message);
+      return data as string;
+    },
   };
 }

@@ -44,6 +44,11 @@ const order: Order = {
   createdAt: "2026-06-01T00:00:00.000Z",
 };
 
+// The server allocates the id (via nextOrderId) — callers of createOrder
+// never supply one.
+const { id: _omittedId, ...orderInput } = order;
+void _omittedId;
+
 describe("orders actions", () => {
   const list = vi.fn();
   const findById = vi.fn();
@@ -51,6 +56,7 @@ describe("orders actions", () => {
   const update = vi.fn();
   const updateStatus = vi.fn();
   const deleteFn = vi.fn();
+  const nextOrderId = vi.fn();
   const upload = vi.fn();
   const storageDelete = vi.fn();
 
@@ -61,6 +67,8 @@ describe("orders actions", () => {
     update.mockReset();
     updateStatus.mockReset();
     deleteFn.mockReset();
+    nextOrderId.mockReset();
+    nextOrderId.mockResolvedValue("SDS-001");
     upload.mockReset();
     storageDelete.mockReset();
     upload.mockResolvedValue(undefined);
@@ -69,7 +77,7 @@ describe("orders actions", () => {
     vi.mocked(requireRole).mockResolvedValue({ staffId: "a1", username: "admin", role: "admin", name: "Admin" });
     vi.mocked(getDb).mockReturnValue({
       staff: {},
-      orders: { list, findById, create, update, updateStatus, delete: deleteFn },
+      orders: { list, findById, create, update, updateStatus, delete: deleteFn, nextOrderId },
     } as never);
     vi.mocked(getImageStorage).mockReturnValue({
       upload,
@@ -92,25 +100,28 @@ describe("orders actions", () => {
     expect(result).toEqual(order);
   });
 
-  it("createOrder requires admin and creates the order", async () => {
+  it("createOrder requires admin, allocates an id from the dress category's sequence, and creates the order", async () => {
     create.mockResolvedValue(order);
-    const result = await createOrder({ ...order, masterId: null, tailorId: null });
+    const result = await createOrder({ ...orderInput, masterId: null, tailorId: null });
     expect(requireRole).toHaveBeenCalledWith(["admin"]);
+    expect(nextOrderId).toHaveBeenCalledWith("Blouse");
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ id: "SDS-001" }));
     expect(result).toEqual(order);
   });
 
-  it("createOrder rejects a missing delivery date without touching the database", async () => {
-    await expect(createOrder({ ...order, due: "", masterId: null, tailorId: null })).rejects.toThrow(
+  it("createOrder rejects a missing delivery date without allocating an id or touching the database", async () => {
+    await expect(createOrder({ ...orderInput, due: "", masterId: null, tailorId: null })).rejects.toThrow(
       "Delivery date is required."
     );
+    expect(nextOrderId).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
     expect(upload).not.toHaveBeenCalled();
   });
 
-  it("createOrder uploads base64 images to Storage and persists paths instead of raw data", async () => {
+  it("createOrder uploads base64 images to Storage, keyed by the server-allocated id, and persists paths instead of raw data", async () => {
     create.mockResolvedValue(order);
     await createOrder({
-      ...order,
+      ...orderInput,
       masterId: null,
       tailorId: null,
       sketchDataUrl: "data:image/png;base64,aGVsbG8=",
@@ -129,11 +140,19 @@ describe("orders actions", () => {
 
   it("createOrder skips uploads when no image data is provided", async () => {
     create.mockResolvedValue(order);
-    await createOrder({ ...order, masterId: null, tailorId: null, sketchDataUrl: null, referenceImageUrl: null });
+    await createOrder({ ...orderInput, masterId: null, tailorId: null, sketchDataUrl: null, referenceImageUrl: null });
     expect(upload).not.toHaveBeenCalled();
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({ sketchDataUrl: null, referenceImageUrl: null })
     );
+  });
+
+  it("createOrder allocates a Salwar-series id when the order is a Salwar", async () => {
+    create.mockResolvedValue(order);
+    nextOrderId.mockResolvedValue("S2131");
+    await createOrder({ ...orderInput, dress: "Salwar", masterId: null, tailorId: null });
+    expect(nextOrderId).toHaveBeenCalledWith("Salwar");
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ id: "S2131" }));
   });
 
   it("assignStaff requires admin, updates master/tailor ids, refreshes the router, and returns the updated order", async () => {
