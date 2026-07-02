@@ -66,4 +66,16 @@ describe("proxy", () => {
     const response = await proxy(makeRequest("/tailor/queue", "token"));
     expect(response.headers.get("location")).toBeNull();
   });
+
+  it("lets an unauthenticated request through to a public order-tracking link", async () => {
+    vi.mocked(decrypt).mockResolvedValue(null);
+    const response = await proxy(makeRequest("/track/tok-abc123"));
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("lets a logged-in staff member open a public order-tracking link without redirecting them home", async () => {
+    vi.mocked(decrypt).mockResolvedValue({ staffId: "a1", username: "admin", role: "admin", name: "Admin" });
+    const response = await proxy(makeRequest("/track/tok-abc123", "token"));
+    expect(response.headers.get("location")).toBeNull();
+  });
 });

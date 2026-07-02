@@ -26,7 +26,7 @@ export default function NewOrderWizard() {
 
   const [step, setStep]             = useState(1);
   const [submitting, setSubmitting] = useState(false);
-  const [placedOrder, setPlacedOrder] = useState<{ id: string } | null>(null);
+  const [placedOrder, setPlacedOrder] = useState<{ id: string; publicToken: string } | null>(null);
 
   // Step 1 — customer + dress + material
   const [name, setName]             = useState("");
@@ -68,7 +68,7 @@ export default function NewOrderWizard() {
     setSubmitting(true);
     const activeItems = lineItems.filter((li) => li.qty > 0 && li.amount > 0);
     const id = `SDS-${String(Math.floor(Math.random() * 900) + 100)}`;
-    await createOrder({
+    const created = await createOrder({
       id,
       customer: name,
       phone,
@@ -88,11 +88,12 @@ export default function NewOrderWizard() {
       sketchDataUrl: sketch,
       referenceImageUrl: refImage,
     });
-    setPlacedOrder({ id });
+    setPlacedOrder({ id, publicToken: created.publicToken });
   }
 
   function handleShareOnWhatsApp() {
     if (!placedOrder) return;
+    const trackingUrl = `${window.location.origin}/track/${placedOrder.publicToken}`;
     const message = buildOrderWhatsAppMessage({
       orderId: placedOrder.id,
       customer: name,
@@ -100,6 +101,7 @@ export default function NewOrderWizard() {
       total,
       advance: parseFloat(advance || "0"),
       due: delivery,
+      trackingUrl,
     });
     window.open(buildWhatsAppShareUrl(phone, message), "_blank");
   }

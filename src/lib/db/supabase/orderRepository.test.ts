@@ -62,6 +62,7 @@ const orderRow = {
   sketch_data_url: "orders/SDS-001/sketch.png",
   reference_image_url: "orders/SDS-001/reference.jpg",
   created_at: "2026-06-01T00:00:00.000Z",
+  public_token: "9f2b3c4d-1111-2222-3333-444455556666",
 };
 
 const staffRows = [{ id: "m1", name: "Ramesh K." }];
@@ -217,6 +218,7 @@ describe("createSupabaseOrderRepository", () => {
     });
     expect(result.master).toEqual({ id: "m1", name: "Ramesh K." });
     expect(result.sketchDataUrl).toBe("https://signed.example/orders/SDS-001/sketch.png");
+    expect(result.publicToken).toBe("9f2b3c4d-1111-2222-3333-444455556666");
   });
 
   it("create throws on db error", async () => {
@@ -323,5 +325,50 @@ describe("createSupabaseOrderRepository", () => {
     from.mockReturnValue(fakeQuery({ data: null, error: { message: "delete failed" } }));
     const repo = createSupabaseOrderRepository();
     await expect(repo.delete("SDS-001")).rejects.toThrow("delete failed");
+  });
+
+  it("findByPublicToken looks up by the public_token column", async () => {
+    const ordersQuery = fakeQuery({ data: orderRow, error: null });
+    from.mockImplementation((table: string) => (table === "orders" ? ordersQuery : fakeQuery({ data: staffRows, error: null })));
+    const repo = createSupabaseOrderRepository();
+    await repo.findByPublicToken("9f2b3c4d-1111-2222-3333-444455556666");
+    expect(ordersQuery.eq).toHaveBeenCalledWith("public_token", "9f2b3c4d-1111-2222-3333-444455556666");
+  });
+
+  it("findByPublicToken never queries staff and strips master/tailor from the result", async () => {
+    const ordersQuery = fakeQuery({ data: orderRow, error: null });
+    from.mockImplementation((table: string) => (table === "orders" ? ordersQuery : fakeQuery({ data: staffRows, error: null })));
+    const repo = createSupabaseOrderRepository();
+    const result = await repo.findByPublicToken("9f2b3c4d-1111-2222-3333-444455556666");
+    expect(from).not.toHaveBeenCalledWith("staff");
+    expect(result).not.toHaveProperty("master");
+    expect(result).not.toHaveProperty("tailor");
+  });
+
+  it("findByPublicToken resolves image paths to signed URLs like findById", async () => {
+    mockTables({ data: orderRow, error: null });
+    const repo = createSupabaseOrderRepository();
+    const result = await repo.findByPublicToken("9f2b3c4d-1111-2222-3333-444455556666");
+    expect(result?.sketchDataUrl).toBe("https://signed.example/orders/SDS-001/sketch.png");
+    expect(result?.referenceImageUrl).toBe("https://signed.example/orders/SDS-001/reference.jpg");
+  });
+
+  it("findByPublicToken returns the rest of the order fields unchanged", async () => {
+    mockTables({ data: orderRow, error: null });
+    const repo = createSupabaseOrderRepository();
+    const result = await repo.findByPublicToken("9f2b3c4d-1111-2222-3333-444455556666");
+    expect(result).toMatchObject({ id: "SDS-001", customer: "Priya", amount: 1000, advance: 300 });
+  });
+
+  it("findByPublicToken returns null when the token doesn't match any order", async () => {
+    mockTables({ data: null, error: null });
+    const repo = createSupabaseOrderRepository();
+    expect(await repo.findByPublicToken("missing-token")).toBeNull();
+  });
+
+  it("findByPublicToken throws on db error", async () => {
+    mockTables({ data: null, error: { message: "token lookup failed" } });
+    const repo = createSupabaseOrderRepository();
+    await expect(repo.findByPublicToken("bad")).rejects.toThrow("token lookup failed");
   });
 });

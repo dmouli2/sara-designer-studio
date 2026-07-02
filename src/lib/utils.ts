@@ -15,6 +15,15 @@ export function formatDate(dateStr: string) {
   return date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
+// Returns the calendar day before `dateStr` (both "YYYY-MM-DD"), computed in
+// UTC so it isn't shifted by the browser's local timezone.
+export function oneDayBefore(dateStr: string): string {
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
 // Accepts a 10-digit Indian mobile number, optionally prefixed with +91, 91, or 0.
 export function isValidIndianMobile(phone: string): boolean {
   const digitsOnly = phone.replace(/[\s-]/g, "");
@@ -35,6 +44,7 @@ export interface OrderShareDetails {
   total: number;
   advance: number;
   due: string;
+  trackingUrl: string;
 }
 
 // Same policy notes printed on the physical order form/receipt.
@@ -56,6 +66,9 @@ export function buildOrderWhatsAppMessage(details: OrderShareDetails): string {
     `Advance paid: ${formatCurrency(details.advance)}`,
     `Balance due: ${formatCurrency(balance > 0 ? balance : 0)}`,
     `Delivery date: ${formatDate(details.due)}`,
+    `Reminder: We'll notify you on ${formatDate(oneDayBefore(details.due))}, a day before delivery`,
+    "",
+    `Track your order here: ${details.trackingUrl}`,
     "",
     "Thank you for choosing us!",
     "",

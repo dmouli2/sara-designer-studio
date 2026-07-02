@@ -47,13 +47,22 @@ export interface OrderWriteInput extends Omit<Order, "master" | "tailor" | "crea
 
 export type OrderUpdateInput = Partial<OrderWriteInput>;
 
+// The customer-facing tracking link (src/app/track/[token]/) is looked up by
+// this token, never by the guessable SDS-xxx order id. Excludes master/tailor
+// so internal staff identities never reach an unauthenticated visitor.
+export type PublicOrder = Omit<Order, "master" | "tailor">;
+
 export interface OrderRepository {
   list(): Promise<Order[]>;
   findById(id: string): Promise<Order | null>;
-  create(input: OrderWriteInput): Promise<Order>;
+  // Only the create response carries the freshly generated public_token —
+  // it's shown to staff once, right after placing the order, to build the
+  // WhatsApp tracking link. No other read path needs it.
+  create(input: OrderWriteInput): Promise<Order & { publicToken: string }>;
   update(id: string, patch: OrderUpdateInput): Promise<Order>;
   updateStatus(id: string, status: OrderStatus, extra?: OrderUpdateInput): Promise<Order>;
   delete(id: string): Promise<void>;
+  findByPublicToken(token: string): Promise<PublicOrder | null>;
 }
 
 export interface Database {

@@ -3,6 +3,7 @@ import {
   cn,
   formatCurrency,
   formatDate,
+  oneDayBefore,
   isValidIndianMobile,
   toIndianMobileDigits,
   buildOrderWhatsAppMessage,
@@ -37,6 +38,24 @@ describe("formatDate", () => {
 
   it("formats an ISO date string", () => {
     expect(formatDate("2026-07-10")).toBe("10 Jul 2026");
+  });
+});
+
+describe("oneDayBefore", () => {
+  it("returns an empty string for empty input", () => {
+    expect(oneDayBefore("")).toBe("");
+  });
+
+  it("returns the previous calendar day", () => {
+    expect(oneDayBefore("2026-07-10")).toBe("2026-07-09");
+  });
+
+  it("rolls back across a month boundary", () => {
+    expect(oneDayBefore("2026-08-01")).toBe("2026-07-31");
+  });
+
+  it("rolls back across a year boundary", () => {
+    expect(oneDayBefore("2026-01-01")).toBe("2025-12-31");
   });
 });
 
@@ -103,6 +122,7 @@ describe("buildOrderWhatsAppMessage", () => {
       total: 4200,
       advance: 1000,
       due: "2026-07-10",
+      trackingUrl: "https://sara-designer-studio.vercel.app/track/abc-123",
     });
     expect(message).toContain("Priya Sharma");
     expect(message).toContain("SDS-101");
@@ -111,6 +131,20 @@ describe("buildOrderWhatsAppMessage", () => {
     expect(message).toContain("Advance paid: ₹1,000");
     expect(message).toContain("Balance due: ₹3,200");
     expect(message).toContain("Delivery date: 10 Jul 2026");
+    expect(message).toContain("Reminder: We'll notify you on 9 Jul 2026, a day before delivery");
+  });
+
+  it("rolls the reminder date back across a month boundary", () => {
+    const message = buildOrderWhatsAppMessage({
+      orderId: "SDS-101",
+      customer: "Priya",
+      dress: "Blouse",
+      total: 1000,
+      advance: 1000,
+      due: "2026-08-01",
+      trackingUrl: "https://sara-designer-studio.vercel.app/track/abc-123",
+    });
+    expect(message).toContain("Reminder: We'll notify you on 31 Jul 2026, a day before delivery");
   });
 
   it("floors the balance at zero when the order is fully paid", () => {
@@ -121,8 +155,22 @@ describe("buildOrderWhatsAppMessage", () => {
       total: 1000,
       advance: 1000,
       due: "2026-07-10",
+      trackingUrl: "https://sara-designer-studio.vercel.app/track/abc-123",
     });
     expect(message).toContain("Balance due: ₹0");
+  });
+
+  it("includes the tracking link", () => {
+    const message = buildOrderWhatsAppMessage({
+      orderId: "SDS-101",
+      customer: "Priya",
+      dress: "Blouse",
+      total: 1000,
+      advance: 1000,
+      due: "2026-07-10",
+      trackingUrl: "https://sara-designer-studio.vercel.app/track/abc-123",
+    });
+    expect(message).toContain("Track your order here: https://sara-designer-studio.vercel.app/track/abc-123");
   });
 
   it("includes the numbered order-form policy notes", () => {
@@ -133,6 +181,7 @@ describe("buildOrderWhatsAppMessage", () => {
       total: 1000,
       advance: 1000,
       due: "2026-07-10",
+      trackingUrl: "https://sara-designer-studio.vercel.app/track/abc-123",
     });
     expect(message).toContain("Note:");
     ORDER_TERMS.forEach((term, i) => {

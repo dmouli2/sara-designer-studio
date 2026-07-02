@@ -5,6 +5,14 @@ import type { Role } from "@/types";
 
 const PUBLIC_ROUTES = ["/login"];
 
+// Customer order-tracking link (src/app/track/[token]/) — public regardless
+// of session state. Kept separate from PUBLIC_ROUTES since, unlike /login,
+// a logged-in staff member opening this link should NOT be bounced to their
+// role home; the route itself never touches the auth cookie.
+function isPublicTrackRoute(pathname: string): boolean {
+  return pathname.startsWith("/track/");
+}
+
 function roleHome(role: Role): string {
   return role === "admin" ? "/admin" : `/${role}/queue`;
 }
@@ -18,7 +26,7 @@ export async function proxy(request: NextRequest) {
   const session = await decrypt(token);
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
 
-  if (!isPublicRoute && !session) {
+  if (!isPublicRoute && !isPublicTrackRoute(pathname) && !session) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

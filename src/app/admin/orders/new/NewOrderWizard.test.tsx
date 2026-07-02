@@ -23,7 +23,7 @@ async function fillDeliveryDate(user: ReturnType<typeof userEvent.setup>, value 
 describe("NewOrderWizard", () => {
   beforeEach(() => {
     vi.mocked(createOrder).mockReset();
-    vi.mocked(createOrder).mockResolvedValue({} as never);
+    vi.mocked(createOrder).mockResolvedValue({ publicToken: "tok-abc123" } as never);
   });
 
   it("shows step 1 with the Next button disabled until name and phone are filled", async () => {
@@ -188,6 +188,7 @@ describe("NewOrderWizard", () => {
     expect(openSpy).toHaveBeenCalledTimes(1);
     const [url, target] = openSpy.mock.calls[0];
     expect(url).toContain("https://wa.me/919999999999");
+    expect(decodeURIComponent(url as string)).toContain("/track/tok-abc123");
     expect(target).toBe("_blank");
     openSpy.mockRestore();
   });

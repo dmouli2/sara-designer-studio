@@ -45,7 +45,7 @@ export async function getOrder(id: string): Promise<Order | null> {
   return getDb().orders.findById(id);
 }
 
-export async function createOrder(input: OrderWriteInput): Promise<Order> {
+export async function createOrder(input: OrderWriteInput): Promise<Order & { publicToken: string }> {
   await requireRole(["admin"]);
   if (!input.due) {
     throw new Error("Delivery date is required.");

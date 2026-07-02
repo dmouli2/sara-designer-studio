@@ -21,6 +21,7 @@ interface OrderRow {
   sketch_data_url: string | null;
   reference_image_url: string | null;
   created_at: string;
+  public_token: string;
 }
 
 // Columns selected for list views, which never render sketch/reference images —
@@ -158,7 +159,8 @@ export function createSupabaseOrderRepository(): OrderRepository {
       if (error) throw new Error(error.message);
       const row = data as OrderRow;
       const names = await resolveNames([row.master_id, row.tailor_id]);
-      return toOrderWithImages(row, names);
+      const order = await toOrderWithImages(row, names);
+      return { ...order, publicToken: row.public_token };
     },
 
     async update(id: string, patch: OrderUpdateInput) {
@@ -181,6 +183,24 @@ export function createSupabaseOrderRepository(): OrderRepository {
     async delete(id: string) {
       const { error } = await getSupabaseClient().from("orders").delete().eq("id", id);
       if (error) throw new Error(error.message);
+    },
+
+    // Public route lookup (src/app/track/[token]/) — deliberately skips
+    // resolveNames (empty map) so master/tailor identities are never even
+    // fetched, then strips them from the response as defense in depth.
+    async findByPublicToken(token: string) {
+      const { data, error } = await getSupabaseClient()
+        .from("orders")
+        .select("*")
+        .eq("public_token", token)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data) return null;
+      const row = data as OrderRow;
+      const order = await toOrderWithImages(row, new Map());
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { master, tailor, ...publicOrder } = order;
+      return publicOrder;
     },
   };
 }
