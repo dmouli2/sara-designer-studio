@@ -2,8 +2,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { requireRole } from "@/lib/dal";
 import { getDb } from "@/lib/db";
 import { getImageStorage } from "@/lib/storage";
-import { getOrders, getOrder, createOrder, assignStaff, updateOrderStatus, deleteOrder } from "./orders";
+import {
+  getOrders,
+  getOrder,
+  createOrder,
+  assignMaster,
+  assignTailor,
+  updateOrderStatus,
+  cancelOrder,
+  deleteOrder,
+} from "./orders";
 import { mockRefresh } from "../../../vitest.setup";
+import { MAX_REFERENCE_IMAGES } from "@/types";
 import type { GarmentMeasurements, OrderLineItem, Order } from "@/types";
 
 vi.mock("@/lib/dal", () => ({ requireRole: vi.fn() }));
@@ -40,14 +50,16 @@ const order: Order = {
   lineItems,
   notes: "",
   sketchDataUrl: null,
-  referenceImageUrl: null,
+  referenceImageUrls: [],
+  cancellationCharge: null,
   createdAt: "2026-06-01T00:00:00.000Z",
 };
 
-// The server allocates the id (via nextOrderId) — callers of createOrder
-// never supply one.
-const { id: _omittedId, ...orderInput } = order;
+// The server allocates the id (via nextOrderId) and cancellationCharge only
+// ever gets set via cancelOrder — callers of createOrder supply neither.
+const { id: _omittedId, cancellationCharge: _omittedCharge, ...orderInput } = order;
 void _omittedId;
+void _omittedCharge;
 
 describe("orders actions", () => {
   const list = vi.fn();
@@ -105,7 +117,7 @@ describe("orders actions", () => {
     const result = await createOrder({ ...orderInput, masterId: null, tailorId: null });
     expect(requireRole).toHaveBeenCalledWith(["admin"]);
     expect(nextOrderId).toHaveBeenCalledWith("Blouse");
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({ id: "SDS-001" }));
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ id: "SDS-001", cancellationCharge: null }));
     expect(result).toEqual(order);
   });
 
@@ -125,25 +137,50 @@ describe("orders actions", () => {
       masterId: null,
       tailorId: null,
       sketchDataUrl: "data:image/png;base64,aGVsbG8=",
-      referenceImageUrl: "data:image/jpeg;base64,d29ybGQ=",
+      referenceImageUrls: ["data:image/jpeg;base64,d29ybGQ=", "data:image/jpeg;base64,dGVzdA=="],
     });
 
     expect(upload).toHaveBeenCalledWith("orders/SDS-001/sketch.png", "data:image/png;base64,aGVsbG8=");
-    expect(upload).toHaveBeenCalledWith("orders/SDS-001/reference.jpg", "data:image/jpeg;base64,d29ybGQ=");
+    expect(upload).toHaveBeenCalledWith("orders/SDS-001/reference-1.jpg", "data:image/jpeg;base64,d29ybGQ=");
+    expect(upload).toHaveBeenCalledWith("orders/SDS-001/reference-2.jpg", "data:image/jpeg;base64,dGVzdA==");
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         sketchDataUrl: "orders/SDS-001/sketch.png",
-        referenceImageUrl: "orders/SDS-001/reference.jpg",
+        referenceImageUrls: ["orders/SDS-001/reference-1.jpg", "orders/SDS-001/reference-2.jpg"],
       })
     );
   });
 
+  it("createOrder caps uploaded reference images to the max allowed", async () => {
+    create.mockResolvedValue(order);
+    const tooMany = Array.from({ length: MAX_REFERENCE_IMAGES + 2 }, (_, i) => `data:image/jpeg;base64,img${i}`);
+    await createOrder({ ...orderInput, masterId: null, tailorId: null, referenceImageUrls: tooMany });
+
+    expect(upload).toHaveBeenCalledTimes(MAX_REFERENCE_IMAGES);
+    const created = create.mock.calls[0][0];
+    expect(created.referenceImageUrls).toHaveLength(MAX_REFERENCE_IMAGES);
+  });
+
   it("createOrder skips uploads when no image data is provided", async () => {
     create.mockResolvedValue(order);
-    await createOrder({ ...orderInput, masterId: null, tailorId: null, sketchDataUrl: null, referenceImageUrl: null });
+    await createOrder({ ...orderInput, masterId: null, tailorId: null, sketchDataUrl: null, referenceImageUrls: [] });
     expect(upload).not.toHaveBeenCalled();
     expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ sketchDataUrl: null, referenceImageUrl: null })
+      expect.objectContaining({ sketchDataUrl: null, referenceImageUrls: [] })
+    );
+  });
+
+  it("createOrder leaves an already-stored reference image path untouched instead of re-uploading it", async () => {
+    create.mockResolvedValue(order);
+    await createOrder({
+      ...orderInput,
+      masterId: null,
+      tailorId: null,
+      referenceImageUrls: ["orders/SDS-001/reference-1.jpg"],
+    });
+    expect(upload).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ referenceImageUrls: ["orders/SDS-001/reference-1.jpg"] })
     );
   });
 
@@ -155,13 +192,58 @@ describe("orders actions", () => {
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ id: "S2131" }));
   });
 
-  it("assignStaff requires admin, updates master/tailor ids, refreshes the router, and returns the updated order", async () => {
-    update.mockResolvedValue(order);
-    const result = await assignStaff("SDS-001", "m1", "t1");
+  it("assignMaster requires admin, saves the assignment, and auto-advances a new order to cutting", async () => {
+    findById.mockResolvedValue({ ...order, status: "new" });
+    update.mockResolvedValue({ ...order, status: "cutting" });
+    const result = await assignMaster("SDS-001", "m1");
     expect(requireRole).toHaveBeenCalledWith(["admin"]);
-    expect(update).toHaveBeenCalledWith("SDS-001", { masterId: "m1", tailorId: "t1" });
+    expect(findById).toHaveBeenCalledWith("SDS-001");
+    expect(update).toHaveBeenCalledWith("SDS-001", { masterId: "m1", status: "cutting" });
     expect(mockRefresh).toHaveBeenCalled();
-    expect(result).toEqual(order);
+    expect(result.status).toBe("cutting");
+  });
+
+  it("assignMaster does not change status when the order has already moved past new", async () => {
+    findById.mockResolvedValue({ ...order, status: "stitching" });
+    update.mockResolvedValue({ ...order, status: "stitching" });
+    await assignMaster("SDS-001", "m2");
+    expect(update).toHaveBeenCalledWith("SDS-001", { masterId: "m2" });
+  });
+
+  it("assignMaster does not advance status when clearing the assignment", async () => {
+    findById.mockResolvedValue({ ...order, status: "new" });
+    update.mockResolvedValue(order);
+    await assignMaster("SDS-001", null);
+    expect(update).toHaveBeenCalledWith("SDS-001", { masterId: null });
+  });
+
+  it("assignMaster throws when the order doesn't exist", async () => {
+    findById.mockResolvedValue(null);
+    await expect(assignMaster("missing", "m1")).rejects.toThrow("Order not found.");
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("assignTailor requires admin, saves the assignment, and auto-advances a cutting_done order to stitching", async () => {
+    findById.mockResolvedValue({ ...order, status: "cutting_done" });
+    update.mockResolvedValue({ ...order, status: "stitching" });
+    const result = await assignTailor("SDS-001", "t1");
+    expect(requireRole).toHaveBeenCalledWith(["admin"]);
+    expect(update).toHaveBeenCalledWith("SDS-001", { tailorId: "t1", status: "stitching" });
+    expect(mockRefresh).toHaveBeenCalled();
+    expect(result.status).toBe("stitching");
+  });
+
+  it("assignTailor does not change status when cutting isn't done yet", async () => {
+    findById.mockResolvedValue({ ...order, status: "cutting" });
+    update.mockResolvedValue({ ...order, status: "cutting" });
+    await assignTailor("SDS-001", "t1");
+    expect(update).toHaveBeenCalledWith("SDS-001", { tailorId: "t1" });
+  });
+
+  it("assignTailor throws when the order doesn't exist", async () => {
+    findById.mockResolvedValue(null);
+    await expect(assignTailor("missing", "t1")).rejects.toThrow("Order not found.");
+    expect(update).not.toHaveBeenCalled();
   });
 
   it("updateOrderStatus allows any staff role, updates status, refreshes the router, and returns the updated order", async () => {
@@ -174,12 +256,41 @@ describe("orders actions", () => {
     expect(result).toEqual(order);
   });
 
-  it("deleteOrder requires admin, permanently deletes the order, and cleans up its stored images", async () => {
+  it("cancelOrder requires admin, sets status to cancelled with the charge, refreshes the router, and returns the updated order", async () => {
+    updateStatus.mockResolvedValue({ ...order, status: "cancelled", cancellationCharge: 500 });
+    const result = await cancelOrder("SDS-001", 500);
+    expect(requireRole).toHaveBeenCalledWith(["admin"]);
+    expect(updateStatus).toHaveBeenCalledWith("SDS-001", "cancelled", { cancellationCharge: 500 });
+    expect(mockRefresh).toHaveBeenCalled();
+    expect(result.status).toBe("cancelled");
+    expect(result.cancellationCharge).toBe(500);
+  });
+
+  it("cancelOrder rejects a negative charge without touching the database", async () => {
+    await expect(cancelOrder("SDS-001", -10)).rejects.toThrow("Enter a valid cancellation charge.");
+    expect(updateStatus).not.toHaveBeenCalled();
+  });
+
+  it("cancelOrder rejects a non-finite charge without touching the database", async () => {
+    await expect(cancelOrder("SDS-001", NaN)).rejects.toThrow("Enter a valid cancellation charge.");
+    expect(updateStatus).not.toHaveBeenCalled();
+  });
+
+  it("cancelOrder accepts a zero charge", async () => {
+    updateStatus.mockResolvedValue({ ...order, status: "cancelled", cancellationCharge: 0 });
+    await cancelOrder("SDS-001", 0);
+    expect(updateStatus).toHaveBeenCalledWith("SDS-001", "cancelled", { cancellationCharge: 0 });
+  });
+
+  it("deleteOrder requires admin, permanently deletes the order, and cleans up all its stored images", async () => {
     deleteFn.mockResolvedValue(undefined);
     await deleteOrder("SDS-001");
     expect(requireRole).toHaveBeenCalledWith(["admin"]);
     expect(deleteFn).toHaveBeenCalledWith("SDS-001");
     expect(storageDelete).toHaveBeenCalledWith("orders/SDS-001/sketch.png");
-    expect(storageDelete).toHaveBeenCalledWith("orders/SDS-001/reference.jpg");
+    expect(storageDelete).toHaveBeenCalledTimes(MAX_REFERENCE_IMAGES + 1);
+    for (let i = 1; i <= MAX_REFERENCE_IMAGES; i++) {
+      expect(storageDelete).toHaveBeenCalledWith(`orders/SDS-001/reference-${i}.jpg`);
+    }
   });
 });

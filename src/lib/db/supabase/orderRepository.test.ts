@@ -60,7 +60,8 @@ const orderRow = {
   line_items: lineItems,
   notes: "",
   sketch_data_url: "orders/SDS-001/sketch.png",
-  reference_image_url: "orders/SDS-001/reference.jpg",
+  reference_image_urls: ["orders/SDS-001/reference-1.jpg", "orders/SDS-001/reference-2.jpg"],
+  cancellation_charge: null,
   created_at: "2026-06-01T00:00:00.000Z",
   public_token: "9f2b3c4d-1111-2222-3333-444455556666",
 };
@@ -103,12 +104,12 @@ describe("createSupabaseOrderRepository", () => {
     expect(selectArg).not.toContain("reference_image_url");
   });
 
-  it("list always returns null image fields and never resolves signed URLs", async () => {
+  it("list always returns empty/null image fields and never resolves signed URLs", async () => {
     mockTables({ data: [orderRow], error: null });
     const repo = createSupabaseOrderRepository();
     const result = await repo.list();
     expect(result[0].sketchDataUrl).toBeNull();
-    expect(result[0].referenceImageUrl).toBeNull();
+    expect(result[0].referenceImageUrls).toEqual([]);
     expect(getSignedUrl).not.toHaveBeenCalled();
   });
 
@@ -164,17 +165,31 @@ describe("createSupabaseOrderRepository", () => {
     const repo = createSupabaseOrderRepository();
     const result = await repo.findById("SDS-001");
     expect(getSignedUrl).toHaveBeenCalledWith("orders/SDS-001/sketch.png");
-    expect(getSignedUrl).toHaveBeenCalledWith("orders/SDS-001/reference.jpg");
+    expect(getSignedUrl).toHaveBeenCalledWith("orders/SDS-001/reference-1.jpg");
+    expect(getSignedUrl).toHaveBeenCalledWith("orders/SDS-001/reference-2.jpg");
     expect(result?.sketchDataUrl).toBe("https://signed.example/orders/SDS-001/sketch.png");
-    expect(result?.referenceImageUrl).toBe("https://signed.example/orders/SDS-001/reference.jpg");
+    expect(result?.referenceImageUrls).toEqual([
+      "https://signed.example/orders/SDS-001/reference-1.jpg",
+      "https://signed.example/orders/SDS-001/reference-2.jpg",
+    ]);
   });
 
-  it("findById leaves image fields null when no path is stored", async () => {
-    mockTables({ data: { ...orderRow, sketch_data_url: null, reference_image_url: null }, error: null });
+  it("findById drops any reference image whose signed URL failed to resolve", async () => {
+    getSignedUrl.mockImplementation(async (path: string) =>
+      path.endsWith("reference-2.jpg") ? null : `https://signed.example/${path}`
+    );
+    mockTables({ data: orderRow, error: null });
+    const repo = createSupabaseOrderRepository();
+    const result = await repo.findById("SDS-001");
+    expect(result?.referenceImageUrls).toEqual(["https://signed.example/orders/SDS-001/reference-1.jpg"]);
+  });
+
+  it("findById leaves image fields empty/null when none are stored", async () => {
+    mockTables({ data: { ...orderRow, sketch_data_url: null, reference_image_urls: [] }, error: null });
     const repo = createSupabaseOrderRepository();
     const result = await repo.findById("SDS-001");
     expect(result?.sketchDataUrl).toBeNull();
-    expect(result?.referenceImageUrl).toBeNull();
+    expect(result?.referenceImageUrls).toEqual([]);
     expect(getSignedUrl).not.toHaveBeenCalled();
   });
 
@@ -183,6 +198,13 @@ describe("createSupabaseOrderRepository", () => {
     const repo = createSupabaseOrderRepository();
     const result = await repo.findById("SDS-001");
     expect(result?.master).toEqual({ id: "m1", name: "Ramesh K." });
+  });
+
+  it("findById maps cancellationCharge from the row", async () => {
+    mockTables({ data: { ...orderRow, cancellation_charge: 500 }, error: null });
+    const repo = createSupabaseOrderRepository();
+    const result = await repo.findById("SDS-001");
+    expect(result?.cancellationCharge).toBe(500);
   });
 
   it("findById returns null when not found", async () => {
@@ -216,7 +238,8 @@ describe("createSupabaseOrderRepository", () => {
       lineItems,
       notes: "",
       sketchDataUrl: "orders/SDS-001/sketch.png",
-      referenceImageUrl: "orders/SDS-001/reference.jpg",
+      referenceImageUrls: ["orders/SDS-001/reference-1.jpg", "orders/SDS-001/reference-2.jpg"],
+      cancellationCharge: null,
     });
     expect(result.master).toEqual({ id: "m1", name: "Ramesh K." });
     expect(result.sketchDataUrl).toBe("https://signed.example/orders/SDS-001/sketch.png");
@@ -241,7 +264,8 @@ describe("createSupabaseOrderRepository", () => {
         lineItems,
         notes: "",
         sketchDataUrl: null,
-        referenceImageUrl: null,
+        referenceImageUrls: [],
+        cancellationCharge: null,
       })
     ).rejects.toThrow("insert failed");
   });
@@ -277,7 +301,8 @@ describe("createSupabaseOrderRepository", () => {
       lineItems,
       notes: "handle with care",
       sketchDataUrl: "orders/SDS-001/sketch.png",
-      referenceImageUrl: "orders/SDS-001/reference.jpg",
+      referenceImageUrls: ["orders/SDS-001/reference-1.jpg"],
+      cancellationCharge: 500,
     });
     expect(ordersQuery.update).toHaveBeenCalledWith({
       customer: "New Customer",
@@ -294,7 +319,8 @@ describe("createSupabaseOrderRepository", () => {
       line_items: lineItems,
       notes: "handle with care",
       sketch_data_url: "orders/SDS-001/sketch.png",
-      reference_image_url: "orders/SDS-001/reference.jpg",
+      reference_image_urls: ["orders/SDS-001/reference-1.jpg"],
+      cancellation_charge: 500,
     });
   });
 
@@ -352,7 +378,10 @@ describe("createSupabaseOrderRepository", () => {
     const repo = createSupabaseOrderRepository();
     const result = await repo.findByPublicToken("9f2b3c4d-1111-2222-3333-444455556666");
     expect(result?.sketchDataUrl).toBe("https://signed.example/orders/SDS-001/sketch.png");
-    expect(result?.referenceImageUrl).toBe("https://signed.example/orders/SDS-001/reference.jpg");
+    expect(result?.referenceImageUrls).toEqual([
+      "https://signed.example/orders/SDS-001/reference-1.jpg",
+      "https://signed.example/orders/SDS-001/reference-2.jpg",
+    ]);
   });
 
   it("findByPublicToken returns the rest of the order fields unchanged", async () => {

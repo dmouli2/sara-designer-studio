@@ -23,7 +23,8 @@ const baseOrder: Order = {
   lineItems: [],
   notes: "",
   sketchDataUrl: null,
-  referenceImageUrl: null,
+  referenceImageUrls: [],
+  cancellationCharge: null,
   createdAt: "2026-06-24",
 };
 
@@ -85,6 +86,20 @@ describe("OrderCard", () => {
     render(<OrderCard order={order} />);
     expect(screen.getByText("₹1,800")).toBeInTheDocument();
     expect(screen.queryByText(/^Bal/)).not.toBeInTheDocument();
+  });
+
+  it("strikes through the original amount and shows the cancellation charge for a cancelled order", () => {
+    const order: Order = { ...baseOrder, status: "cancelled", amount: 4200, cancellationCharge: 500 };
+    render(<OrderCard order={order} />);
+    expect(screen.getByText("₹4,200")).toHaveClass("line-through");
+    expect(screen.getByText("₹500")).toBeInTheDocument();
+    expect(screen.queryByText(/^Bal/)).not.toBeInTheDocument();
+  });
+
+  it("treats a missing cancellationCharge as zero for a cancelled order", () => {
+    const order: Order = { ...baseOrder, status: "cancelled", cancellationCharge: null };
+    render(<OrderCard order={order} />);
+    expect(screen.getByText("₹0")).toBeInTheDocument();
   });
 
   it("hides price entirely when showPrice is false", () => {

@@ -4,7 +4,12 @@ export type OrderStatus =
   | "cutting_done"
   | "stitching"
   | "ready"
-  | "delivered";
+  | "delivered"
+  | "cancelled";
+
+// Max reference photos a single order may carry — enforced in
+// ReferenceImageUpload (client) and storeReferenceImages (server action).
+export const MAX_REFERENCE_IMAGES = 8;
 
 export type Role = "admin" | "master" | "tailor";
 
@@ -112,6 +117,7 @@ export interface Order {
   lineItems: OrderLineItem[];
   notes: string;
   sketchDataUrl: string | null;
-  referenceImageUrl: string | null;
+  referenceImageUrls: string[];   // gallery, max MAX_REFERENCE_IMAGES
+  cancellationCharge: number | null;
   createdAt: string;
 }

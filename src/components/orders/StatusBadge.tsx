@@ -8,6 +8,7 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; cls: string }> = {
   stitching:    { label: "Stitching",    cls: "badge-stitching" },
   ready:        { label: "Ready",        cls: "badge-ready" },
   delivered:    { label: "Delivered",    cls: "badge-delivered" },
+  cancelled:    { label: "Cancelled",    cls: "badge-cancelled" },
 };
 
 export default function StatusBadge({ status }: { status: OrderStatus }) {

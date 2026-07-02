@@ -11,6 +11,7 @@ interface OrderCardProps {
 }
 
 export default function OrderCard({ order, onClick, className, showPrice = true }: OrderCardProps) {
+  const isCancelled = order.status === "cancelled";
   const balance = order.amount - order.advance;
   const isNew = order.status === "new";
 
@@ -64,11 +65,22 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
         <span className="text-[12px] text-[#9A9A9A]">Due {formatDate(order.due)}</span>
         {showPrice && (
           <div className="text-right">
-            <p className="text-[15px] font-semibold text-[#0F0F0F]">{formatCurrency(order.amount)}</p>
-            {balance > 0 && (
-              <p className="text-[11px] text-[#C9A84C] font-medium">
-                Bal {formatCurrency(balance)}
-              </p>
+            {isCancelled ? (
+              <>
+                <p className="text-[13px] text-[#9A9A9A] line-through">{formatCurrency(order.amount)}</p>
+                <p className="text-[13px] font-semibold text-[#B04A4A]">
+                  {formatCurrency(order.cancellationCharge ?? 0)}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-[15px] font-semibold text-[#0F0F0F]">{formatCurrency(order.amount)}</p>
+                {balance > 0 && (
+                  <p className="text-[11px] text-[#C9A84C] font-medium">
+                    Bal {formatCurrency(balance)}
+                  </p>
+                )}
+              </>
             )}
           </div>
         )}

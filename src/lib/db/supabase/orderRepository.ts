@@ -19,7 +19,8 @@ interface OrderRow {
   line_items: OrderLineItem[];
   notes: string;
   sketch_data_url: string | null;
-  reference_image_url: string | null;
+  reference_image_urls: string[];
+  cancellation_charge: number | null;
   created_at: string;
   public_token: string;
 }
@@ -27,7 +28,7 @@ interface OrderRow {
 // Columns selected for list views, which never render sketch/reference images —
 // keeps those (potentially large, pre-Storage-migration) values off the wire.
 const LIST_COLUMNS =
-  "id, customer, phone, dress, material, status, amount, advance, due, master_id, tailor_id, measurements, line_items, notes, created_at";
+  "id, customer, phone, dress, material, status, amount, advance, due, master_id, tailor_id, measurements, line_items, notes, cancellation_charge, created_at";
 
 async function resolveNames(ids: (string | null)[]): Promise<Map<string, string>> {
   const uniqueIds = [...new Set(ids.filter((id): id is string => !!id))];
@@ -61,24 +62,33 @@ function toOrder(row: OrderRow, names: Map<string, string>): Order {
     lineItems: row.line_items,
     notes: row.notes,
     sketchDataUrl: row.sketch_data_url,
-    referenceImageUrl: row.reference_image_url,
+    referenceImageUrls: row.reference_image_urls,
+    cancellationCharge: row.cancellation_charge,
     createdAt: row.created_at,
   };
 }
 
-// `sketch_data_url`/`reference_image_url` hold Storage paths, not image bytes —
-// resolve them to fetchable (signed) URLs for anything that renders the image.
+// `sketch_data_url`/`reference_image_urls` hold Storage paths, not image
+// bytes — resolve them to fetchable (signed) URLs for anything that renders
+// the image(s).
 async function resolveImageUrl(path: string | null): Promise<string | null> {
   if (!path) return null;
   return getImageStorage().getSignedUrl(path);
 }
 
+// Drops any path whose signed URL failed to resolve rather than surfacing a
+// null into an array the UI expects to be all valid image URLs.
+async function resolveImageUrls(paths: string[]): Promise<string[]> {
+  const urls = await Promise.all(paths.map((path) => getImageStorage().getSignedUrl(path)));
+  return urls.filter((url): url is string => url !== null);
+}
+
 async function toOrderWithImages(row: OrderRow, names: Map<string, string>): Promise<Order> {
-  const [sketchDataUrl, referenceImageUrl] = await Promise.all([
+  const [sketchDataUrl, referenceImageUrls] = await Promise.all([
     resolveImageUrl(row.sketch_data_url),
-    resolveImageUrl(row.reference_image_url),
+    resolveImageUrls(row.reference_image_urls),
   ]);
-  return { ...toOrder(row, names), sketchDataUrl, referenceImageUrl };
+  return { ...toOrder(row, names), sketchDataUrl, referenceImageUrls };
 }
 
 function toInsertRow(input: OrderWriteInput) {
@@ -98,7 +108,8 @@ function toInsertRow(input: OrderWriteInput) {
     line_items: input.lineItems,
     notes: input.notes,
     sketch_data_url: input.sketchDataUrl,
-    reference_image_url: input.referenceImageUrl,
+    reference_image_urls: input.referenceImageUrls,
+    cancellation_charge: input.cancellationCharge,
   };
 }
 
@@ -118,7 +129,8 @@ function toUpdateRow(patch: OrderUpdateInput): Record<string, unknown> {
   if (patch.lineItems !== undefined) row.line_items = patch.lineItems;
   if (patch.notes !== undefined) row.notes = patch.notes;
   if (patch.sketchDataUrl !== undefined) row.sketch_data_url = patch.sketchDataUrl;
-  if (patch.referenceImageUrl !== undefined) row.reference_image_url = patch.referenceImageUrl;
+  if (patch.referenceImageUrls !== undefined) row.reference_image_urls = patch.referenceImageUrls;
+  if (patch.cancellationCharge !== undefined) row.cancellation_charge = patch.cancellationCharge;
   return row;
 }
 
@@ -130,10 +142,10 @@ export function createSupabaseOrderRepository(): OrderRepository {
         .select(LIST_COLUMNS)
         .order("created_at", { ascending: false });
       if (error) throw new Error(error.message);
-      const rows = (data ?? []) as Omit<OrderRow, "sketch_data_url" | "reference_image_url">[];
+      const rows = (data ?? []) as Omit<OrderRow, "sketch_data_url" | "reference_image_urls">[];
       const names = await resolveNames(rows.flatMap((r) => [r.master_id, r.tailor_id]));
       return rows.map((row) =>
-        toOrder({ ...row, sketch_data_url: null, reference_image_url: null }, names)
+        toOrder({ ...row, sketch_data_url: null, reference_image_urls: [] }, names)
       );
     },
 
