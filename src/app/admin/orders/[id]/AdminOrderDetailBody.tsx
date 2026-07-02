@@ -2,22 +2,28 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Trash2, Ban } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/orders/StatusBadge";
 import MeasurementGrid from "@/components/orders/MeasurementGrid";
 import ProgressTracker from "@/components/orders/ProgressTracker";
+import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
 import ConfirmDialog from "@/components/layout/ConfirmDialog";
-import { assignStaff, updateOrderStatus, deleteOrder } from "@/app/actions/orders";
+import CancelOrderDialog from "@/components/orders/CancelOrderDialog";
+import { assignMaster, assignTailor, updateOrderStatus, cancelOrder, deleteOrder } from "@/app/actions/orders";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Order, OrderStatus } from "@/types";
 import type { StaffListItem } from "@/app/actions/staff";
 
-const STATUS_TRANSITIONS: { from: OrderStatus[]; to: OrderStatus; label: string }[] = [
-  { from: ["new"],          to: "cutting",   label: "Move to Cutting" },
-  { from: ["cutting_done"], to: "stitching", label: "Move to Stitching" },
-  { from: ["stitching"],    to: "ready",     label: "Mark Ready for Pickup" },
-  { from: ["ready"],        to: "delivered", label: "Mark as Delivered" },
+// Admin can move an order to any of these directly — cancellation is
+// handled separately (below) since it also needs a charge amount.
+const STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
+  { value: "new",          label: "New" },
+  { value: "cutting",      label: "Cutting" },
+  { value: "cutting_done", label: "Cutting Done" },
+  { value: "stitching",    label: "Stitching" },
+  { value: "ready",        label: "Ready" },
+  { value: "delivered",    label: "Delivered" },
 ];
 
 interface Props {
@@ -30,32 +36,52 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
   const router = useRouter();
 
   const [order, setOrder] = useState(initialOrder);
-  const [masterId, setMasterId] = useState(order.master?.id ?? "");
-  const [tailorId, setTailorId] = useState(order.tailor?.id ?? "");
-  const [saved, setSaved]       = useState(false);
-  const [assigning, setAssigning] = useState(false);
+  const [assigningMaster, setAssigningMaster] = useState(false);
+  const [assigningTailor, setAssigningTailor] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting, setDeleting]     = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
+  const isCancelled = order.status === "cancelled";
   const balance = order.amount - order.advance;
-  const availableTransition = STATUS_TRANSITIONS.find((t) => t.from.includes(order.status));
   const showTailorAssign = ["cutting", "cutting_done", "stitching", "ready", "delivered"].includes(order.status);
 
-  async function handleAssign() {
-    setAssigning(true);
-    const updated = await assignStaff(order.id, masterId || null, tailorId || null);
+  const cancellationCharge = order.cancellationCharge ?? 0;
+  const cancelBalance = cancellationCharge - order.advance;
+
+  // Selecting a master immediately saves and — for a brand-new order —
+  // starts cutting, replacing what used to be a separate "Save assignment"
+  // step. Reassigning later (order already past "new") just updates who's
+  // assigned. Same pattern for tailor + "cutting_done" -> "stitching" below.
+  async function handleMasterChange(masterId: string) {
+    setAssigningMaster(true);
+    const updated = await assignMaster(order.id, masterId || null);
     setOrder(updated);
-    setAssigning(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setAssigningMaster(false);
   }
 
-  async function handleStatusChange(to: OrderStatus) {
+  async function handleTailorChange(tailorId: string) {
+    setAssigningTailor(true);
+    const updated = await assignTailor(order.id, tailorId || null);
+    setOrder(updated);
+    setAssigningTailor(false);
+  }
+
+  async function handleStatusChange(status: OrderStatus) {
     setChangingStatus(true);
-    const updated = await updateOrderStatus(order.id, to);
+    const updated = await updateOrderStatus(order.id, status);
     setOrder(updated);
     setChangingStatus(false);
+  }
+
+  async function handleCancel(charge: number) {
+    setCancelling(true);
+    const updated = await cancelOrder(order.id, charge);
+    setOrder(updated);
+    setCancelling(false);
+    setCancelOpen(false);
   }
 
   async function handleDelete() {
@@ -114,79 +140,111 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
           </div>
         )}
 
-        {/* Reference image */}
+        {/* Reference photos */}
         <div>
-          <p className="section-label">Reference photo</p>
-          {order.referenceImageUrl ? (
-            <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={order.referenceImageUrl} alt="Reference" className="w-full object-cover max-h-64" loading="lazy" />
-            </div>
-          ) : (
-            <div className="border-2 border-dashed border-[#E5E0D5] rounded-2xl p-8 text-center bg-white">
-              <p className="text-3xl mb-2">📷</p>
-              <p className="text-sm text-[#9A9A9A]">No reference photo attached</p>
-            </div>
-          )}
+          <p className="section-label">Reference photos</p>
+          <ReferenceImageGallery images={order.referenceImageUrls} />
         </div>
 
-        {/* Assign master */}
-        <div>
-          <p className="section-label">Assign master</p>
-          <select className="input" value={masterId} onChange={(e) => setMasterId(e.target.value)}>
-            <option value="">Select master…</option>
-            {masters.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
-        </div>
+        {!isCancelled && (
+          <>
+            {/* Assign master */}
+            <div>
+              <p className="section-label">Assign master{assigningMaster ? " · saving…" : ""}</p>
+              <select
+                className="input disabled:opacity-40"
+                value={order.master?.id ?? ""}
+                disabled={assigningMaster}
+                onChange={(e) => handleMasterChange(e.target.value)}
+              >
+                <option value="">Select master…</option>
+                {masters.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
 
-        {showTailorAssign && (
-          <div>
-            <p className="section-label">Assign tailor</p>
-            <select className="input" value={tailorId} onChange={(e) => setTailorId(e.target.value)}>
-              <option value="">Select tailor…</option>
-              {tailors.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          </div>
+            {showTailorAssign && (
+              <div>
+                <p className="section-label">Assign tailor{assigningTailor ? " · saving…" : ""}</p>
+                <select
+                  className="input disabled:opacity-40"
+                  value={order.tailor?.id ?? ""}
+                  disabled={assigningTailor}
+                  onChange={(e) => handleTailorChange(e.target.value)}
+                >
+                  <option value="">Select tailor…</option>
+                  {tailors.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
+            )}
+          </>
         )}
-
-        <button onClick={handleAssign} disabled={assigning} className="btn-outline disabled:opacity-40">
-          {assigning ? "Saving…" : saved ? "✓ Saved!" : "Save Assignment"}
-        </button>
 
         {/* Payment */}
         <div className="card">
           <p className="section-label">Payment</p>
-          {order.lineItems?.length > 0 && (
-            <div className="space-y-1.5 mb-3">
-              {order.lineItems.map((li, i) => (
-                <div key={i} className="flex justify-between text-[13px] text-[#6B6B6B]">
-                  <span>{li.particulars} ×{li.qty}</span>
-                  <span>{formatCurrency(li.amount)}</span>
+          {isCancelled ? (
+            <div className="space-y-2">
+              <div className="flex justify-between items-start gap-4">
+                <span className="text-[13px] text-[#9A9A9A] shrink-0">Order total</span>
+                <span className="text-[14px] text-[#9A9A9A] line-through text-right">{formatCurrency(order.amount)}</span>
+              </div>
+              <Row label="Advance paid" value={formatCurrency(order.advance)} />
+              <div className="flex justify-between pt-2 border-t border-[#F0EDE6] mt-1">
+                <span className="text-[15px] font-semibold">Cancellation charge</span>
+                <span className="text-[15px] font-bold text-[#B04A4A]">{formatCurrency(cancellationCharge)}</span>
+              </div>
+              {cancelBalance > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-[13px] text-[#9A9A9A]">Balance due</span>
+                  <span className="text-[13px] font-semibold text-[#C9A84C]">{formatCurrency(cancelBalance)}</span>
                 </div>
-              ))}
+              )}
+              {cancelBalance < 0 && (
+                <div className="flex justify-between">
+                  <span className="text-[13px] text-[#9A9A9A]">Refund due to customer</span>
+                  <span className="text-[13px] font-semibold text-[#1B6B3A]">{formatCurrency(-cancelBalance)}</span>
+                </div>
+              )}
             </div>
+          ) : (
+            <>
+              {order.lineItems?.length > 0 && (
+                <div className="space-y-1.5 mb-3">
+                  {order.lineItems.map((li, i) => (
+                    <div key={i} className="flex justify-between text-[13px] text-[#6B6B6B]">
+                      <span>{li.particulars} ×{li.qty}</span>
+                      <span>{formatCurrency(li.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="space-y-2">
+                <Row label="Order total"  value={formatCurrency(order.amount)} />
+                <Row label="Advance paid" value={formatCurrency(order.advance)} />
+                <div className="flex justify-between pt-2 border-t border-[#F0EDE6] mt-1">
+                  <span className="text-[15px] font-semibold">Balance due</span>
+                  <span className={`text-[15px] font-bold ${balance > 0 ? "text-[#C9A84C]" : "text-[#1B6B3A]"}`}>
+                    {formatCurrency(balance > 0 ? balance : 0)}
+                  </span>
+                </div>
+              </div>
+            </>
           )}
-          <div className="space-y-2">
-            <Row label="Order total"  value={formatCurrency(order.amount)} />
-            <Row label="Advance paid" value={formatCurrency(order.advance)} />
-            <div className="flex justify-between pt-2 border-t border-[#F0EDE6] mt-1">
-              <span className="text-[15px] font-semibold">Balance due</span>
-              <span className={`text-[15px] font-bold ${balance > 0 ? "text-[#C9A84C]" : "text-[#1B6B3A]"}`}>
-                {formatCurrency(balance > 0 ? balance : 0)}
-              </span>
-            </div>
-          </div>
         </div>
 
-        {/* Status transition */}
-        {availableTransition && order.status !== "delivered" && (
-          <button
-            onClick={() => handleStatusChange(availableTransition.to)}
-            disabled={changingStatus}
-            className="btn-gold disabled:opacity-40"
-          >
-            {changingStatus ? "Updating…" : `${availableTransition.label} →`}
-          </button>
+        {/* Status override — admin can jump to any status directly */}
+        {!isCancelled && (
+          <div>
+            <p className="section-label">Order status{changingStatus ? " · updating…" : ""}</p>
+            <select
+              className="input disabled:opacity-40"
+              value={order.status}
+              disabled={changingStatus}
+              onChange={(e) => handleStatusChange(e.target.value as OrderStatus)}
+            >
+              {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </div>
         )}
 
         {order.status === "delivered" && (
@@ -194,6 +252,23 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
             <p className="text-2xl mb-1">✅</p>
             <p className="text-sm font-semibold text-[#1B6B3A]">Order delivered</p>
           </div>
+        )}
+
+        {isCancelled && (
+          <div className="rounded-2xl border border-[#F0D5D5] bg-[#FBECEC] text-center py-5">
+            <p className="text-2xl mb-1">🚫</p>
+            <p className="text-sm font-semibold text-[#B04A4A]">Order cancelled</p>
+          </div>
+        )}
+
+        {!isCancelled && (
+          <button
+            onClick={() => setCancelOpen(true)}
+            className="w-full flex items-center justify-center gap-2 py-3.5 text-[14px] font-medium text-[#B04A4A] border border-[#F0D5D5] rounded-xl active:scale-[0.98] transition-all"
+          >
+            <Ban size={18} />
+            Cancel order
+          </button>
         )}
 
         <button
@@ -216,6 +291,15 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
         pending={deleting}
         onConfirm={handleDelete}
         onCancel={() => setDeleteOpen(false)}
+      />
+
+      <CancelOrderDialog
+        key={cancelOpen ? "cancel-open" : "cancel-closed"}
+        open={cancelOpen}
+        orderId={order.id}
+        pending={cancelling}
+        onConfirm={handleCancel}
+        onCancel={() => setCancelOpen(false)}
       />
     </div>
   );

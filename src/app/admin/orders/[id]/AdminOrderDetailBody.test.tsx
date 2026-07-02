@@ -1,16 +1,17 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act } from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import AdminOrderDetailBody from "./AdminOrderDetailBody";
-import { assignStaff, updateOrderStatus, deleteOrder } from "@/app/actions/orders";
+import { assignMaster, assignTailor, updateOrderStatus, cancelOrder, deleteOrder } from "@/app/actions/orders";
 import { mockRouter } from "../../../../../vitest.setup";
 import type { Order } from "@/types";
 import type { StaffListItem } from "@/app/actions/staff";
 
 vi.mock("@/app/actions/orders", () => ({
-  assignStaff: vi.fn(),
+  assignMaster: vi.fn(),
+  assignTailor: vi.fn(),
   updateOrderStatus: vi.fn(),
+  cancelOrder: vi.fn(),
   deleteOrder: vi.fn(),
 }));
 
@@ -34,7 +35,8 @@ function order(overrides: Partial<Order>): Order {
     lineItems: [],
     notes: "",
     sketchDataUrl: null,
-    referenceImageUrl: null,
+    referenceImageUrls: [],
+    cancellationCharge: null,
     createdAt: "2026-06-24",
     ...overrides,
   };
@@ -46,16 +48,16 @@ function renderBody(o: Order) {
 
 describe("AdminOrderDetailBody", () => {
   beforeEach(() => {
-    vi.mocked(assignStaff).mockReset();
-    vi.mocked(assignStaff).mockResolvedValue(order({ status: "new" }));
+    vi.mocked(assignMaster).mockReset();
+    vi.mocked(assignMaster).mockResolvedValue(order({ status: "cutting", master: { id: "m1", name: "Ramesh K." } }));
+    vi.mocked(assignTailor).mockReset();
+    vi.mocked(assignTailor).mockResolvedValue(order({ status: "stitching", tailor: { id: "t1", name: "Anitha K." } }));
     vi.mocked(updateOrderStatus).mockReset();
-    vi.mocked(updateOrderStatus).mockResolvedValue(order({ status: "new" }));
+    vi.mocked(updateOrderStatus).mockResolvedValue(order({ status: "ready" }));
+    vi.mocked(cancelOrder).mockReset();
+    vi.mocked(cancelOrder).mockResolvedValue(order({ status: "cancelled", cancellationCharge: 500 }));
     vi.mocked(deleteOrder).mockReset();
     vi.mocked(deleteOrder).mockResolvedValue(undefined);
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
   });
 
   it("shows order details, progress and payment summary", () => {
@@ -88,13 +90,13 @@ describe("AdminOrderDetailBody", () => {
 
   it("hides the tailor assignment select for a brand-new order", () => {
     renderBody(order({ status: "new" }));
-    expect(screen.getByText("Assign master")).toBeInTheDocument();
-    expect(screen.queryByText("Assign tailor")).not.toBeInTheDocument();
+    expect(screen.getByText(/^Assign master/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Assign tailor/)).not.toBeInTheDocument();
   });
 
   it("shows the tailor assignment select once cutting has started", () => {
     renderBody(order({ status: "cutting" }));
-    expect(screen.getByText("Assign tailor")).toBeInTheDocument();
+    expect(screen.getByText(/^Assign tailor/)).toBeInTheDocument();
   });
 
   it("loads the master and tailor options passed in as props", () => {
@@ -103,80 +105,82 @@ describe("AdminOrderDetailBody", () => {
     expect(screen.getByText("Anitha K.")).toBeInTheDocument();
   });
 
-  it("saves the master/tailor assignment and shows a confirmation that clears after a delay", async () => {
-    vi.useFakeTimers();
-    vi.mocked(assignStaff).mockResolvedValue(
-      order({ status: "stitching", master: { id: "m1", name: "Ramesh K." }, tailor: { id: "t1", name: "Anitha K." } })
-    );
-    renderBody(order({ status: "stitching" }));
-
-    fireEvent.change(screen.getByDisplayValue("Select master…"), { target: { value: "m1" } });
-    fireEvent.change(screen.getByDisplayValue("Select tailor…"), { target: { value: "t1" } });
-
-    await act(async () => {
-      fireEvent.click(screen.getByText("Save Assignment"));
-    });
-
-    expect(assignStaff).toHaveBeenCalledWith("AD1", "m1", "t1");
-    expect(screen.getByText("✓ Saved!")).toBeInTheDocument();
-
-    act(() => {
-      vi.advanceTimersByTime(2000);
-    });
-    expect(screen.getByText("Save Assignment")).toBeInTheDocument();
-  });
-
-  it("saves null master/tailor when left unselected", async () => {
-    const user = userEvent.setup();
-    renderBody(order({ status: "new" }));
-    await user.click(screen.getByText("Save Assignment"));
-    expect(assignStaff).toHaveBeenCalledWith("AD1", null, null);
-  });
-
   it("pre-selects the currently assigned master and tailor", () => {
     renderBody(order({ status: "cutting", master: { id: "m1", name: "Ramesh K." }, tailor: { id: "t1", name: "Anitha K." } }));
     expect(screen.getByDisplayValue("Ramesh K.")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Anitha K.")).toBeInTheDocument();
   });
 
-  it("shows the next status transition button, triggers it, and reflects the new status immediately", async () => {
-    vi.mocked(updateOrderStatus).mockResolvedValue(order({ status: "cutting" }));
+  it("assigns the master on selection alone — no separate save step — and reflects the returned order", async () => {
     const user = userEvent.setup();
     renderBody(order({ status: "new" }));
-    const btn = screen.getByText("Move to Cutting →");
-    await user.click(btn);
-    expect(updateOrderStatus).toHaveBeenCalledWith("AD1", "cutting");
-    await screen.findByText("Assign tailor"); // only shown once status has moved past "new"
-    expect(screen.getAllByText("Cutting").length).toBeGreaterThan(0);
-    expect(screen.queryByText("Move to Cutting →")).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByDisplayValue("Select master…"), "m1");
+
+    expect(assignMaster).toHaveBeenCalledWith("AD1", "m1");
+    expect(screen.queryByText("Save Assignment")).not.toBeInTheDocument();
+    await screen.findByText(/^Assign tailor/); // status moved to "cutting" per the mock
   });
 
-  it("shows the delivered state and hides the transition button", () => {
+  it("assigns null when the master selection is cleared", async () => {
+    const user = userEvent.setup();
+    renderBody(order({ status: "cutting", master: { id: "m1", name: "Ramesh K." } }));
+
+    await user.selectOptions(screen.getByDisplayValue("Ramesh K."), "");
+
+    expect(assignMaster).toHaveBeenCalledWith("AD1", null);
+  });
+
+  it("assigns the tailor on selection alone and reflects the returned order", async () => {
+    const user = userEvent.setup();
+    renderBody(order({ status: "cutting_done" }));
+
+    await user.selectOptions(screen.getByDisplayValue("Select tailor…"), "t1");
+
+    expect(assignTailor).toHaveBeenCalledWith("AD1", "t1");
+  });
+
+  it("assigns null when the tailor selection is cleared", async () => {
+    const user = userEvent.setup();
+    renderBody(order({ status: "cutting_done", tailor: { id: "t1", name: "Anitha K." } }));
+
+    await user.selectOptions(screen.getByDisplayValue("Anitha K."), "");
+
+    expect(assignTailor).toHaveBeenCalledWith("AD1", null);
+  });
+
+  it("lets the admin change the order status directly via the status dropdown", async () => {
+    const user = userEvent.setup();
+    renderBody(order({ status: "stitching" }));
+
+    await user.selectOptions(screen.getByDisplayValue("Stitching"), "ready");
+
+    expect(updateOrderStatus).toHaveBeenCalledWith("AD1", "ready");
+    expect(await screen.findByDisplayValue("Ready")).toBeInTheDocument();
+  });
+
+  it("shows the delivered card alongside the status dropdown", () => {
     renderBody(order({ status: "delivered" }));
     expect(screen.getByText("Order delivered")).toBeInTheDocument();
-    expect(screen.queryByText(/Mark as Delivered/)).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue("Delivered")).toBeInTheDocument();
   });
 
-  it("hides the transition button for statuses with no forward transition", () => {
-    renderBody(order({ status: "cutting" }));
-    expect(screen.queryByText(/→$/)).not.toBeInTheDocument();
-  });
-
-  it("renders the sketch and reference images when present", () => {
+  it("renders the sketch and reference photo gallery when present", () => {
     renderBody(
       order({
         status: "new",
         sketchDataUrl: "data:image/png;base64,sketch",
-        referenceImageUrl: "data:image/png;base64,ref",
+        referenceImageUrls: ["data:image/png;base64,ref1", "data:image/png;base64,ref2"],
       })
     );
     expect(screen.getByAltText("Sketch")).toHaveAttribute("src", "data:image/png;base64,sketch");
-    expect(screen.getByAltText("Reference")).toHaveAttribute("src", "data:image/png;base64,ref");
+    expect(screen.getByAltText("Reference 1")).toBeInTheDocument();
+    expect(screen.getByAltText("Reference 2")).toBeInTheDocument();
   });
 
-  it("shows a placeholder when there is no reference photo", () => {
-    renderBody(order({ status: "new", referenceImageUrl: null }));
-    expect(screen.getByText("No reference photo attached")).toBeInTheDocument();
+  it("shows a placeholder when there are no reference photos", () => {
+    renderBody(order({ status: "new", referenceImageUrls: [] }));
+    expect(screen.getByText("No reference photos")).toBeInTheDocument();
   });
 
   it("navigates to the admin orders list (fresh, not a cached back-nav) when the top bar back button is clicked", async () => {
@@ -208,5 +212,75 @@ describe("AdminOrderDetailBody", () => {
 
     expect(deleteOrder).toHaveBeenCalledWith("AD1");
     expect(mockRouter.push).toHaveBeenCalledWith("/admin/orders");
+  });
+
+  describe("cancelling an order", () => {
+    it("opens the cancel dialog, submits the charge, and shows the cancelled state", async () => {
+      const user = userEvent.setup();
+      renderBody(order({ status: "cutting", amount: 4200, advance: 1000 }));
+
+      await user.click(screen.getByText("Cancel order"));
+      expect(screen.getByText("Cancel order AD1?")).toBeInTheDocument();
+
+      await user.type(screen.getByLabelText("Cancellation charge (₹)"), "500");
+      const confirmButtons = screen.getAllByText("Cancel order", { selector: "button" });
+      await user.click(confirmButtons[confirmButtons.length - 1]);
+
+      expect(cancelOrder).toHaveBeenCalledWith("AD1", 500);
+      await waitFor(() => expect(screen.getAllByText("Order cancelled").length).toBeGreaterThan(0));
+      expect(screen.queryByText(/^Assign master/)).not.toBeInTheDocument();
+      expect(screen.queryByText("Cancel order")).not.toBeInTheDocument();
+    });
+
+    it("keeps the order when Keep order is clicked", async () => {
+      const user = userEvent.setup();
+      renderBody(order({ status: "cutting" }));
+
+      await user.click(screen.getByText("Cancel order"));
+      await user.click(screen.getByText("Keep order"));
+
+      expect(screen.queryByText("Cancel order AD1?")).not.toBeInTheDocument();
+      expect(cancelOrder).not.toHaveBeenCalled();
+    });
+
+    it("clears the charge field each time the dialog is reopened", async () => {
+      const user = userEvent.setup();
+      renderBody(order({ status: "cutting" }));
+
+      await user.click(screen.getByText("Cancel order"));
+      await user.type(screen.getByLabelText("Cancellation charge (₹)"), "300");
+      await user.click(screen.getByText("Keep order"));
+
+      await user.click(screen.getByText("Cancel order"));
+      expect(screen.getByLabelText("Cancellation charge (₹)")).toHaveValue(null);
+    });
+
+    it("strikes through the original amount and shows the cancellation charge as what's due", () => {
+      renderBody(order({ status: "cancelled", amount: 4200, advance: 1000, cancellationCharge: 1500 }));
+
+      const originalAmount = screen.getByText("₹4,200");
+      expect(originalAmount).toHaveClass("line-through");
+      expect(screen.getByText("Cancellation charge")).toBeInTheDocument();
+      expect(screen.getByText("₹1,500")).toBeInTheDocument();
+      expect(screen.getByText("Balance due")).toBeInTheDocument();
+      expect(screen.getByText("₹500")).toBeInTheDocument(); // 1500 - 1000 advance
+    });
+
+    it("shows a refund due when advance already paid exceeds the cancellation charge", () => {
+      renderBody(order({ status: "cancelled", amount: 4200, advance: 2000, cancellationCharge: 500 }));
+      expect(screen.getByText("Refund due to customer")).toBeInTheDocument();
+      expect(screen.getByText("₹1,500")).toBeInTheDocument(); // 2000 - 500
+    });
+
+    it("shows neither balance nor refund when the cancellation charge exactly matches the advance", () => {
+      renderBody(order({ status: "cancelled", amount: 4200, advance: 500, cancellationCharge: 500 }));
+      expect(screen.queryByText("Balance due")).not.toBeInTheDocument();
+      expect(screen.queryByText("Refund due to customer")).not.toBeInTheDocument();
+    });
+
+    it("treats a missing cancellationCharge as zero", () => {
+      renderBody(order({ status: "cancelled", amount: 4200, advance: 0, cancellationCharge: null }));
+      expect(screen.getByText("Cancellation charge").nextSibling).toHaveTextContent("₹0");
+    });
   });
 });

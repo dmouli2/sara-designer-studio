@@ -26,7 +26,8 @@ const order: Order = {
   lineItems: [],
   notes: "",
   sketchDataUrl: null,
-  referenceImageUrl: null,
+  referenceImageUrls: [],
+  cancellationCharge: null,
   createdAt: "2026-06-24",
 };
 
