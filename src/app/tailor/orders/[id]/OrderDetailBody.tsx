@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/orders/StatusBadge";
 import MeasurementGrid from "@/components/orders/MeasurementGrid";
+import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
 import { updateOrderStatus } from "@/app/actions/orders";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/utils";
@@ -14,6 +15,9 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
   const router = useRouter();
   const [order, setOrder] = useState(initialOrder);
   const [updating, setUpdating] = useState(false);
+
+  const isCancelled = order.status === "cancelled";
+  const isDone = order.status === "ready" || order.status === "delivered";
 
   const STATUS_BUTTONS: { status: OrderStatus; label: string; icon: string }[] = [
     { status: "stitching", label: "In Progress — Stitching", icon: "🧵" },
@@ -67,24 +71,19 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
           </div>
         )}
 
-        {/* Reference image */}
+        {/* Reference photos */}
         <div>
-          <p className="section-label">Reference photo</p>
-          {order.referenceImageUrl ? (
-            <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={order.referenceImageUrl} alt="Reference" className="w-full object-cover max-h-64" loading="lazy" />
-            </div>
-          ) : (
-            <div className="border-2 border-dashed border-[#E5E0D5] rounded-2xl p-10 text-center bg-white">
-              <p className="text-3xl mb-2">📷</p>
-              <p className="text-sm text-[#9A9A9A]">No reference photo</p>
-            </div>
-          )}
+          <p className="section-label">Reference photos</p>
+          <ReferenceImageGallery images={order.referenceImageUrls} />
         </div>
 
         {/* Status update */}
-        {order.status !== "ready" && order.status !== "delivered" ? (
+        {isCancelled ? (
+          <div className="rounded-2xl border border-[#F0D5D5] bg-[#FBECEC] text-center py-6">
+            <p className="text-3xl mb-1.5">🚫</p>
+            <p className="text-[16px] font-semibold text-[#B04A4A]">Order cancelled</p>
+          </div>
+        ) : !isDone ? (
           <div>
             <p className="section-label">Update status</p>
             <div className="space-y-2">

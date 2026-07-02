@@ -1,12 +1,16 @@
 import StatusBadge from "@/components/orders/StatusBadge";
 import ProgressTracker from "@/components/orders/ProgressTracker";
 import MeasurementGrid from "@/components/orders/MeasurementGrid";
+import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
 import TopBar from "@/components/layout/TopBar";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { PublicOrder } from "@/lib/db";
 
 export default function PublicOrderBody({ order }: { order: PublicOrder }) {
+  const isCancelled = order.status === "cancelled";
   const balance = order.amount - order.advance;
+  const cancellationCharge = order.cancellationCharge ?? 0;
+  const cancelBalance = cancellationCharge - order.advance;
 
   return (
     <div className="screen">
@@ -43,15 +47,10 @@ export default function PublicOrderBody({ order }: { order: PublicOrder }) {
           </div>
         )}
 
-        {order.referenceImageUrl && (
-          <div>
-            <p className="section-label">Reference photo</p>
-            <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={order.referenceImageUrl} alt="Reference" className="w-full object-cover max-h-64" loading="lazy" />
-            </div>
-          </div>
-        )}
+        <div>
+          <p className="section-label">Reference photos</p>
+          <ReferenceImageGallery images={order.referenceImageUrls} />
+        </div>
 
         {order.lineItems.length > 0 && (
           <div>
@@ -72,18 +71,49 @@ export default function PublicOrderBody({ order }: { order: PublicOrder }) {
 
         <div className="card-gold">
           <p className="text-xs font-semibold text-[#7A6020] mb-3">Payment</p>
-          <div className="flex justify-between text-sm font-bold text-[#0F0F0F]">
-            <span>Total</span>
-            <span>{formatCurrency(order.amount)}</span>
-          </div>
-          <div className="flex justify-between text-xs text-[#6B6B6B] mt-1">
-            <span>Advance paid</span>
-            <span>{formatCurrency(order.advance)}</span>
-          </div>
-          <div className="flex justify-between text-xs font-semibold text-[#C9A84C] mt-0.5">
-            <span>Balance due</span>
-            <span>{formatCurrency(balance > 0 ? balance : 0)}</span>
-          </div>
+          {isCancelled ? (
+            <>
+              <div className="flex justify-between text-sm font-bold text-[#0F0F0F]">
+                <span>Order total</span>
+                <span className="line-through text-[#A8882E]">{formatCurrency(order.amount)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-[#6B6B6B] mt-1">
+                <span>Advance paid</span>
+                <span>{formatCurrency(order.advance)}</span>
+              </div>
+              <div className="flex justify-between text-xs font-semibold text-[#B04A4A] mt-1.5 pt-1.5 border-t border-[#EDD98A]">
+                <span>Cancellation charge</span>
+                <span>{formatCurrency(cancellationCharge)}</span>
+              </div>
+              {cancelBalance > 0 && (
+                <div className="flex justify-between text-xs font-semibold text-[#C9A84C] mt-0.5">
+                  <span>Balance due</span>
+                  <span>{formatCurrency(cancelBalance)}</span>
+                </div>
+              )}
+              {cancelBalance < 0 && (
+                <div className="flex justify-between text-xs font-semibold text-[#1B6B3A] mt-0.5">
+                  <span>Refund due</span>
+                  <span>{formatCurrency(-cancelBalance)}</span>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="flex justify-between text-sm font-bold text-[#0F0F0F]">
+                <span>Total</span>
+                <span>{formatCurrency(order.amount)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-[#6B6B6B] mt-1">
+                <span>Advance paid</span>
+                <span>{formatCurrency(order.advance)}</span>
+              </div>
+              <div className="flex justify-between text-xs font-semibold text-[#C9A84C] mt-0.5">
+                <span>Balance due</span>
+                <span>{formatCurrency(balance > 0 ? balance : 0)}</span>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="h-6" />

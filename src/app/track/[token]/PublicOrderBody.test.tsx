@@ -17,7 +17,8 @@ const baseOrder: PublicOrder = {
   lineItems: [{ particulars: "Blouse", qty: 1, amount: 1500 }],
   notes: "Handle with care",
   sketchDataUrl: "https://signed.example/sketch.png",
-  referenceImageUrl: "https://signed.example/reference.jpg",
+  referenceImageUrls: ["https://signed.example/reference.jpg"],
+  cancellationCharge: null,
   createdAt: "2026-06-01",
 };
 
@@ -61,14 +62,14 @@ describe("PublicOrderBody", () => {
     expect(screen.queryByAltText("Sketch")).not.toBeInTheDocument();
   });
 
-  it("shows the reference photo when present", () => {
+  it("shows the reference photos when present", () => {
     render(<PublicOrderBody order={baseOrder} />);
-    expect(screen.getByAltText("Reference")).toBeInTheDocument();
+    expect(screen.getByAltText("Reference 1")).toBeInTheDocument();
   });
 
-  it("omits the reference photo section when none is stored", () => {
-    render(<PublicOrderBody order={{ ...baseOrder, referenceImageUrl: null }} />);
-    expect(screen.queryByAltText("Reference")).not.toBeInTheDocument();
+  it("shows a placeholder when there are no reference photos", () => {
+    render(<PublicOrderBody order={{ ...baseOrder, referenceImageUrls: [] }} />);
+    expect(screen.getByText("No reference photos")).toBeInTheDocument();
   });
 
   it("lists line items with quantity and amount when present", () => {
@@ -102,5 +103,37 @@ describe("PublicOrderBody", () => {
     render(<PublicOrderBody order={{ ...baseOrder, amount: 1000, advance: 1000 }} />);
     const balanceLabel = screen.getByText("Balance due");
     expect(balanceLabel.parentElement).toHaveTextContent("₹0");
+  });
+
+  describe("when cancelled", () => {
+    it("strikes through the order total and shows the cancellation charge", () => {
+      render(
+        <PublicOrderBody
+          order={{ ...baseOrder, status: "cancelled", amount: 4200, advance: 1000, cancellationCharge: 1600 }}
+        />
+      );
+      expect(screen.getByText("₹4,200")).toHaveClass("line-through");
+      const chargeLabel = screen.getByText("Cancellation charge");
+      expect(chargeLabel.nextSibling).toHaveTextContent("₹1,600");
+      expect(screen.getByText("Balance due")).toBeInTheDocument();
+      expect(screen.getByText("₹600")).toBeInTheDocument();
+    });
+
+    it("shows a refund due when the advance exceeds the cancellation charge", () => {
+      render(
+        <PublicOrderBody
+          order={{ ...baseOrder, status: "cancelled", amount: 4200, advance: 2000, cancellationCharge: 500 }}
+        />
+      );
+      const refundLabel = screen.getByText("Refund due");
+      expect(refundLabel.parentElement).toHaveTextContent("₹1,500");
+    });
+
+    it("treats a missing cancellationCharge as zero", () => {
+      render(
+        <PublicOrderBody order={{ ...baseOrder, status: "cancelled", advance: 0, cancellationCharge: null }} />
+      );
+      expect(screen.getByText("Cancellation charge").nextSibling).toHaveTextContent("₹0");
+    });
   });
 });

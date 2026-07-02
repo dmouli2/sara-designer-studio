@@ -34,7 +34,8 @@ const publicOrder: PublicOrder = {
   lineItems,
   notes: "",
   sketchDataUrl: null,
-  referenceImageUrl: null,
+  referenceImageUrls: [],
+  cancellationCharge: null,
   createdAt: "2026-06-01T00:00:00.000Z",
 };
 

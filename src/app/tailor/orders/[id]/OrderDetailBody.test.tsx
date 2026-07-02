@@ -27,7 +27,8 @@ function order(overrides: Partial<Order>): Order {
     lineItems: [],
     notes: "",
     sketchDataUrl: null,
-    referenceImageUrl: null,
+    referenceImageUrls: [],
+    cancellationCharge: null,
     createdAt: "2026-06-01",
     ...overrides,
   };
@@ -81,14 +82,14 @@ describe("OrderDetailBody", () => {
     expect(screen.getByAltText("Sketch")).toHaveAttribute("src", "data:image/png;base64,sketch");
   });
 
-  it("renders a placeholder when there is no reference photo", () => {
-    render(<OrderDetailBody order={order({ status: "stitching", referenceImageUrl: null })} />);
-    expect(screen.getByText("No reference photo")).toBeInTheDocument();
+  it("renders a placeholder when there are no reference photos", () => {
+    render(<OrderDetailBody order={order({ status: "stitching", referenceImageUrls: [] })} />);
+    expect(screen.getByText("No reference photos")).toBeInTheDocument();
   });
 
-  it("renders the reference photo when present", () => {
-    render(<OrderDetailBody order={order({ status: "stitching", referenceImageUrl: "data:image/png;base64,ref" })} />);
-    expect(screen.getByAltText("Reference")).toHaveAttribute("src", "data:image/png;base64,ref");
+  it("renders the reference photos when present", () => {
+    render(<OrderDetailBody order={order({ status: "stitching", referenceImageUrls: ["data:image/png;base64,ref"] })} />);
+    expect(screen.getByAltText("Reference 1")).toHaveAttribute("src", "data:image/png;base64,ref");
   });
 
   it("navigates to the tailor queue (fresh, not a cached back-nav) when the top bar back button is clicked", async () => {
@@ -96,5 +97,12 @@ describe("OrderDetailBody", () => {
     const { container } = render(<OrderDetailBody order={order({ status: "stitching" })} />);
     await user.click(container.querySelector(".rounded-full")!);
     expect(mockRouter.push).toHaveBeenCalledWith("/tailor/queue");
+  });
+
+  it("shows the cancelled state instead of status-update buttons when the order is cancelled", () => {
+    render(<OrderDetailBody order={order({ status: "cancelled" })} />);
+    expect(screen.getByText("Order cancelled")).toBeInTheDocument();
+    expect(screen.queryByText("In Progress — Stitching")).not.toBeInTheDocument();
+    expect(screen.queryByText("Order is ready for pickup!")).not.toBeInTheDocument();
   });
 });

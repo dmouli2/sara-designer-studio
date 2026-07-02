@@ -27,7 +27,8 @@ function order(overrides: Partial<Order>): Order {
     lineItems: [],
     notes: "",
     sketchDataUrl: null,
-    referenceImageUrl: null,
+    referenceImageUrls: [],
+    cancellationCharge: null,
     createdAt: "2026-06-01",
     ...overrides,
   };
@@ -64,14 +65,21 @@ describe("OrderDetailBody", () => {
     expect(screen.getByAltText("Sketch")).toHaveAttribute("src", "data:image/png;base64,sketch");
   });
 
-  it("renders the reference photo when present", () => {
-    render(<OrderDetailBody order={order({ status: "new", referenceImageUrl: "data:image/png;base64,ref" })} />);
-    expect(screen.getByAltText("Reference")).toHaveAttribute("src", "data:image/png;base64,ref");
+  it("renders the reference photos when present", () => {
+    render(<OrderDetailBody order={order({ status: "new", referenceImageUrls: ["data:image/png;base64,ref"] })} />);
+    expect(screen.getByAltText("Reference 1")).toHaveAttribute("src", "data:image/png;base64,ref");
   });
 
-  it("shows a placeholder when there is no reference photo", () => {
-    render(<OrderDetailBody order={order({ status: "new", referenceImageUrl: null })} />);
-    expect(screen.getByText("No reference photo")).toBeInTheDocument();
+  it("shows a placeholder when there are no reference photos", () => {
+    render(<OrderDetailBody order={order({ status: "new", referenceImageUrls: [] })} />);
+    expect(screen.getByText("No reference photos")).toBeInTheDocument();
+  });
+
+  it("shows the cancelled state instead of the mark-done button when the order is cancelled", () => {
+    render(<OrderDetailBody order={order({ status: "cancelled" })} />);
+    expect(screen.getByText("Order cancelled")).toBeInTheDocument();
+    expect(screen.queryByText("✓ Mark Cutting Done")).not.toBeInTheDocument();
+    expect(screen.queryByText("Cutting marked done")).not.toBeInTheDocument();
   });
 
   it("navigates to the master queue (fresh, not a cached back-nav) when the top bar back button is clicked", async () => {

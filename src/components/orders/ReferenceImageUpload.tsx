@@ -1,82 +1,93 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { X, Plus } from "lucide-react";
 import { compressImageToDataUrl } from "@/lib/image";
+import { MAX_REFERENCE_IMAGES } from "@/types";
 
 interface Props {
-  value: string | null;        // base64 dataURL or null
-  onChange: (v: string | null) => void;
+  value: string[];             // base64 dataURLs, max MAX_REFERENCE_IMAGES
+  onChange: (v: string[]) => void;
 }
 
 export default function ReferenceImageUpload({ value, onChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [compressing, setCompressing] = useState(false);
 
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const remaining = MAX_REFERENCE_IMAGES - value.length;
+
+  async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []).slice(0, remaining);
+    e.target.value = ""; // allow re-selecting the same file(s) later
+    if (files.length === 0) return;
 
     setCompressing(true);
     try {
-      onChange(await compressImageToDataUrl(file));
-    } catch {
-      // Fall back to the raw file if compression fails for any reason
-      // (e.g. an unusual image format the canvas can't decode).
-      const reader = new FileReader();
-      reader.onload = () => onChange(reader.result as string);
-      reader.readAsDataURL(file);
+      const compressed = await Promise.all(
+        files.map((file) =>
+          compressImageToDataUrl(file).catch(
+            () =>
+              new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.readAsDataURL(file);
+              })
+          )
+        )
+      );
+      onChange([...value, ...compressed]);
     } finally {
       setCompressing(false);
     }
   }
 
+  function removeAt(index: number) {
+    onChange(value.filter((_, i) => i !== index));
+  }
+
   return (
-    <div>
+    <div className="space-y-2">
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
+        multiple
         className="hidden"
-        onChange={handleFile}
+        onChange={handleFiles}
       />
 
-      {value ? (
-        <div className="relative rounded-2xl overflow-hidden border border-[#E5E0D5]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value} alt="Reference" className="w-full object-cover max-h-64" />
-          <div className="absolute bottom-0 inset-x-0 flex gap-2 p-3 bg-gradient-to-t from-black/40 to-transparent">
+      <div className="grid grid-cols-3 gap-2">
+        {value.map((src, i) => (
+          <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-[#E5E0D5]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={src} alt={`Reference ${i + 1}`} className="w-full h-full object-cover" />
             <button
               type="button"
-              onClick={() => inputRef.current?.click()}
-              disabled={compressing}
-              className="flex-1 py-2 rounded-xl text-xs font-medium bg-white/90 text-[#0F0F0F] disabled:opacity-40"
+              onClick={() => removeAt(i)}
+              aria-label={`Remove reference photo ${i + 1}`}
+              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center active:scale-90 transition-transform"
             >
-              {compressing ? "Processing…" : "Change photo"}
-            </button>
-            <button
-              type="button"
-              onClick={() => onChange(null)}
-              disabled={compressing}
-              className="py-2 px-4 rounded-xl text-xs font-medium bg-white/90 text-[#C0392B] disabled:opacity-40"
-            >
-              Remove
+              <X size={14} />
             </button>
           </div>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={compressing}
-          className="w-full border-2 border-dashed border-[#E5E0D5] rounded-2xl p-8 text-center bg-white active:bg-[#F9F8F6] transition-colors disabled:opacity-40"
-        >
-          <p className="text-3xl mb-2">📷</p>
-          <p className="text-sm text-[#0F0F0F] font-medium">
-            {compressing ? "Processing photo…" : "Tap to add reference photo"}
-          </p>
-          <p className="text-xs text-[#9A9A9A] mt-1">Opens camera or photo library</p>
-        </button>
-      )}
+        ))}
+
+        {remaining > 0 && (
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={compressing}
+            className="aspect-square rounded-xl border-2 border-dashed border-[#E5E0D5] bg-white flex flex-col items-center justify-center gap-1 active:bg-[#F9F8F6] transition-colors disabled:opacity-40"
+          >
+            <Plus size={20} className="text-[#9A9A9A]" />
+            <span className="text-[10px] text-[#9A9A9A]">{compressing ? "Processing…" : "Add"}</span>
+          </button>
+        )}
+      </div>
+
+      <p className="text-xs text-[#9A9A9A]">
+        {value.length}/{MAX_REFERENCE_IMAGES} photos · {remaining > 0 ? `${remaining} more allowed` : "limit reached"}
+      </p>
     </div>
   );
 }
