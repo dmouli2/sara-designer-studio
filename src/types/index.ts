@@ -3,6 +3,7 @@ export type OrderStatus =
   | "cutting"
   | "cutting_done"
   | "stitching"
+  | "hemming_hook" // finishing gate after stitching — admin marks it done to release to "ready"
   | "ready"
   | "delivered"
   | "cancelled";

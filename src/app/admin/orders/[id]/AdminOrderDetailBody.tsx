@@ -22,6 +22,7 @@ const STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
   { value: "cutting",      label: "Cutting" },
   { value: "cutting_done", label: "Cutting Done" },
   { value: "stitching",    label: "Stitching" },
+  { value: "hemming_hook", label: "Hemming & Hook" },
   { value: "ready",        label: "Ready" },
   { value: "delivered",    label: "Delivered" },
 ];
@@ -43,13 +44,23 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
   const [deleting, setDeleting] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [releasingToReady, setReleasingToReady] = useState(false);
 
   const isCancelled = order.status === "cancelled";
   const balance = order.amount - order.advance;
-  const showTailorAssign = ["cutting", "cutting_done", "stitching", "ready", "delivered"].includes(order.status);
+  const showTailorAssign = ["cutting", "cutting_done", "stitching", "hemming_hook", "ready", "delivered"].includes(
+    order.status
+  );
 
   const cancellationCharge = order.cancellationCharge ?? 0;
   const cancelBalance = cancellationCharge - order.advance;
+
+  async function handleReleaseToReady() {
+    setReleasingToReady(true);
+    const updated = await updateOrderStatus(order.id, "ready");
+    setOrder(updated);
+    setReleasingToReady(false);
+  }
 
   // Selecting a master immediately saves and — for a brand-new order —
   // starts cutting, replacing what used to be a separate "Save assignment"
@@ -244,6 +255,24 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
             >
               {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
+          </div>
+        )}
+
+        {order.status === "hemming_hook" && (
+          <div className="rounded-2xl border border-[#CFE0F5] bg-[#E3EEFB] p-4 space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-[#2E5C99]">Hemming & Hook pending</p>
+              <p className="text-[13px] text-[#2E5C99]/80 mt-0.5">
+                Order isn&apos;t ready until this finishing step is marked done.
+              </p>
+            </div>
+            <button
+              onClick={handleReleaseToReady}
+              disabled={releasingToReady}
+              className="w-full bg-[#2E5C99] text-white rounded-xl py-3 text-[14px] font-semibold active:opacity-80 disabled:opacity-40 transition-all"
+            >
+              {releasingToReady ? "Updating…" : "✓ Mark Hemming & Hook Done → Ready"}
+            </button>
           </div>
         )}
 

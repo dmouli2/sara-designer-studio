@@ -6,6 +6,7 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; cls: string }> = {
   cutting:      { label: "Cutting",      cls: "badge-cutting" },
   cutting_done: { label: "Cutting Done", cls: "badge-cutting_done" },
   stitching:    { label: "Stitching",    cls: "badge-stitching" },
+  hemming_hook: { label: "Hemming & Hook", cls: "badge-hemming_hook" },
   ready:        { label: "Ready",        cls: "badge-ready" },
   delivered:    { label: "Delivered",    cls: "badge-delivered" },
   cancelled:    { label: "Cancelled",    cls: "badge-cancelled" },

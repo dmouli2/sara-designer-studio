@@ -24,6 +24,11 @@ describe("ProgressTracker", () => {
     expect(screen.getAllByText("✓")).toHaveLength(2);
   });
 
+  it("treats hemming_hook the same as stitching for step position", () => {
+    render(<ProgressTracker status="hemming_hook" />);
+    expect(screen.getAllByText("✓")).toHaveLength(2);
+  });
+
   it("marks three steps done for ready", () => {
     render(<ProgressTracker status="ready" />);
     expect(screen.getAllByText("✓")).toHaveLength(3);

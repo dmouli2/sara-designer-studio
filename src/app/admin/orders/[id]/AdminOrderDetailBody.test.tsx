@@ -165,6 +165,41 @@ describe("AdminOrderDetailBody", () => {
     expect(screen.getByDisplayValue("Delivered")).toBeInTheDocument();
   });
 
+  it("shows the Hemming & Hook pending card with a release-to-Ready action", async () => {
+    vi.mocked(updateOrderStatus).mockResolvedValue(order({ status: "ready" }));
+    const user = userEvent.setup();
+    renderBody(order({ status: "hemming_hook" }));
+
+    expect(screen.getByText("Hemming & Hook pending")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Hemming & Hook")).toBeInTheDocument();
+
+    await user.click(screen.getByText("✓ Mark Hemming & Hook Done → Ready"));
+    expect(updateOrderStatus).toHaveBeenCalledWith("AD1", "ready");
+    expect(await screen.findByDisplayValue("Ready")).toBeInTheDocument();
+  });
+
+  it("disables the release-to-Ready button and shows a pending label while in flight", async () => {
+    let resolveUpdate: (o: ReturnType<typeof order>) => void = () => {};
+    vi.mocked(updateOrderStatus).mockReturnValue(
+      new Promise((resolve) => {
+        resolveUpdate = resolve;
+      })
+    );
+    const user = userEvent.setup();
+    renderBody(order({ status: "hemming_hook" }));
+
+    await user.click(screen.getByText("✓ Mark Hemming & Hook Done → Ready"));
+    expect(screen.getByText("Updating…")).toBeDisabled();
+
+    resolveUpdate(order({ status: "ready" }));
+    expect(await screen.findByDisplayValue("Ready")).toBeInTheDocument();
+  });
+
+  it("shows the tailor assignment select while hemming & hook is pending", () => {
+    renderBody(order({ status: "hemming_hook" }));
+    expect(screen.getByText(/^Assign tailor/)).toBeInTheDocument();
+  });
+
   it("renders the sketch and reference photo gallery when present", () => {
     renderBody(
       order({

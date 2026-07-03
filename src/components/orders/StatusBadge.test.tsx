@@ -9,6 +9,7 @@ describe("StatusBadge", () => {
     ["cutting", "Cutting"],
     ["cutting_done", "Cutting Done"],
     ["stitching", "Stitching"],
+    ["hemming_hook", "Hemming & Hook"],
     ["ready", "Ready"],
     ["delivered", "Delivered"],
   ];

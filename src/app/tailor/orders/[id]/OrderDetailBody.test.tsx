@@ -45,36 +45,53 @@ describe("OrderDetailBody", () => {
     expect(screen.getByText('"Boat neck, gold border"')).toBeInTheDocument();
   });
 
-  it("shows status-update buttons while the order is in progress", () => {
-    render(<OrderDetailBody order={order({ status: "cutting_done" })} />);
-    expect(screen.getByText("In Progress — Stitching")).toBeInTheDocument();
-    expect(screen.getByText("Mark as Ready")).toBeInTheDocument();
-  });
-
-  it("highlights the current status among the buttons", () => {
+  it("shows the mark-stitching-done button while the order is in progress", () => {
     render(<OrderDetailBody order={order({ status: "stitching" })} />);
-    const btn = screen.getByText("In Progress — Stitching").closest("button")!;
-    expect(btn).toHaveClass("bg-[#0F0F0F]");
+    expect(screen.getByText("✓ Mark Stitching Done")).toBeInTheDocument();
   });
 
-  it("updates the order status and reflects the new status immediately from the action's response", async () => {
-    vi.mocked(updateOrderStatus).mockResolvedValue(order({ status: "ready" }));
+  it("hands off to hemming & hook and reflects the new status immediately from the action's response", async () => {
+    vi.mocked(updateOrderStatus).mockResolvedValue(order({ status: "hemming_hook" }));
     const user = userEvent.setup();
-    render(<OrderDetailBody order={order({ status: "cutting_done" })} />);
-    await user.click(screen.getByText("Mark as Ready"));
-    expect(updateOrderStatus).toHaveBeenCalledWith("T1", "ready");
-    expect(await screen.findByText("Order is ready for pickup!")).toBeInTheDocument();
+    render(<OrderDetailBody order={order({ status: "stitching" })} />);
+    await user.click(screen.getByText("✓ Mark Stitching Done"));
+    expect(updateOrderStatus).toHaveBeenCalledWith("T1", "hemming_hook");
+    expect(await screen.findByText("Sent for Hemming & Hook")).toBeInTheDocument();
+  });
+
+  it("shows a hemming & hook handoff message instead of the ready message while it's pending", () => {
+    render(<OrderDetailBody order={order({ status: "hemming_hook" })} />);
+    expect(screen.getByText("Sent for Hemming & Hook")).toBeInTheDocument();
+    expect(screen.queryByText("Order is ready for pickup!")).not.toBeInTheDocument();
+    expect(screen.queryByText("✓ Mark Stitching Done")).not.toBeInTheDocument();
   });
 
   it("shows the ready-for-pickup message once status is ready", () => {
     render(<OrderDetailBody order={order({ status: "ready" })} />);
     expect(screen.getByText("Order is ready for pickup!")).toBeInTheDocument();
-    expect(screen.queryByText("Mark as Ready")).not.toBeInTheDocument();
+    expect(screen.queryByText("✓ Mark Stitching Done")).not.toBeInTheDocument();
   });
 
-  it("also hides status buttons once delivered", () => {
+  it("also hides the action button once delivered", () => {
     render(<OrderDetailBody order={order({ status: "delivered" })} />);
     expect(screen.getByText("Order is ready for pickup!")).toBeInTheDocument();
+  });
+
+  it("disables the button and shows a pending label while the update is in flight", async () => {
+    let resolveUpdate: (o: Order) => void = () => {};
+    vi.mocked(updateOrderStatus).mockReturnValue(
+      new Promise((resolve) => {
+        resolveUpdate = resolve;
+      })
+    );
+    const user = userEvent.setup();
+    render(<OrderDetailBody order={order({ status: "stitching" })} />);
+
+    await user.click(screen.getByText("✓ Mark Stitching Done"));
+    expect(screen.getByText("Updating…")).toBeDisabled();
+
+    resolveUpdate(order({ status: "hemming_hook" }));
+    expect(await screen.findByText("Sent for Hemming & Hook")).toBeInTheDocument();
   });
 
   it("renders the sketch image when present", () => {

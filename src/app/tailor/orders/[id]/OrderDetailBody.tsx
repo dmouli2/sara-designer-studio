@@ -7,28 +7,25 @@ import StatusBadge from "@/components/orders/StatusBadge";
 import MeasurementGrid from "@/components/orders/MeasurementGrid";
 import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
 import { updateOrderStatus } from "@/app/actions/orders";
-import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/utils";
-import type { Order, OrderStatus } from "@/types";
+import type { Order } from "@/types";
 
 export default function OrderDetailBody({ order: initialOrder }: { order: Order }) {
   const router = useRouter();
   const [order, setOrder] = useState(initialOrder);
-  const [updating, setUpdating] = useState(false);
+  const [marking, setMarking] = useState(false);
 
   const isCancelled = order.status === "cancelled";
-  const isDone = order.status === "ready" || order.status === "delivered";
+  // Hemming & Hook is an admin-verified finishing gate — the tailor's part
+  // ends at "stitching"; they hand off rather than marking the order ready
+  // themselves.
+  const isHandedOff = ["hemming_hook", "ready", "delivered"].includes(order.status);
 
-  const STATUS_BUTTONS: { status: OrderStatus; label: string; icon: string }[] = [
-    { status: "stitching", label: "In Progress — Stitching", icon: "🧵" },
-    { status: "ready",     label: "Mark as Ready",           icon: "✅" },
-  ];
-
-  async function handleStatus(s: OrderStatus) {
-    setUpdating(true);
-    const updated = await updateOrderStatus(order.id, s);
+  async function handleMarkStitchingDone() {
+    setMarking(true);
+    const updated = await updateOrderStatus(order.id, "hemming_hook");
     setOrder(updated);
-    setUpdating(false);
+    setMarking(false);
   }
 
   return (
@@ -83,29 +80,16 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
             <p className="text-3xl mb-1.5">🚫</p>
             <p className="text-[16px] font-semibold text-[#B04A4A]">Order cancelled</p>
           </div>
-        ) : !isDone ? (
-          <div>
-            <p className="section-label">Update status</p>
-            <div className="space-y-2">
-              {STATUS_BUTTONS.map(({ status, label, icon }) => (
-                <button
-                  key={status}
-                  onClick={() => handleStatus(status)}
-                  disabled={updating}
-                  className={cn(
-                    "w-full py-4 rounded-xl text-[14px] font-medium border active:scale-[0.98] transition-all text-left px-4 flex items-center gap-3 disabled:opacity-40",
-                    order.status === status
-                      ? "bg-[#0F0F0F] text-white border-[#0F0F0F] shadow-[0_4px_14px_-2px_rgba(15,15,15,0.3)]"
-                      : "border-[#E5E0D5] text-[#6B6B6B] bg-white"
-                  )}
-                >
-                  <span className="text-[17px]">{icon}</span>
-                  <span>{label}</span>
-                  {order.status === status && <span className="ml-auto text-[#C9A84C]">●</span>}
-                </button>
-              ))}
-            </div>
+        ) : order.status === "hemming_hook" ? (
+          <div className="rounded-2xl border border-[#CFE0F5] bg-[#E3EEFB] text-center py-6">
+            <p className="text-3xl mb-1.5">🪡</p>
+            <p className="text-[16px] font-semibold text-[#2E5C99]">Sent for Hemming & Hook</p>
+            <p className="text-[13px] text-[#2E5C99]/80 mt-1">Admin will release it to Ready once finishing is done</p>
           </div>
+        ) : !isHandedOff ? (
+          <button onClick={handleMarkStitchingDone} disabled={marking} className="btn-gold disabled:opacity-40">
+            {marking ? "Updating…" : "✓ Mark Stitching Done"}
+          </button>
         ) : (
           <div className="card-gold text-center py-6">
             <p className="text-3xl mb-1.5">🎉</p>
