@@ -207,6 +207,74 @@ describe("createSupabaseOrderRepository", () => {
     expect(result?.cancellationCharge).toBe(500);
   });
 
+  it("findById normalizes legacy { lb, ob } blouse measurements to plain L.B strings", async () => {
+    const legacyBlouse = {
+      type: "blouse",
+      length: { lb: "52", ob: "53" },
+      shoulder: { lb: "14", ob: "" },
+      hs: { lb: "", ob: "" },
+      sl: { lb: "", ob: "" },
+      mlos: { lb: "", ob: "" },
+      tlos: { lb: "", ob: "" },
+      ahs: { lb: "", ob: "" },
+      bust: { lb: "36", ob: "38" },
+      ub: { lb: "32", ob: "" },
+      waist: { lb: "", ob: "" },
+      fnNr: { lb: "", ob: "" },
+      bn: { lb: "", ob: "" },
+      dart: "11",
+      dbd: "",
+      p: "",
+      sareeFall: "",
+      piko: "",
+    };
+    mockTables({ data: { ...orderRow, measurements: legacyBlouse }, error: null });
+    const repo = createSupabaseOrderRepository();
+    const result = await repo.findById("SDS-001");
+    expect(result?.measurements).toMatchObject({
+      type: "blouse",
+      length: "52",
+      shoulder: "14",
+      bust: "36",
+      ub: "32",
+      dart: "11",
+    });
+  });
+
+  it("findById defaults a blouse field that is neither a string nor a { lb } object to an empty string", async () => {
+    const legacyBlouse = {
+      type: "blouse",
+      length: null,
+      shoulder: "", hs: "", sl: "", mlos: "", tlos: "",
+      ahs: "", bust: "", ub: "", waist: "", fnNr: "", bn: "",
+      dart: "", dbd: "", p: "", sareeFall: "", piko: "",
+    };
+    mockTables({ data: { ...orderRow, measurements: legacyBlouse }, error: null });
+    const repo = createSupabaseOrderRepository();
+    const result = await repo.findById("SDS-001");
+    expect(result?.measurements).toMatchObject({ length: "" });
+  });
+
+  it("findById leaves already-migrated (plain string) blouse measurements untouched", async () => {
+    const blouse = {
+      type: "blouse",
+      length: "52", shoulder: "14", hs: "", sl: "", mlos: "", tlos: "",
+      ahs: "", bust: "36", ub: "32", waist: "", fnNr: "", bn: "",
+      dart: "11", dbd: "", p: "", sareeFall: "", piko: "",
+    };
+    mockTables({ data: { ...orderRow, measurements: blouse }, error: null });
+    const repo = createSupabaseOrderRepository();
+    const result = await repo.findById("SDS-001");
+    expect(result?.measurements).toEqual(blouse);
+  });
+
+  it("findById leaves non-blouse measurements untouched", async () => {
+    mockTables({ data: orderRow, error: null }); // orderRow uses generic measurements
+    const repo = createSupabaseOrderRepository();
+    const result = await repo.findById("SDS-001");
+    expect(result?.measurements).toEqual(measurements);
+  });
+
   it("findById returns null when not found", async () => {
     mockTables({ data: null, error: null });
     const repo = createSupabaseOrderRepository();

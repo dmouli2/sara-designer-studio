@@ -45,6 +45,42 @@ function toAssignedStaff(id: string | null, names: Map<string, string>) {
   return name ? { id, name } : null;
 }
 
+// Blouse measurements used to be stored as { lb, ob } pairs, before O.B was
+// dropped and the columns became plain strings (see
+// supabase/migrations/0005_cancellation_and_multi_reference_images.sql's
+// sibling type change in src/types/index.ts). Orders written before that
+// change still have the old shape in their `measurements` jsonb — normalize
+// on read rather than requiring every stored row to be migrated up front.
+function normalizeMeasurements(raw: GarmentMeasurements): GarmentMeasurements {
+  if (!raw || raw.type !== "blouse") return raw;
+  const toSingle = (v: unknown): string => {
+    if (typeof v === "string") return v;
+    if (v && typeof v === "object" && "lb" in v) return String((v as { lb?: unknown }).lb ?? "");
+    return "";
+  };
+  const m = raw as unknown as Record<string, unknown>;
+  return {
+    type: "blouse",
+    length: toSingle(m.length),
+    shoulder: toSingle(m.shoulder),
+    hs: toSingle(m.hs),
+    sl: toSingle(m.sl),
+    mlos: toSingle(m.mlos),
+    tlos: toSingle(m.tlos),
+    ahs: toSingle(m.ahs),
+    bust: toSingle(m.bust),
+    ub: toSingle(m.ub),
+    waist: toSingle(m.waist),
+    fnNr: toSingle(m.fnNr),
+    bn: toSingle(m.bn),
+    dart: toSingle(m.dart),
+    dbd: toSingle(m.dbd),
+    p: toSingle(m.p),
+    sareeFall: toSingle(m.sareeFall),
+    piko: toSingle(m.piko),
+  };
+}
+
 function toOrder(row: OrderRow, names: Map<string, string>): Order {
   return {
     id: row.id,
@@ -58,7 +94,7 @@ function toOrder(row: OrderRow, names: Map<string, string>): Order {
     due: row.due,
     master: toAssignedStaff(row.master_id, names),
     tailor: toAssignedStaff(row.tailor_id, names),
-    measurements: row.measurements,
+    measurements: normalizeMeasurements(row.measurements),
     lineItems: row.line_items,
     notes: row.notes,
     sketchDataUrl: row.sketch_data_url,
