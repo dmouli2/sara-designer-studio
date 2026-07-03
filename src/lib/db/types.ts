@@ -49,8 +49,10 @@ export type OrderUpdateInput = Partial<OrderWriteInput>;
 
 // The customer-facing tracking link (src/app/track/[token]/) is looked up by
 // this token, never by the guessable SDS-xxx order id. Excludes master/tailor
-// so internal staff identities never reach an unauthenticated visitor.
-export type PublicOrder = Omit<Order, "master" | "tailor">;
+// so internal staff identities never reach an unauthenticated visitor, and
+// excludes measurements since customers don't need their own measurements
+// echoed back to them.
+export type PublicOrder = Omit<Order, "master" | "tailor" | "measurements">;
 
 export interface OrderRepository {
   list(): Promise<Order[]>;

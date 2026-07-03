@@ -235,7 +235,8 @@ export function createSupabaseOrderRepository(): OrderRepository {
 
     // Public route lookup (src/app/track/[token]/) — deliberately skips
     // resolveNames (empty map) so master/tailor identities are never even
-    // fetched, then strips them from the response as defense in depth.
+    // fetched, then strips them (and measurements, which customers don't
+    // need to see) from the response as defense in depth.
     async findByPublicToken(token: string) {
       const { data, error } = await getSupabaseClient()
         .from("orders")
@@ -247,7 +248,7 @@ export function createSupabaseOrderRepository(): OrderRepository {
       const row = data as OrderRow;
       const order = await toOrderWithImages(row, new Map());
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { master, tailor, ...publicOrder } = order;
+      const { master, tailor, measurements, ...publicOrder } = order;
       return publicOrder;
     },
 

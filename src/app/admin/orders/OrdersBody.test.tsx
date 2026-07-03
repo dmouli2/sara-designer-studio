@@ -100,7 +100,7 @@ describe("OrdersBody", () => {
     await user.click(screen.getByLabelText("More filters"));
     expect(screen.getByText("Filter orders")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByDisplayValue("All masters"), { target: { value: "m1" } });
+    await user.click(screen.getByText("Ramesh K."));
     expect(screen.getByText("D1")).toBeInTheDocument();
     expect(screen.queryByText("D2")).not.toBeInTheDocument();
   });
@@ -110,37 +110,17 @@ describe("OrdersBody", () => {
     render(<OrdersBody orders={ordersWithStaffAndDates} />);
 
     await user.click(screen.getByLabelText("More filters"));
-    fireEvent.change(screen.getByDisplayValue("All tailors"), { target: { value: "t1" } });
+    await user.click(screen.getByText("Anitha K."));
     expect(screen.getByText("D2")).toBeInTheDocument();
     expect(screen.queryByText("D1")).not.toBeInTheDocument();
   });
 
-  it("filters by due date range", async () => {
+  it("filters by an exact due date", async () => {
     const user = userEvent.setup();
     render(<OrdersBody orders={ordersWithStaffAndDates} />);
 
     await user.click(screen.getByLabelText("More filters"));
-    fireEvent.change(screen.getByLabelText("Due date from"), { target: { value: "2026-07-10" } });
-    expect(screen.getByText("D2")).toBeInTheDocument();
-    expect(screen.queryByText("D1")).not.toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText("Due date from"), { target: { value: "" } });
-    fireEvent.change(screen.getByLabelText("Due date to"), { target: { value: "2026-07-10" } });
-    expect(screen.getByText("D1")).toBeInTheDocument();
-    expect(screen.queryByText("D2")).not.toBeInTheDocument();
-  });
-
-  it("filters by order-created date range", async () => {
-    const user = userEvent.setup();
-    render(<OrdersBody orders={ordersWithStaffAndDates} />);
-
-    await user.click(screen.getByLabelText("More filters"));
-    fireEvent.change(screen.getByLabelText("Created date to"), { target: { value: "2026-06-10" } });
-    expect(screen.getByText("D1")).toBeInTheDocument();
-    expect(screen.queryByText("D2")).not.toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText("Created date to"), { target: { value: "" } });
-    fireEvent.change(screen.getByLabelText("Created date from"), { target: { value: "2026-06-10" } });
+    fireEvent.change(screen.getByLabelText("Due date"), { target: { value: "2026-07-20" } });
     expect(screen.getByText("D2")).toBeInTheDocument();
     expect(screen.queryByText("D1")).not.toBeInTheDocument();
   });
@@ -150,12 +130,38 @@ describe("OrdersBody", () => {
     render(<OrdersBody orders={ordersWithStaffAndDates} />);
 
     await user.click(screen.getByLabelText("More filters"));
-    fireEvent.change(screen.getByDisplayValue("All masters"), { target: { value: "m1" } });
+    await user.click(screen.getByText("Ramesh K."));
     expect(screen.queryByText("D2")).not.toBeInTheDocument();
 
     await user.click(screen.getByText("Clear all"));
     expect(screen.getByText("D1")).toBeInTheDocument();
     expect(screen.getByText("D2")).toBeInTheDocument();
+  });
+
+  it("searches by customer name", async () => {
+    const user = userEvent.setup();
+    const named = [
+      order({ id: "N1", customer: "Priya Sharma", phone: "9876543210" }),
+      order({ id: "N2", customer: "Anita Rao", phone: "9123456780" }),
+    ];
+    render(<OrdersBody orders={named} />);
+
+    await user.type(screen.getByLabelText("Search orders"), "priya");
+    expect(screen.getByText("N1")).toBeInTheDocument();
+    expect(screen.queryByText("N2")).not.toBeInTheDocument();
+  });
+
+  it("searches by mobile number", async () => {
+    const user = userEvent.setup();
+    const named = [
+      order({ id: "N1", customer: "Priya Sharma", phone: "9876543210" }),
+      order({ id: "N2", customer: "Anita Rao", phone: "9123456780" }),
+    ];
+    render(<OrdersBody orders={named} />);
+
+    await user.type(screen.getByLabelText("Search orders"), "91234");
+    expect(screen.getByText("N2")).toBeInTheDocument();
+    expect(screen.queryByText("N1")).not.toBeInTheDocument();
   });
 
   it("closes the filter sheet via Done", async () => {

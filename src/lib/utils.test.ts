@@ -114,7 +114,7 @@ describe("toIndianMobileDigits", () => {
 });
 
 describe("buildOrderWhatsAppMessage", () => {
-  it("includes the order id, dress, totals and delivery date", () => {
+  it("includes the order id, dress, totals and due date", () => {
     const message = buildOrderWhatsAppMessage({
       orderId: "SDS-101",
       customer: "Priya Sharma",
@@ -130,8 +130,10 @@ describe("buildOrderWhatsAppMessage", () => {
     expect(message).toContain("Total: ₹4,200");
     expect(message).toContain("Advance paid: ₹1,000");
     expect(message).toContain("Balance due: ₹3,200");
-    expect(message).toContain("Delivery date: 10 Jul 2026");
-    expect(message).toContain("Reminder: We'll notify you on 9 Jul 2026, a day before delivery");
+    expect(message).toContain("Due Date: 10 Jul 2026");
+    expect(message).toContain(
+      "Reminder: Kindly call us on 9 Jul 2026 to confirm pickup — we can only hand over the order on time after your confirmation call."
+    );
   });
 
   it("rolls the reminder date back across a month boundary", () => {
@@ -144,7 +146,9 @@ describe("buildOrderWhatsAppMessage", () => {
       due: "2026-08-01",
       trackingUrl: "https://sara-designer-studio.vercel.app/track/abc-123",
     });
-    expect(message).toContain("Reminder: We'll notify you on 31 Jul 2026, a day before delivery");
+    expect(message).toContain(
+      "Reminder: Kindly call us on 31 Jul 2026 to confirm pickup — we can only hand over the order on time after your confirmation call."
+    );
   });
 
   it("floors the balance at zero when the order is fully paid", () => {

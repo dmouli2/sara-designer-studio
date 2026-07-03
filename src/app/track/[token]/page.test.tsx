@@ -16,7 +16,6 @@ const publicOrder: PublicOrder = {
   amount: 1000,
   advance: 300,
   due: "2026-07-10",
-  measurements: { type: "generic", bust: "", waist: "", hip: "", length: "", shoulder: "", sleeve: "", neckDepth: "", armRound: "" },
   lineItems: [],
   notes: "",
   sketchDataUrl: null,

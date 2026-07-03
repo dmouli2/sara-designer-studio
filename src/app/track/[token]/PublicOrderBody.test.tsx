@@ -13,7 +13,6 @@ const baseOrder: PublicOrder = {
   amount: 4200,
   advance: 1000,
   due: "2026-07-10",
-  measurements: { type: "generic", bust: "34", waist: "28", hip: "36", length: "40", shoulder: "14", sleeve: "20", neckDepth: "6", armRound: "15" },
   lineItems: [{ particulars: "Blouse", qty: 1, amount: 1500 }],
   notes: "Handle with care",
   sketchDataUrl: "https://signed.example/sketch.png",
@@ -23,7 +22,7 @@ const baseOrder: PublicOrder = {
 };
 
 describe("PublicOrderBody", () => {
-  it("renders status, due date, dress/material, measurements and payment summary", () => {
+  it("renders status, due date, dress/material and payment summary", () => {
     const { container } = render(<PublicOrderBody order={baseOrder} />);
 
     expect(screen.getByText("Order SDS-001")).toBeInTheDocument();
@@ -36,10 +35,11 @@ describe("PublicOrderBody", () => {
     expect(screen.getByText("₹3,200")).toBeInTheDocument();
   });
 
-  it("does not expose assigned staff information anywhere", () => {
+  it("does not expose assigned staff information or measurements anywhere", () => {
     render(<PublicOrderBody order={baseOrder} />);
     expect(screen.queryByText(/master/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/tailor/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Measurements")).not.toBeInTheDocument();
   });
 
   it("shows notes when present", () => {

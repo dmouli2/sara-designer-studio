@@ -1,6 +1,5 @@
 import StatusBadge from "@/components/orders/StatusBadge";
 import ProgressTracker from "@/components/orders/ProgressTracker";
-import MeasurementGrid from "@/components/orders/MeasurementGrid";
 import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
 import TopBar from "@/components/layout/TopBar";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -30,11 +29,6 @@ export default function PublicOrderBody({ order }: { order: PublicOrder }) {
           {order.notes && (
             <p className="text-[13px] text-[#A8882E]/80 mt-2 italic">&quot;{order.notes}&quot;</p>
           )}
-        </div>
-
-        <div>
-          <p className="section-label">Measurements</p>
-          <MeasurementGrid measurements={order.measurements} />
         </div>
 
         {order.sketchDataUrl && (

@@ -2,21 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getDb } from "@/lib/db";
 import { getPublicOrder } from "./publicOrders";
 import type { PublicOrder } from "@/lib/db";
-import type { GarmentMeasurements, OrderLineItem } from "@/types";
+import type { OrderLineItem } from "@/types";
 
 vi.mock("@/lib/db", () => ({ getDb: vi.fn() }));
-
-const measurements: GarmentMeasurements = {
-  type: "generic",
-  bust: "34",
-  waist: "28",
-  hip: "36",
-  length: "40",
-  shoulder: "14",
-  sleeve: "20",
-  neckDepth: "6",
-  armRound: "15",
-};
 
 const lineItems: OrderLineItem[] = [{ particulars: "Blouse", qty: 1, amount: 1000 }];
 
@@ -30,7 +18,6 @@ const publicOrder: PublicOrder = {
   amount: 1000,
   advance: 300,
   due: "2026-07-10",
-  measurements,
   lineItems,
   notes: "",
   sketchDataUrl: null,

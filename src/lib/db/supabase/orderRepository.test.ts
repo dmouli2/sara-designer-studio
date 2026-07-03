@@ -431,7 +431,7 @@ describe("createSupabaseOrderRepository", () => {
     expect(ordersQuery.eq).toHaveBeenCalledWith("public_token", "9f2b3c4d-1111-2222-3333-444455556666");
   });
 
-  it("findByPublicToken never queries staff and strips master/tailor from the result", async () => {
+  it("findByPublicToken never queries staff and strips master/tailor/measurements from the result", async () => {
     const ordersQuery = fakeQuery({ data: orderRow, error: null });
     from.mockImplementation((table: string) => (table === "orders" ? ordersQuery : fakeQuery({ data: staffRows, error: null })));
     const repo = createSupabaseOrderRepository();
@@ -439,6 +439,7 @@ describe("createSupabaseOrderRepository", () => {
     expect(from).not.toHaveBeenCalledWith("staff");
     expect(result).not.toHaveProperty("master");
     expect(result).not.toHaveProperty("tailor");
+    expect(result).not.toHaveProperty("measurements");
   });
 
   it("findByPublicToken resolves image paths to signed URLs like findById", async () => {

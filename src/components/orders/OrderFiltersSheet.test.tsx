@@ -33,7 +33,7 @@ describe("OrderFiltersSheet", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("lists the provided masters and tailors", () => {
+  it("lists the provided masters and tailors as chips", () => {
     render(
       <OrderFiltersSheet
         open
@@ -49,7 +49,8 @@ describe("OrderFiltersSheet", () => {
     expect(screen.getByText("Anitha K.")).toBeInTheDocument();
   });
 
-  it("reports a merged value when the master select changes", () => {
+  it("reports a merged value when a master chip is selected", async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     render(
       <OrderFiltersSheet
@@ -62,16 +63,17 @@ describe("OrderFiltersSheet", () => {
         onClose={vi.fn()}
       />
     );
-    fireEvent.change(screen.getByDisplayValue("All masters"), { target: { value: "m1" } });
+    await user.click(screen.getByText("Ramesh K."));
     expect(onChange).toHaveBeenCalledWith({ ...EMPTY_ORDER_FILTERS, masterId: "m1" });
   });
 
-  it("reports a merged value when a date input changes", () => {
+  it("reports a merged value when a tailor chip is selected", async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     render(
       <OrderFiltersSheet
         open
-        values={EMPTY_ORDER_FILTERS}
+        values={{ ...EMPTY_ORDER_FILTERS, tailorId: "t1" }}
         masters={MASTERS}
         tailors={TAILORS}
         onChange={onChange}
@@ -79,11 +81,11 @@ describe("OrderFiltersSheet", () => {
         onClose={vi.fn()}
       />
     );
-    fireEvent.change(screen.getByLabelText("Due date from"), { target: { value: "2026-07-01" } });
-    expect(onChange).toHaveBeenCalledWith({ ...EMPTY_ORDER_FILTERS, dueFrom: "2026-07-01" });
+    await user.click(screen.getAllByText("All")[1]);
+    expect(onChange).toHaveBeenCalledWith({ ...EMPTY_ORDER_FILTERS, tailorId: "" });
   });
 
-  it("reports merged values for the remaining date fields (due-to, created-from, created-to)", () => {
+  it("reports a merged value when the due date changes", () => {
     const onChange = vi.fn();
     render(
       <OrderFiltersSheet
@@ -96,14 +98,8 @@ describe("OrderFiltersSheet", () => {
         onClose={vi.fn()}
       />
     );
-    fireEvent.change(screen.getByLabelText("Due date to"), { target: { value: "2026-07-31" } });
-    expect(onChange).toHaveBeenCalledWith({ ...EMPTY_ORDER_FILTERS, dueTo: "2026-07-31" });
-
-    fireEvent.change(screen.getByLabelText("Created date from"), { target: { value: "2026-06-01" } });
-    expect(onChange).toHaveBeenCalledWith({ ...EMPTY_ORDER_FILTERS, createdFrom: "2026-06-01" });
-
-    fireEvent.change(screen.getByLabelText("Created date to"), { target: { value: "2026-06-30" } });
-    expect(onChange).toHaveBeenCalledWith({ ...EMPTY_ORDER_FILTERS, createdTo: "2026-06-30" });
+    fireEvent.change(screen.getByLabelText("Due date"), { target: { value: "2026-07-10" } });
+    expect(onChange).toHaveBeenCalledWith({ ...EMPTY_ORDER_FILTERS, due: "2026-07-10" });
   });
 
   it("calls onClear and onClose from their respective buttons", async () => {

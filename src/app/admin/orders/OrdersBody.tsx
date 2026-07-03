@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, LogOut, Users, SlidersHorizontal } from "lucide-react";
+import { Plus, LogOut, Users, SlidersHorizontal, Search } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import BottomNav from "@/components/layout/BottomNav";
 import PullToRefresh from "@/components/layout/PullToRefresh";
@@ -19,8 +19,8 @@ const FILTERS: { id: OrderStatus | "all"; label: string }[] = [
   { id: "all",          label: "All" },
   { id: "new",          label: "New" },
   { id: "cutting",      label: "Cutting" },
-  { id: "cutting_done", label: "Cut Done" },
   { id: "stitching",    label: "Stitching" },
+  { id: "hemming_hook", label: "Hemming & Hook" },
   { id: "ready",        label: "Ready" },
   { id: "delivered",    label: "Delivered" },
 ];
@@ -36,23 +36,34 @@ function uniqueStaff(list: (AssignedStaff | null)[]): AssignedStaff[] {
   return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function normalizeDigits(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
 export default function OrdersBody({ orders }: { orders: Order[] }) {
   const router = useRouter();
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
   const [advanced, setAdvanced] = useState<OrderFilterValues>(EMPTY_ORDER_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
   const masters = useMemo(() => uniqueStaff(orders.map((o) => o.master)), [orders]);
   const tailors = useMemo(() => uniqueStaff(orders.map((o) => o.tailor)), [orders]);
+
+  const searchTerm = search.trim().toLowerCase();
+  const searchDigits = normalizeDigits(search);
 
   const filtered = orders
     .filter((o) => filter === "all" || o.status === filter)
     .filter((o) => !advanced.masterId || o.master?.id === advanced.masterId)
     .filter((o) => !advanced.tailorId || o.tailor?.id === advanced.tailorId)
-    .filter((o) => !advanced.dueFrom || o.due.slice(0, 10) >= advanced.dueFrom)
-    .filter((o) => !advanced.dueTo || o.due.slice(0, 10) <= advanced.dueTo)
-    .filter((o) => !advanced.createdFrom || o.createdAt.slice(0, 10) >= advanced.createdFrom)
-    .filter((o) => !advanced.createdTo || o.createdAt.slice(0, 10) <= advanced.createdTo);
+    .filter((o) => !advanced.due || o.due.slice(0, 10) === advanced.due)
+    .filter(
+      (o) =>
+        !searchTerm ||
+        o.customer.toLowerCase().includes(searchTerm) ||
+        (searchDigits && normalizeDigits(o.phone).includes(searchDigits))
+    );
 
   const filtersActive = hasActiveFilters(advanced);
 
@@ -102,6 +113,21 @@ export default function OrdersBody({ orders }: { orders: Order[] }) {
             <p className="text-[11px] text-[#9A9A9A] mt-0.5">{s.label}</p>
           </div>
         ))}
+      </div>
+
+      {/* Search */}
+      <div className="px-4 pb-2">
+        <div className="relative">
+          <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9A9A9A]" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by customer name or mobile number"
+            aria-label="Search orders"
+            className="input pl-10 py-2.5 text-[14px]"
+          />
+        </div>
       </div>
 
       {/* Filter chips */}

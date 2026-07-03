@@ -1,24 +1,19 @@
 "use client";
 
 import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { AssignedStaff } from "@/types";
 
 export interface OrderFilterValues {
   masterId: string;
   tailorId: string;
-  dueFrom: string;
-  dueTo: string;
-  createdFrom: string;
-  createdTo: string;
+  due: string;
 }
 
 export const EMPTY_ORDER_FILTERS: OrderFilterValues = {
   masterId: "",
   tailorId: "",
-  dueFrom: "",
-  dueTo: "",
-  createdFrom: "",
-  createdTo: "",
+  due: "",
 };
 
 export function hasActiveFilters(values: OrderFilterValues): boolean {
@@ -33,6 +28,49 @@ interface Props {
   onChange: (values: OrderFilterValues) => void;
   onClear: () => void;
   onClose: () => void;
+}
+
+function StaffChipRow({
+  label,
+  staff,
+  selectedId,
+  onSelect,
+}: {
+  label: string;
+  staff: AssignedStaff[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div>
+      <p className="section-label">{label}</p>
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
+        <button
+          type="button"
+          onClick={() => onSelect("")}
+          className={cn(
+            "flex-none px-4 py-2 rounded-full text-[13px] font-medium active:scale-95 transition-all",
+            selectedId === "" ? "bg-[#0F0F0F] text-white" : "bg-white border border-[#E5E0D5] text-[#6B6B6B]"
+          )}
+        >
+          All
+        </button>
+        {staff.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => onSelect(s.id)}
+            className={cn(
+              "flex-none px-4 py-2 rounded-full text-[13px] font-medium active:scale-95 transition-all",
+              selectedId === s.id ? "bg-[#0F0F0F] text-white" : "bg-white border border-[#E5E0D5] text-[#6B6B6B]"
+            )}
+          >
+            {s.name}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function OrderFiltersSheet({ open, values, masters, tailors, onChange, onClear, onClose }: Props) {
@@ -57,64 +95,18 @@ export default function OrderFiltersSheet({ open, values, masters, tailors, onCh
           </button>
         </div>
 
-        <div>
-          <p className="section-label">Assigned master</p>
-          <select className="input" value={values.masterId} onChange={(e) => set("masterId", e.target.value)}>
-            <option value="">All masters</option>
-            {masters.map((m) => (
-              <option key={m.id} value={m.id}>{m.name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <p className="section-label">Assigned tailor</p>
-          <select className="input" value={values.tailorId} onChange={(e) => set("tailorId", e.target.value)}>
-            <option value="">All tailors</option>
-            {tailors.map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
-        </div>
+        <StaffChipRow label="Assigned master" staff={masters} selectedId={values.masterId} onSelect={(id) => set("masterId", id)} />
+        <StaffChipRow label="Assigned tailor" staff={tailors} selectedId={values.tailorId} onSelect={(id) => set("tailorId", id)} />
 
         <div>
           <p className="section-label">Due date</p>
-          <div className="flex gap-2">
-            <input
-              type="date"
-              aria-label="Due date from"
-              className="input"
-              value={values.dueFrom}
-              onChange={(e) => set("dueFrom", e.target.value)}
-            />
-            <input
-              type="date"
-              aria-label="Due date to"
-              className="input"
-              value={values.dueTo}
-              onChange={(e) => set("dueTo", e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div>
-          <p className="section-label">Order created</p>
-          <div className="flex gap-2">
-            <input
-              type="date"
-              aria-label="Created date from"
-              className="input"
-              value={values.createdFrom}
-              onChange={(e) => set("createdFrom", e.target.value)}
-            />
-            <input
-              type="date"
-              aria-label="Created date to"
-              className="input"
-              value={values.createdTo}
-              onChange={(e) => set("createdTo", e.target.value)}
-            />
-          </div>
+          <input
+            type="date"
+            aria-label="Due date"
+            className="input"
+            value={values.due}
+            onChange={(e) => set("due", e.target.value)}
+          />
         </div>
 
         <div className="flex gap-2 pt-1">
