@@ -103,6 +103,16 @@ if (typeof window !== "undefined") {
     toJSON() {},
   })) as unknown as () => DOMRect;
 
+  // jsdom has no ResizeObserver; recharts' ResponsiveContainer needs one to
+  // measure its wrapper. getBoundingClientRect above already gives it a
+  // non-zero size, so a no-op observer is enough for charts to render.
+  class MockResizeObserver {
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = vi.fn();
+  }
+  window.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+
   Object.defineProperty(window, "matchMedia", {
     writable: true,
     configurable: true,

@@ -67,17 +67,13 @@ export default function OrdersBody({ orders }: { orders: Order[] }) {
 
   const filtersActive = hasActiveFilters(advanced);
 
-  const stats = {
-    total:   orders.length,
-    active:  orders.filter((o) => !["delivered"].includes(o.status)).length,
-    ready:   orders.filter((o) => o.status === "ready").length,
-  };
+  const activeCount = orders.filter((o) => !["delivered"].includes(o.status)).length;
 
   return (
     <div className="screen">
       <TopBar
         title="Sara Designer Studio"
-        subtitle={`${stats.active} active orders`}
+        subtitle={`${activeCount} active orders`}
         right={
           <div className="flex items-center gap-2">
             <button
@@ -98,25 +94,8 @@ export default function OrdersBody({ orders }: { orders: Order[] }) {
         }
       />
 
-      {/* Stats row */}
-      <div className="px-4 pt-4 pb-2 grid grid-cols-3 gap-2">
-        {[
-          { label: "Total Orders", value: stats.total },
-          { label: "Ready Pickup", value: stats.ready },
-          { label: "Active",       value: stats.active },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="bg-white rounded-xl border border-[#E5E0D5] p-3.5 text-center shadow-[0_1px_2px_rgba(15,15,15,0.04)]"
-          >
-            <p className="text-2xl font-bold text-[#0F0F0F]">{s.value}</p>
-            <p className="text-[11px] text-[#9A9A9A] mt-0.5">{s.label}</p>
-          </div>
-        ))}
-      </div>
-
       {/* Search */}
-      <div className="px-4 pb-2">
+      <div className="px-4 pt-4 pb-2">
         <div className="relative">
           <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9A9A9A]" />
           <input
@@ -193,7 +172,13 @@ export default function OrdersBody({ orders }: { orders: Order[] }) {
         </div>
       </div>
 
-      <BottomNav tabs={NAV_TABS} active="orders" onChange={() => {}} />
+      <BottomNav
+        tabs={NAV_TABS}
+        active="orders"
+        onChange={(id) => {
+          if (id === "reports") router.push("/admin/reports");
+        }}
+      />
 
       <OrderFiltersSheet
         open={filtersOpen}

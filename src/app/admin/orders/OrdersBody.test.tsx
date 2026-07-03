@@ -55,9 +55,8 @@ const ordersWithStaffAndDates: Order[] = [
 ];
 
 describe("OrdersBody", () => {
-  it("shows summary stats and all orders under the All filter", () => {
+  it("shows all orders under the All filter", () => {
     render(<OrdersBody orders={orders} />);
-    expect(screen.getByText("3")).toBeInTheDocument(); // total
     expect(screen.getByText("C1")).toBeInTheDocument();
     expect(screen.getByText("C2")).toBeInTheDocument();
     expect(screen.getByText("C3")).toBeInTheDocument();
@@ -86,11 +85,18 @@ describe("OrdersBody", () => {
     expect(mockRouter.push).toHaveBeenCalledWith("/admin/orders/C1");
   });
 
-  it("does not crash when the inactive bottom nav tab is clicked", async () => {
+  it("navigates to the reports page when the Reports tab is clicked", async () => {
     const user = userEvent.setup();
     render(<OrdersBody orders={orders} />);
     await user.click(screen.getByText("Reports"));
-    expect(screen.getByText("C1")).toBeInTheDocument();
+    expect(mockRouter.push).toHaveBeenCalledWith("/admin/reports");
+  });
+
+  it("does not navigate when the already-active Orders tab is clicked", async () => {
+    const user = userEvent.setup();
+    render(<OrdersBody orders={orders} />);
+    await user.click(screen.getByText("Orders"));
+    expect(mockRouter.push).not.toHaveBeenCalled();
   });
 
   it("opens the filter sheet and filters by assigned master", async () => {

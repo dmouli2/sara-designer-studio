@@ -12,6 +12,10 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; cls: string }> = {
   cancelled:    { label: "Cancelled",    cls: "badge-cancelled" },
 };
 
+export const STATUS_LABELS: Record<OrderStatus, string> = Object.fromEntries(
+  Object.entries(STATUS_CONFIG).map(([status, cfg]) => [status, cfg.label])
+) as Record<OrderStatus, string>;
+
 export default function StatusBadge({ status }: { status: OrderStatus }) {
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.new;
   return <span className={cn(cfg.cls)}>{cfg.label}</span>;
