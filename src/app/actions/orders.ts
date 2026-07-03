@@ -4,7 +4,7 @@ import { revalidatePath, refresh } from "next/cache";
 import { requireRole } from "@/lib/dal";
 import { getDb, type OrderWriteInput, type OrderUpdateInput, type OrderListFilter } from "@/lib/db";
 import { getImageStorage } from "@/lib/storage";
-import { MAX_REFERENCE_IMAGES, type Order, type OrderStatus } from "@/types";
+import { MAX_REFERENCE_IMAGES, MAX_MATERIAL_IMAGES, type Order, type OrderStatus } from "@/types";
 
 const ALL_ROLES = ["admin", "master", "tailor"] as const;
 
@@ -44,6 +44,22 @@ async function storeReferenceImages(orderId: string, values: string[]): Promise<
   return paths.filter((p): p is string => !!p);
 }
 
+// Material (fabric) photos — same fixed-slot pattern as reference photos, so
+// deleteOrder can clean them up without needing to know how many were taken.
+// The first slot (material-1.jpg) is always the "main" photo used as the
+// order-card thumbnail.
+async function storeMaterialImages(orderId: string, values: string[]): Promise<string[]> {
+  const paths = await Promise.all(
+    values.slice(0, MAX_MATERIAL_IMAGES).map(async (value, i) => {
+      if (!isDataUrl(value)) return value || null;
+      const path = `orders/${orderId}/material-${i + 1}.jpg`;
+      await getImageStorage().upload(path, value);
+      return path;
+    })
+  );
+  return paths.filter((p): p is string => !!p);
+}
+
 export async function getOrders(filter?: OrderListFilter): Promise<Order[]> {
   await requireRole([...ALL_ROLES]);
   return getDb().orders.list(filter);
@@ -61,14 +77,18 @@ export async function createOrder(
   if (!input.due) {
     throw new Error("Delivery date is required.");
   }
+  if (input.materialImageUrls.length === 0) {
+    throw new Error("At least one material photo is required.");
+  }
 
   // Reserved once per order, from the dress-category's own DB sequence —
   // never generated client-side. See supabase/migrations/0003_order_id_sequences.sql.
   const id = await getDb().orders.nextOrderId(input.dress);
 
-  const [sketchDataUrl, referenceImageUrls] = await Promise.all([
+  const [sketchDataUrl, referenceImageUrls, materialImageUrls] = await Promise.all([
     storeSketch(id, input.sketchDataUrl),
     storeReferenceImages(id, input.referenceImageUrls),
+    storeMaterialImages(id, input.materialImageUrls),
   ]);
 
   // cancellationCharge only ever exists once an order is cancelled — see
@@ -78,6 +98,7 @@ export async function createOrder(
     id,
     sketchDataUrl,
     referenceImageUrls,
+    materialImageUrls,
     cancellationCharge: null,
   });
   revalidatePath("/admin/orders");
@@ -145,6 +166,13 @@ export async function deleteOrder(id: string): Promise<void> {
   const referenceDeletes = Array.from({ length: MAX_REFERENCE_IMAGES }, (_, i) =>
     getImageStorage().delete(`orders/${id}/reference-${i + 1}.jpg`)
   );
-  await Promise.all([getImageStorage().delete(`orders/${id}/sketch.png`), ...referenceDeletes]);
+  const materialDeletes = Array.from({ length: MAX_MATERIAL_IMAGES }, (_, i) =>
+    getImageStorage().delete(`orders/${id}/material-${i + 1}.jpg`)
+  );
+  await Promise.all([
+    getImageStorage().delete(`orders/${id}/sketch.png`),
+    ...referenceDeletes,
+    ...materialDeletes,
+  ]);
   revalidateOrderPaths(id);
 }

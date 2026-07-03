@@ -40,7 +40,9 @@ export interface StaffRepository {
 // Order.master / Order.tailor carry only a display name today. Writes take
 // explicit ids (matching the orders table's master_id/tailor_id FKs) so that
 // resolving Order shape to include ids later is a read-side change only.
-export interface OrderWriteInput extends Omit<Order, "master" | "tailor" | "createdAt"> {
+// mainMaterialImageUrl is excluded too — it's derived on read (always
+// materialImageUrls[0]), never something a caller supplies directly.
+export interface OrderWriteInput extends Omit<Order, "master" | "tailor" | "createdAt" | "mainMaterialImageUrl"> {
   masterId?: string | null;
   tailorId?: string | null;
 }
@@ -71,6 +73,7 @@ export interface OrderImageCleanupCandidate {
   id: string;
   sketchDataUrl: string | null;
   referenceImageUrls: string[];
+  materialImageUrls: string[];
 }
 
 export interface OrderRepository {

@@ -29,6 +29,18 @@ export function createSupabaseImageStorage(): ImageStorage {
       return data?.signedUrl ?? null;
     },
 
+    async getSignedUrls(paths: string[]) {
+      if (paths.length === 0) return [];
+      const { data, error } = await getSupabaseClient()
+        .storage.from(BUCKET)
+        .createSignedUrls(paths, SIGNED_URL_TTL_SECONDS);
+      if (error || !data) return paths.map(() => null);
+      // Match by path rather than assuming response order mirrors the
+      // request — each result carries its own `path`, safer to look up.
+      const byPath = new Map(data.map((d) => [d.path, d.signedUrl]));
+      return paths.map((p) => byPath.get(p) ?? null);
+    },
+
     async delete(path: string) {
       // Best-effort cleanup — a failed delete shouldn't block deleting the order itself.
       await getSupabaseClient().storage.from(BUCKET).remove([path]);

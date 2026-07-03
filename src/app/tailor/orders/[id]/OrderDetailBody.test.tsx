@@ -28,6 +28,8 @@ function order(overrides: Partial<Order>): Order {
     notes: "",
     sketchDataUrl: null,
     referenceImageUrls: [],
+    materialImageUrls: [],
+    mainMaterialImageUrl: null,
     cancellationCharge: null,
     createdAt: "2026-06-01",
     ...overrides,
@@ -107,6 +109,16 @@ describe("OrderDetailBody", () => {
   it("renders the reference photos when present", () => {
     render(<OrderDetailBody order={order({ status: "stitching", referenceImageUrls: ["data:image/png;base64,ref"] })} />);
     expect(screen.getByAltText("Reference 1")).toHaveAttribute("src", "data:image/png;base64,ref");
+  });
+
+  it("renders the material photos at the top when present", () => {
+    render(<OrderDetailBody order={order({ status: "stitching", materialImageUrls: ["data:image/png;base64,fabric"] })} />);
+    expect(screen.getByAltText("Material 1")).toHaveAttribute("src", "data:image/png;base64,fabric");
+  });
+
+  it("shows a placeholder when there are no material photos", () => {
+    render(<OrderDetailBody order={order({ status: "stitching", materialImageUrls: [] })} />);
+    expect(screen.getByText("No material photos")).toBeInTheDocument();
   });
 
   it("navigates to the tailor queue (fresh, not a cached back-nav) when the top bar back button is clicked", async () => {

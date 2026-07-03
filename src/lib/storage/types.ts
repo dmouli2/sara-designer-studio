@@ -4,5 +4,10 @@
 export interface ImageStorage {
   upload(path: string, dataUrl: string): Promise<void>;
   getSignedUrl(path: string): Promise<string | null>;
+  // Batch form of getSignedUrl — one round trip for many paths instead of
+  // one per path. Used when a list of orders each needs a single thumbnail
+  // resolved (see orderRepository.list()), where per-order calls would mean
+  // one Storage request per row in the page.
+  getSignedUrls(paths: string[]): Promise<(string | null)[]>;
   delete(path: string): Promise<void>;
 }

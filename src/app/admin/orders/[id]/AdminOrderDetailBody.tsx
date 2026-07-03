@@ -8,6 +8,7 @@ import StatusBadge from "@/components/orders/StatusBadge";
 import MeasurementGrid from "@/components/orders/MeasurementGrid";
 import ProgressTracker from "@/components/orders/ProgressTracker";
 import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
+import MaterialImageGallery from "@/components/orders/MaterialImageGallery";
 import ConfirmDialog from "@/components/layout/ConfirmDialog";
 import Toast from "@/components/layout/Toast";
 import CancelOrderDialog from "@/components/orders/CancelOrderDialog";
@@ -145,6 +146,12 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
       />
 
       <div className="scroll-area px-4 pt-4 space-y-4">
+        {/* Material photos */}
+        <div>
+          <p className="section-label">Material photos</p>
+          <MaterialImageGallery images={order.materialImageUrls} />
+        </div>
+
         {/* Progress */}
         <div className="card">
           <p className="section-label">Order progress</p>

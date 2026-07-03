@@ -9,12 +9,14 @@ vi.mock("../../supabase/client", () => ({
 describe("createSupabaseImageStorage", () => {
   const upload = vi.fn();
   const createSignedUrl = vi.fn();
+  const createSignedUrls = vi.fn();
   const remove = vi.fn();
-  const from = vi.fn(() => ({ upload, createSignedUrl, remove }));
+  const from = vi.fn(() => ({ upload, createSignedUrl, createSignedUrls, remove }));
 
   beforeEach(() => {
     upload.mockReset();
     createSignedUrl.mockReset();
+    createSignedUrls.mockReset();
     remove.mockReset();
     from.mockClear();
     vi.mocked(getSupabaseClient).mockReturnValue({ storage: { from } } as never);
@@ -67,6 +69,47 @@ describe("createSupabaseImageStorage", () => {
     createSignedUrl.mockResolvedValue({ data: null, error: null });
     const storage = createSupabaseImageStorage();
     expect(await storage.getSignedUrl("orders/missing.png")).toBeNull();
+  });
+
+  it("resolves multiple signed URLs in one batch call, matched by path", async () => {
+    createSignedUrls.mockResolvedValue({
+      data: [
+        { path: "orders/SDS-2/material-1.jpg", signedUrl: "https://signed.example/2", error: null },
+        { path: "orders/SDS-1/material-1.jpg", signedUrl: "https://signed.example/1", error: null },
+      ],
+      error: null,
+    });
+    const storage = createSupabaseImageStorage();
+    const urls = await storage.getSignedUrls(["orders/SDS-1/material-1.jpg", "orders/SDS-2/material-1.jpg"]);
+
+    expect(createSignedUrls).toHaveBeenCalledWith(
+      ["orders/SDS-1/material-1.jpg", "orders/SDS-2/material-1.jpg"],
+      3600
+    );
+    // Response order deliberately reversed vs. request — result must still
+    // line up with the requested path order, not the response order.
+    expect(urls).toEqual(["https://signed.example/1", "https://signed.example/2"]);
+  });
+
+  it("returns an empty array without calling the API for an empty path list", async () => {
+    const storage = createSupabaseImageStorage();
+    expect(await storage.getSignedUrls([])).toEqual([]);
+    expect(createSignedUrls).not.toHaveBeenCalled();
+  });
+
+  it("returns all nulls when the batch call fails", async () => {
+    createSignedUrls.mockResolvedValue({ data: null, error: { message: "batch failed" } });
+    const storage = createSupabaseImageStorage();
+    expect(await storage.getSignedUrls(["a.jpg", "b.jpg"])).toEqual([null, null]);
+  });
+
+  it("maps a path missing from the response to null", async () => {
+    createSignedUrls.mockResolvedValue({
+      data: [{ path: "a.jpg", signedUrl: "https://signed.example/a", error: null }],
+      error: null,
+    });
+    const storage = createSupabaseImageStorage();
+    expect(await storage.getSignedUrls(["a.jpg", "b.jpg"])).toEqual(["https://signed.example/a", null]);
   });
 
   it("removes a stored object", async () => {

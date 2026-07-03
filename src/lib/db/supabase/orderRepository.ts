@@ -33,6 +33,7 @@ interface OrderRow {
   notes: string;
   sketch_data_url: string | null;
   reference_image_urls: string[];
+  material_image_urls: string[];
   cancellation_charge: number | null;
   created_at: string;
   public_token: string;
@@ -41,9 +42,12 @@ interface OrderRow {
 const STAFF_EMBEDS =
   "master:staff!orders_master_id_fkey(id, name), tailor:staff!orders_tailor_id_fkey(id, name)";
 
-// Columns selected for list views, which never render sketch/reference images —
-// keeps those (potentially large, pre-Storage-migration) values off the wire.
-const LIST_COLUMNS = `id, customer, phone, dress, material, status, amount, advance, due, measurements, line_items, notes, cancellation_charge, created_at, ${STAFF_EMBEDS}`;
+// Columns selected for list views, which never render sketch/reference
+// images — keeps those (potentially large, pre-Storage-migration) values off
+// the wire. material_image_urls is the one exception: it's just short
+// Storage paths (cheap), needed to resolve each row's single main-photo
+// thumbnail for the order card (see list() below).
+const LIST_COLUMNS = `id, customer, phone, dress, material, status, amount, advance, due, measurements, line_items, notes, cancellation_charge, created_at, material_image_urls, ${STAFF_EMBEDS}`;
 
 const DETAIL_COLUMNS = `*, ${STAFF_EMBEDS}`;
 
@@ -124,14 +128,18 @@ function toOrder(row: OrderRow): Order {
     notes: row.notes,
     sketchDataUrl: row.sketch_data_url,
     referenceImageUrls: row.reference_image_urls,
+    materialImageUrls: row.material_image_urls,
+    // Resolved separately (needs a Storage round trip) — see
+    // toOrderWithImages and list() below, which both override this.
+    mainMaterialImageUrl: null,
     cancellationCharge: row.cancellation_charge,
     createdAt: row.created_at,
   };
 }
 
-// `sketch_data_url`/`reference_image_urls` hold Storage paths, not image
-// bytes — resolve them to fetchable (signed) URLs for anything that renders
-// the image(s).
+// `sketch_data_url`/`reference_image_urls`/`material_image_urls` hold
+// Storage paths, not image bytes — resolve them to fetchable (signed) URLs
+// for anything that renders the image(s).
 async function resolveImageUrl(path: string | null): Promise<string | null> {
   if (!path) return null;
   return getImageStorage().getSignedUrl(path);
@@ -145,11 +153,18 @@ async function resolveImageUrls(paths: string[]): Promise<string[]> {
 }
 
 async function toOrderWithImages(row: OrderRow): Promise<Order> {
-  const [sketchDataUrl, referenceImageUrls] = await Promise.all([
+  const [sketchDataUrl, referenceImageUrls, materialImageUrls] = await Promise.all([
     resolveImageUrl(row.sketch_data_url),
     resolveImageUrls(row.reference_image_urls),
+    resolveImageUrls(row.material_image_urls),
   ]);
-  return { ...toOrder(row), sketchDataUrl, referenceImageUrls };
+  return {
+    ...toOrder(row),
+    sketchDataUrl,
+    referenceImageUrls,
+    materialImageUrls,
+    mainMaterialImageUrl: materialImageUrls[0] ?? null,
+  };
 }
 
 function toInsertRow(input: OrderWriteInput) {
@@ -170,6 +185,7 @@ function toInsertRow(input: OrderWriteInput) {
     notes: input.notes,
     sketch_data_url: input.sketchDataUrl,
     reference_image_urls: input.referenceImageUrls,
+    material_image_urls: input.materialImageUrls,
     cancellation_charge: input.cancellationCharge,
   };
 }
@@ -191,6 +207,7 @@ function toUpdateRow(patch: OrderUpdateInput): Record<string, unknown> {
   if (patch.notes !== undefined) row.notes = patch.notes;
   if (patch.sketchDataUrl !== undefined) row.sketch_data_url = patch.sketchDataUrl;
   if (patch.referenceImageUrls !== undefined) row.reference_image_urls = patch.referenceImageUrls;
+  if (patch.materialImageUrls !== undefined) row.material_image_urls = patch.materialImageUrls;
   if (patch.cancellationCharge !== undefined) row.cancellation_charge = patch.cancellationCharge;
   return row;
 }
@@ -213,7 +230,23 @@ export function createSupabaseOrderRepository(): OrderRepository {
       const { data, error } = await query;
       if (error) throw new Error(error.message);
       const rows = (data ?? []) as unknown as Omit<OrderRow, "sketch_data_url" | "reference_image_urls">[];
-      return rows.map((row) => toOrder({ ...row, sketch_data_url: null, reference_image_urls: [] }));
+
+      // One batch Storage call for every row's first material photo, instead
+      // of a signed-url round trip per order — the difference between one
+      // request and up to `limit` requests on a paginated list.
+      const mainPaths = rows.map((row) => row.material_image_urls?.[0]).filter((p): p is string => !!p);
+      const mainUrls = await getImageStorage().getSignedUrls(mainPaths);
+      const mainUrlByPath = new Map(mainPaths.map((p, i) => [p, mainUrls[i] ?? null]));
+
+      return rows.map((row) => {
+        const order = toOrder({ ...row, sketch_data_url: null, reference_image_urls: [] });
+        const mainPath = row.material_image_urls?.[0];
+        return {
+          ...order,
+          materialImageUrls: [], // full gallery not resolved in list mode
+          mainMaterialImageUrl: mainPath ? mainUrlByPath.get(mainPath) ?? null : null,
+        };
+      });
     },
 
     async findById(id: string) {
@@ -291,17 +324,21 @@ export function createSupabaseOrderRepository(): OrderRepository {
     async listImageCleanupCandidates(cutoffIso: string) {
       const { data, error } = await getSupabaseClient()
         .from("orders")
-        .select("id, sketch_data_url, reference_image_urls")
+        .select("id, sketch_data_url, reference_image_urls, material_image_urls")
         .in("status", ["delivered", "cancelled"])
         .lt("created_at", cutoffIso)
-        .or("sketch_data_url.not.is.null,reference_image_urls.neq.{}");
+        .or("sketch_data_url.not.is.null,reference_image_urls.neq.{},material_image_urls.neq.{}");
       if (error) throw new Error(error.message);
-      const rows = (data ?? []) as Pick<OrderRow, "id" | "sketch_data_url" | "reference_image_urls">[];
+      const rows = (data ?? []) as Pick<
+        OrderRow,
+        "id" | "sketch_data_url" | "reference_image_urls" | "material_image_urls"
+      >[];
       return rows.map(
         (row): OrderImageCleanupCandidate => ({
           id: row.id,
           sketchDataUrl: row.sketch_data_url,
           referenceImageUrls: row.reference_image_urls ?? [],
+          materialImageUrls: row.material_image_urls ?? [],
         })
       );
     },

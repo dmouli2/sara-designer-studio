@@ -7,6 +7,7 @@ import Toast from "@/components/layout/Toast";
 import StatusBadge from "@/components/orders/StatusBadge";
 import MeasurementGrid from "@/components/orders/MeasurementGrid";
 import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
+import MaterialImageGallery from "@/components/orders/MaterialImageGallery";
 import { updateOrderStatus } from "@/app/actions/orders";
 import { formatDate } from "@/lib/utils";
 import type { Order } from "@/types";
@@ -44,6 +45,12 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
       />
 
       <div className="scroll-area px-4 pt-4 space-y-4">
+        {/* Material photos */}
+        <div>
+          <p className="section-label">Material photos</p>
+          <MaterialImageGallery images={order.materialImageUrls} />
+        </div>
+
         {/* Status */}
         <div className="flex items-center gap-3">
           <StatusBadge status={order.status} />

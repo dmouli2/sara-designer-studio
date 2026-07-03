@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import NewOrderWizard, { DRAFT_KEY } from "./NewOrderWizard";
 import { createOrder } from "@/app/actions/orders";
 import { createFabric } from "@/app/actions/fabrics";
+import { compressImageToDataUrl } from "@/lib/image";
 import { mockRouter } from "../../../../../vitest.setup";
 import type { Fabric } from "@/lib/db/types";
 
@@ -17,6 +18,10 @@ vi.mock("@/app/actions/fabrics", () => ({
   deleteFabric: vi.fn(),
 }));
 
+vi.mock("@/lib/image", () => ({
+  compressImageToDataUrl: vi.fn(),
+}));
+
 const TEST_FABRICS: Fabric[] = [
   { id: "f1", name: "Cotton", price: 120 },
   { id: "f2", name: "Silk", price: 350 },
@@ -26,9 +31,22 @@ async function chooseOrderType(user: ReturnType<typeof userEvent.setup>, type: "
   await user.click(screen.getByText(type));
 }
 
-async function fillStep1AndAdvance(user: ReturnType<typeof userEvent.setup>) {
+// Material photos are required to leave Step 1 — captures one via the
+// hidden file input MaterialImageUpload renders (the only file input
+// present on Step 1; ReferenceImageUpload's lives on Step 2).
+async function takeMaterialPhoto(container: HTMLElement) {
+  vi.mocked(compressImageToDataUrl).mockResolvedValue("data:image/jpeg;base64,fabric");
+  const input = container.querySelector('input[type="file"]')!;
+  fireEvent.change(input, {
+    target: { files: [new File(["fabric"], "fabric.jpg", { type: "image/jpeg" })] },
+  });
+  await waitFor(() => expect(screen.getByAltText("Material 1")).toBeInTheDocument());
+}
+
+async function fillStep1AndAdvance(user: ReturnType<typeof userEvent.setup>, container: HTMLElement) {
   await user.type(screen.getByPlaceholderText("Full name *"), "Test Customer");
   await user.type(screen.getByPlaceholderText("Phone / WhatsApp *"), "9999999999");
+  await takeMaterialPhoto(container);
   await user.click(screen.getByText("Next: Measurements →"));
 }
 
@@ -89,17 +107,17 @@ describe("NewOrderWizard", () => {
 
     it("shows the salwar measurement form when Salwar is chosen", async () => {
       const user = userEvent.setup();
-      render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
       await chooseOrderType(user, "Salwar");
-      await fillStep1AndAdvance(user);
+      await fillStep1AndAdvance(user, container);
 
       expect(screen.getByText("O.Shalwar")).toBeInTheDocument();
     });
   });
 
-  it("shows step 1 with the Next button disabled until name and phone are filled", async () => {
+  it("shows step 1 with the Next button disabled until name, phone and a material photo are provided", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+    const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
 
     expect(screen.getByText("New Order · Step 1/3")).toBeInTheDocument();
@@ -109,17 +127,20 @@ describe("NewOrderWizard", () => {
     await user.type(screen.getByPlaceholderText("Full name *"), "Test Customer");
     expect(nextBtn).toBeDisabled();
     await user.type(screen.getByPlaceholderText("Phone / WhatsApp *"), "9999999999");
+    expect(nextBtn).toBeDisabled(); // still missing the required material photo
+    await takeMaterialPhoto(container);
     expect(nextBtn).not.toBeDisabled();
   });
 
   it("rejects an invalid phone number and blocks advancing to step 2", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+    const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     const nextBtn = screen.getByText("Next: Measurements →");
 
     await user.type(screen.getByPlaceholderText("Full name *"), "Test Customer");
     await user.type(screen.getByPlaceholderText("Phone / WhatsApp *"), "12345");
+    await takeMaterialPhoto(container);
 
     expect(screen.getByText("Enter a valid 10-digit Indian mobile number.")).toBeInTheDocument();
     expect(nextBtn).toBeDisabled();
@@ -127,13 +148,25 @@ describe("NewOrderWizard", () => {
 
   it("accepts a phone number with a +91 prefix", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+    const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     await user.type(screen.getByPlaceholderText("Full name *"), "Test Customer");
     await user.type(screen.getByPlaceholderText("Phone / WhatsApp *"), "+919876543210");
+    await takeMaterialPhoto(container);
 
     expect(screen.queryByText("Enter a valid 10-digit Indian mobile number.")).not.toBeInTheDocument();
     expect(screen.getByText("Next: Measurements →")).not.toBeDisabled();
+  });
+
+  it("disables Next and shows a hint until a material photo is taken, even with a valid fabric selected", async () => {
+    const user = userEvent.setup();
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+    await chooseOrderType(user);
+    await user.type(screen.getByPlaceholderText("Full name *"), "Test Customer");
+    await user.type(screen.getByPlaceholderText("Phone / WhatsApp *"), "9999999999");
+
+    expect(screen.getByText("Take at least one photo of the material to continue.")).toBeInTheDocument();
+    expect(screen.getByText("Next: Measurements →")).toBeDisabled();
   });
 
   it("shows the shop fabric picker by default and computes fabric cost", async () => {
@@ -157,9 +190,9 @@ describe("NewOrderWizard", () => {
 
   it("updates the style notes field on the measurements step", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+    const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
-    await fillStep1AndAdvance(user);
+    await fillStep1AndAdvance(user, container);
     const notesInput = screen.getByPlaceholderText("Embroidery, piping, closures, special requests…");
     await user.type(notesInput, "Special request");
     expect(notesInput).toHaveValue("Special request");
@@ -178,7 +211,7 @@ describe("NewOrderWizard", () => {
     const user = userEvent.setup();
     const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
-    await fillStep1AndAdvance(user);
+    await fillStep1AndAdvance(user, container);
 
     expect(screen.getByText("New Order · Step 2/3")).toBeInTheDocument();
     expect(screen.getByText("L.B")).toBeInTheDocument(); // blouse form column header
@@ -190,9 +223,9 @@ describe("NewOrderWizard", () => {
 
   it("moves from measurements to pricing", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+    const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
-    await fillStep1AndAdvance(user);
+    await fillStep1AndAdvance(user, container);
     await user.click(screen.getByText("Next: Pricing →"));
 
     expect(screen.getByText("New Order · Step 3/3")).toBeInTheDocument();
@@ -201,9 +234,9 @@ describe("NewOrderWizard", () => {
 
   it("submits the order with computed totals and navigates to the orders list", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+    const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
-    await fillStep1AndAdvance(user);
+    await fillStep1AndAdvance(user, container);
     await user.click(screen.getByText("Next: Pricing →"));
 
     const amountInputs = screen.getAllByPlaceholderText("0");
@@ -242,9 +275,9 @@ describe("NewOrderWizard", () => {
   it("opens a WhatsApp share link with the order details when sharing", async () => {
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
     const user = userEvent.setup();
-    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+    const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
-    await fillStep1AndAdvance(user);
+    await fillStep1AndAdvance(user, container);
     await user.click(screen.getByText("Next: Pricing →"));
     await fillDeliveryDate(user);
     await user.click(screen.getByText("✓ Confirm & Place Order"));
@@ -265,9 +298,9 @@ describe("NewOrderWizard", () => {
       () => new Promise((resolve) => (resolveCreate = resolve)) as never
     );
     const user = userEvent.setup();
-    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+    const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
-    await fillStep1AndAdvance(user);
+    await fillStep1AndAdvance(user, container);
     await user.click(screen.getByText("Next: Pricing →"));
     await fillDeliveryDate(user);
 
@@ -283,9 +316,9 @@ describe("NewOrderWizard", () => {
   it("shows an error toast and re-enables submit when placing the order fails", async () => {
     vi.mocked(createOrder).mockRejectedValue(new Error("network down"));
     const user = userEvent.setup();
-    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+    const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
-    await fillStep1AndAdvance(user);
+    await fillStep1AndAdvance(user, container);
     await user.click(screen.getByText("Next: Pricing →"));
     await fillDeliveryDate(user);
 
@@ -298,9 +331,9 @@ describe("NewOrderWizard", () => {
 
   it("disables the submit button and shows a message until a delivery date is set", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+    const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
-    await fillStep1AndAdvance(user);
+    await fillStep1AndAdvance(user, container);
     await user.click(screen.getByText("Next: Pricing →"));
 
     expect(screen.getByText("Delivery date is required.")).toBeInTheDocument();
@@ -314,11 +347,11 @@ describe("NewOrderWizard", () => {
 
   it("labels customer-supplied material correctly on submit", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+    const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     await user.click(screen.getByText("Customer brings"));
     await user.type(screen.getByPlaceholderText("e.g. Blue silk, floral print"), "Blue silk");
-    await fillStep1AndAdvance(user);
+    await fillStep1AndAdvance(user, container);
     await user.click(screen.getByText("Next: Pricing →"));
     await fillDeliveryDate(user);
     await user.click(screen.getByText("✓ Confirm & Place Order"));
@@ -329,10 +362,10 @@ describe("NewOrderWizard", () => {
 
   it("falls back to a generic label when customer fabric details are left blank", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+    const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     await user.click(screen.getByText("Customer brings"));
-    await fillStep1AndAdvance(user);
+    await fillStep1AndAdvance(user, container);
     await user.click(screen.getByText("Next: Pricing →"));
     await fillDeliveryDate(user);
     await user.click(screen.getByText("✓ Confirm & Place Order"));
@@ -343,9 +376,9 @@ describe("NewOrderWizard", () => {
 
   it("treats a cleared quantity or amount field as zero", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+    const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
-    await fillStep1AndAdvance(user);
+    await fillStep1AndAdvance(user, container);
     await user.click(screen.getByText("Next: Pricing →"));
 
     const amountInputs = screen.getAllByPlaceholderText("0");
@@ -408,9 +441,9 @@ describe("NewOrderWizard", () => {
 
     it("clears the draft once the order is placed", async () => {
       const user = userEvent.setup();
-      render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
       await chooseOrderType(user);
-      await fillStep1AndAdvance(user);
+      await fillStep1AndAdvance(user, container);
       await user.click(screen.getByText("Next: Pricing →"));
       await fillDeliveryDate(user);
 
@@ -437,12 +470,13 @@ describe("NewOrderWizard", () => {
 
     it("still allows customer-supplied fabric when the shop list is empty", async () => {
       const user = userEvent.setup();
-      render(<NewOrderWizard fabrics={[]} />);
+      const { container } = render(<NewOrderWizard fabrics={[]} />);
       await chooseOrderType(user);
 
       await user.click(screen.getByText("Customer brings"));
       await user.type(screen.getByPlaceholderText("Full name *"), "Test Customer");
       await user.type(screen.getByPlaceholderText("Phone / WhatsApp *"), "9999999999");
+      await takeMaterialPhoto(container);
 
       expect(screen.getByText("Next: Measurements →")).not.toBeDisabled();
     });

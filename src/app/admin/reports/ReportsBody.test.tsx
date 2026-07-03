@@ -25,6 +25,8 @@ function order(overrides: Partial<Order>): Order {
     notes: "",
     sketchDataUrl: null,
     referenceImageUrls: [],
+    materialImageUrls: [],
+    mainMaterialImageUrl: null,
     cancellationCharge: null,
     createdAt: today,
     ...overrides,

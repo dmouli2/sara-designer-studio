@@ -12,6 +12,11 @@ export type OrderStatus =
 // ReferenceImageUpload (client) and storeReferenceImages (server action).
 export const MAX_REFERENCE_IMAGES = 8;
 
+// Max material (fabric) photos a single order may carry — enforced in
+// MaterialImageUpload (client) and storeMaterialImages (server action). The
+// first photo captured is always the "main" one shown in list views.
+export const MAX_MATERIAL_IMAGES = 8;
+
 export type Role = "admin" | "master" | "tailor";
 
 // Blouse & Pattu Saree Blouse — L.B (Lining Blouse) only, per the physical
@@ -114,6 +119,12 @@ export interface Order {
   notes: string;
   sketchDataUrl: string | null;
   referenceImageUrls: string[];   // gallery, max MAX_REFERENCE_IMAGES
+  materialImageUrls: string[];    // fabric photo gallery, max MAX_MATERIAL_IMAGES;
+                                   // only populated on detail-level reads (findById/
+                                   // create/update/findByPublicToken), like referenceImageUrls
+  mainMaterialImageUrl: string | null; // materialImageUrls[0], resolved cheaply on
+                                        // every read including list() — the thumbnail
+                                        // shown on order cards
   cancellationCharge: number | null;
   createdAt: string;
 }

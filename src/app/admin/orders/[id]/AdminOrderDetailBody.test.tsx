@@ -36,6 +36,8 @@ function order(overrides: Partial<Order>): Order {
     notes: "",
     sketchDataUrl: null,
     referenceImageUrls: [],
+    materialImageUrls: [],
+    mainMaterialImageUrl: null,
     cancellationCharge: null,
     createdAt: "2026-06-24",
     ...overrides,
@@ -216,6 +218,16 @@ describe("AdminOrderDetailBody", () => {
   it("shows a placeholder when there are no reference photos", () => {
     renderBody(order({ status: "new", referenceImageUrls: [] }));
     expect(screen.getByText("No reference photos")).toBeInTheDocument();
+  });
+
+  it("shows the material photo gallery at the top when present", () => {
+    renderBody(order({ status: "new", materialImageUrls: ["data:image/png;base64,fabric"] }));
+    expect(screen.getByAltText("Material 1")).toHaveAttribute("src", "data:image/png;base64,fabric");
+  });
+
+  it("shows a placeholder when there are no material photos", () => {
+    renderBody(order({ status: "new", materialImageUrls: [] }));
+    expect(screen.getByText("No material photos")).toBeInTheDocument();
   });
 
   it("navigates to the admin orders list (fresh, not a cached back-nav) when the top bar back button is clicked", async () => {

@@ -26,11 +26,15 @@ export async function GET(request: Request) {
   const candidates = await getDb().orders.listImageCleanupCandidates(cutoff);
 
   for (const order of candidates) {
-    const paths = [order.sketchDataUrl, ...order.referenceImageUrls].filter(
+    const paths = [order.sketchDataUrl, ...order.referenceImageUrls, ...order.materialImageUrls].filter(
       (p): p is string => !!p && isStoragePath(p)
     );
     await Promise.all(paths.map((path) => getImageStorage().delete(path)));
-    await getDb().orders.update(order.id, { sketchDataUrl: null, referenceImageUrls: [] });
+    await getDb().orders.update(order.id, {
+      sketchDataUrl: null,
+      referenceImageUrls: [],
+      materialImageUrls: [],
+    });
   }
 
   return Response.json({ cleaned: candidates.length });

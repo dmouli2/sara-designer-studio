@@ -35,6 +35,7 @@ describe("GET /api/cleanup-images", () => {
     vi.mocked(getImageStorage).mockReturnValue({
       upload: vi.fn(),
       getSignedUrl: vi.fn(),
+      getSignedUrls: vi.fn(),
       delete: storageDelete,
     });
   });
@@ -66,6 +67,7 @@ describe("GET /api/cleanup-images", () => {
         id: "B2401",
         sketchDataUrl: "orders/B2401/sketch.png",
         referenceImageUrls: ["orders/B2401/reference-1.jpg", "orders/B2401/reference-2.jpg"],
+        materialImageUrls: ["orders/B2401/material-1.jpg"],
       },
     ]);
 
@@ -76,7 +78,12 @@ describe("GET /api/cleanup-images", () => {
     expect(storageDelete).toHaveBeenCalledWith("orders/B2401/sketch.png");
     expect(storageDelete).toHaveBeenCalledWith("orders/B2401/reference-1.jpg");
     expect(storageDelete).toHaveBeenCalledWith("orders/B2401/reference-2.jpg");
-    expect(update).toHaveBeenCalledWith("B2401", { sketchDataUrl: null, referenceImageUrls: [] });
+    expect(storageDelete).toHaveBeenCalledWith("orders/B2401/material-1.jpg");
+    expect(update).toHaveBeenCalledWith("B2401", {
+      sketchDataUrl: null,
+      referenceImageUrls: [],
+      materialImageUrls: [],
+    });
 
     const cutoffIso = listImageCleanupCandidates.mock.calls[0][0] as string;
     expect(new Date(cutoffIso).getTime()).toBeLessThan(Date.now());
@@ -88,13 +95,18 @@ describe("GET /api/cleanup-images", () => {
         id: "S2131",
         sketchDataUrl: "data:image/png;base64,legacy",
         referenceImageUrls: [],
+        materialImageUrls: [],
       },
     ]);
 
     const res = await GET(makeRequest("Bearer cron-secret"));
     expect(res.status).toBe(200);
     expect(storageDelete).not.toHaveBeenCalled();
-    expect(update).toHaveBeenCalledWith("S2131", { sketchDataUrl: null, referenceImageUrls: [] });
+    expect(update).toHaveBeenCalledWith("S2131", {
+      sketchDataUrl: null,
+      referenceImageUrls: [],
+      materialImageUrls: [],
+    });
   });
 
   it("reports zero when there is nothing to clean", async () => {

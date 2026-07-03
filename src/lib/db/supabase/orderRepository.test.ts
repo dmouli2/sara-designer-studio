@@ -66,6 +66,7 @@ const orderRow = {
   notes: "",
   sketch_data_url: "orders/SDS-001/sketch.png",
   reference_image_urls: ["orders/SDS-001/reference-1.jpg", "orders/SDS-001/reference-2.jpg"],
+  material_image_urls: ["orders/SDS-001/material-1.jpg"],
   cancellation_charge: null,
   created_at: "2026-06-01T00:00:00.000Z",
   public_token: "9f2b3c4d-1111-2222-3333-444455556666",
@@ -75,16 +76,25 @@ describe("createSupabaseOrderRepository", () => {
   const from = vi.fn();
   const rpc = vi.fn();
   const getSignedUrl = vi.fn();
+  const getSignedUrls = vi.fn();
 
   beforeEach(() => {
     from.mockReset();
     rpc.mockReset();
     getSignedUrl.mockReset();
     getSignedUrl.mockImplementation(async (path: string) => `https://signed.example/${path}`);
+    getSignedUrls.mockReset();
+    // Independent of getSignedUrl (real batch calls never go through the
+    // single-path Storage API) so tests asserting "getSignedUrl was never
+    // called" for list-mode reads stay meaningful.
+    getSignedUrls.mockImplementation((paths: string[]) =>
+      Promise.resolve(paths.map((p) => `https://signed.example/${p}`))
+    );
     vi.mocked(getSupabaseClient).mockReturnValue({ from, rpc } as never);
     vi.mocked(getImageStorage).mockReturnValue({
       upload: vi.fn(),
       getSignedUrl,
+      getSignedUrls,
       delete: vi.fn(),
     });
   });
@@ -151,13 +161,53 @@ describe("createSupabaseOrderRepository", () => {
     expect(ordersQuery.range).toHaveBeenCalledWith(0, 49);
   });
 
-  it("list always returns empty/null image fields and never resolves signed URLs", async () => {
+  it("list always returns empty/null sketch and reference fields, never resolved via getSignedUrl", async () => {
     mockTables({ data: [orderRow], error: null });
     const repo = createSupabaseOrderRepository();
     const result = await repo.list();
     expect(result[0].sketchDataUrl).toBeNull();
     expect(result[0].referenceImageUrls).toEqual([]);
     expect(getSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it("list selects material_image_urls (cheap paths) alongside the other list columns", async () => {
+    const ordersQuery = fakeQuery({ data: [orderRow], error: null });
+    from.mockImplementation(() => ordersQuery);
+    const repo = createSupabaseOrderRepository();
+    await repo.list();
+    const selectArg = (ordersQuery.select as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(selectArg).toContain("material_image_urls");
+  });
+
+  it("list resolves only the first material photo per row, in a single batch call", async () => {
+    const rowB = { ...orderRow, id: "SDS-002", material_image_urls: ["orders/SDS-002/material-1.jpg"] };
+    mockTables({ data: [orderRow, rowB], error: null });
+    const repo = createSupabaseOrderRepository();
+    const result = await repo.list();
+
+    expect(getSignedUrls).toHaveBeenCalledTimes(1);
+    expect(getSignedUrls).toHaveBeenCalledWith(["orders/SDS-001/material-1.jpg", "orders/SDS-002/material-1.jpg"]);
+    expect(result[0].mainMaterialImageUrl).toBe("https://signed.example/orders/SDS-001/material-1.jpg");
+    expect(result[1].mainMaterialImageUrl).toBe("https://signed.example/orders/SDS-002/material-1.jpg");
+    // The full gallery is never resolved in list mode — only the thumbnail.
+    expect(result[0].materialImageUrls).toEqual([]);
+    expect(result[1].materialImageUrls).toEqual([]);
+  });
+
+  it("list leaves mainMaterialImageUrl null for a row with no material photos, without including it in the batch request", async () => {
+    mockTables({ data: [{ ...orderRow, material_image_urls: [] }], error: null });
+    const repo = createSupabaseOrderRepository();
+    const result = await repo.list();
+    expect(getSignedUrls).toHaveBeenCalledWith([]);
+    expect(result[0].mainMaterialImageUrl).toBeNull();
+  });
+
+  it("list maps a main photo missing from the batch response to null", async () => {
+    getSignedUrls.mockResolvedValue([null]);
+    mockTables({ data: [orderRow], error: null });
+    const repo = createSupabaseOrderRepository();
+    const result = await repo.list();
+    expect(result[0].mainMaterialImageUrl).toBeNull();
   });
 
   it("list maps rows with their embedded master/tailor", async () => {
@@ -194,11 +244,14 @@ describe("createSupabaseOrderRepository", () => {
     expect(getSignedUrl).toHaveBeenCalledWith("orders/SDS-001/sketch.png");
     expect(getSignedUrl).toHaveBeenCalledWith("orders/SDS-001/reference-1.jpg");
     expect(getSignedUrl).toHaveBeenCalledWith("orders/SDS-001/reference-2.jpg");
+    expect(getSignedUrl).toHaveBeenCalledWith("orders/SDS-001/material-1.jpg");
     expect(result?.sketchDataUrl).toBe("https://signed.example/orders/SDS-001/sketch.png");
     expect(result?.referenceImageUrls).toEqual([
       "https://signed.example/orders/SDS-001/reference-1.jpg",
       "https://signed.example/orders/SDS-001/reference-2.jpg",
     ]);
+    expect(result?.materialImageUrls).toEqual(["https://signed.example/orders/SDS-001/material-1.jpg"]);
+    expect(result?.mainMaterialImageUrl).toBe("https://signed.example/orders/SDS-001/material-1.jpg");
   });
 
   it("findById drops any reference image whose signed URL failed to resolve", async () => {
@@ -212,12 +265,28 @@ describe("createSupabaseOrderRepository", () => {
   });
 
   it("findById leaves image fields empty/null when none are stored", async () => {
-    mockTables({ data: { ...orderRow, sketch_data_url: null, reference_image_urls: [] }, error: null });
+    mockTables({
+      data: { ...orderRow, sketch_data_url: null, reference_image_urls: [], material_image_urls: [] },
+      error: null,
+    });
     const repo = createSupabaseOrderRepository();
     const result = await repo.findById("SDS-001");
     expect(result?.sketchDataUrl).toBeNull();
     expect(result?.referenceImageUrls).toEqual([]);
+    expect(result?.materialImageUrls).toEqual([]);
+    expect(result?.mainMaterialImageUrl).toBeNull();
     expect(getSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it("findById derives mainMaterialImageUrl as null when the first material photo fails to resolve", async () => {
+    getSignedUrl.mockImplementation(async (path: string) =>
+      path.endsWith("material-1.jpg") ? null : `https://signed.example/${path}`
+    );
+    mockTables({ data: orderRow, error: null });
+    const repo = createSupabaseOrderRepository();
+    const result = await repo.findById("SDS-001");
+    expect(result?.materialImageUrls).toEqual([]);
+    expect(result?.mainMaterialImageUrl).toBeNull();
   });
 
   it("findById returns a mapped order when found", async () => {
@@ -392,10 +461,13 @@ describe("createSupabaseOrderRepository", () => {
       notes: "",
       sketchDataUrl: "orders/SDS-001/sketch.png",
       referenceImageUrls: ["orders/SDS-001/reference-1.jpg", "orders/SDS-001/reference-2.jpg"],
+      materialImageUrls: ["orders/SDS-001/material-1.jpg"],
       cancellationCharge: null,
     });
     expect(result.master).toEqual({ id: "m1", name: "Ramesh K." });
     expect(result.sketchDataUrl).toBe("https://signed.example/orders/SDS-001/sketch.png");
+    expect(result.materialImageUrls).toEqual(["https://signed.example/orders/SDS-001/material-1.jpg"]);
+    expect(result.mainMaterialImageUrl).toBe("https://signed.example/orders/SDS-001/material-1.jpg");
     expect(result.publicToken).toBe("9f2b3c4d-1111-2222-3333-444455556666");
   });
 
@@ -418,6 +490,7 @@ describe("createSupabaseOrderRepository", () => {
         notes: "",
         sketchDataUrl: null,
         referenceImageUrls: [],
+        materialImageUrls: [],
         cancellationCharge: null,
       })
     ).rejects.toThrow("insert failed");
@@ -451,6 +524,7 @@ describe("createSupabaseOrderRepository", () => {
       notes: "handle with care",
       sketchDataUrl: "orders/SDS-001/sketch.png",
       referenceImageUrls: ["orders/SDS-001/reference-1.jpg"],
+      materialImageUrls: ["orders/SDS-001/material-1.jpg"],
       cancellationCharge: 500,
     });
     expect(ordersQuery.update).toHaveBeenCalledWith({
@@ -469,6 +543,7 @@ describe("createSupabaseOrderRepository", () => {
       notes: "handle with care",
       sketch_data_url: "orders/SDS-001/sketch.png",
       reference_image_urls: ["orders/SDS-001/reference-1.jpg"],
+      material_image_urls: ["orders/SDS-001/material-1.jpg"],
       cancellation_charge: 500,
     });
   });
@@ -521,7 +596,7 @@ describe("createSupabaseOrderRepository", () => {
     expect(result).not.toHaveProperty("measurements");
   });
 
-  it("findByPublicToken resolves image paths to signed URLs like findById", async () => {
+  it("findByPublicToken resolves image paths to signed URLs like findById, including the full material gallery", async () => {
     mockTables({ data: orderRow, error: null });
     const repo = createSupabaseOrderRepository();
     const result = await repo.findByPublicToken("9f2b3c4d-1111-2222-3333-444455556666");
@@ -530,6 +605,8 @@ describe("createSupabaseOrderRepository", () => {
       "https://signed.example/orders/SDS-001/reference-1.jpg",
       "https://signed.example/orders/SDS-001/reference-2.jpg",
     ]);
+    expect(result?.materialImageUrls).toEqual(["https://signed.example/orders/SDS-001/material-1.jpg"]);
+    expect(result?.mainMaterialImageUrl).toBe("https://signed.example/orders/SDS-001/material-1.jpg");
   });
 
   it("findByPublicToken returns the rest of the order fields unchanged", async () => {
@@ -580,6 +657,7 @@ describe("createSupabaseOrderRepository", () => {
           id: "B2401",
           sketch_data_url: "orders/B2401/sketch.png",
           reference_image_urls: ["orders/B2401/reference-1.jpg"],
+          material_image_urls: ["orders/B2401/material-1.jpg"],
         },
       ],
       error: null,
@@ -590,12 +668,15 @@ describe("createSupabaseOrderRepository", () => {
 
     expect(ordersQuery.in).toHaveBeenCalledWith("status", ["delivered", "cancelled"]);
     expect(ordersQuery.lt).toHaveBeenCalledWith("created_at", "2026-04-01T00:00:00.000Z");
-    expect(ordersQuery.or).toHaveBeenCalledWith("sketch_data_url.not.is.null,reference_image_urls.neq.{}");
+    expect(ordersQuery.or).toHaveBeenCalledWith(
+      "sketch_data_url.not.is.null,reference_image_urls.neq.{},material_image_urls.neq.{}"
+    );
     expect(result).toEqual([
       {
         id: "B2401",
         sketchDataUrl: "orders/B2401/sketch.png",
         referenceImageUrls: ["orders/B2401/reference-1.jpg"],
+        materialImageUrls: ["orders/B2401/material-1.jpg"],
       },
     ]);
   });
@@ -605,9 +686,12 @@ describe("createSupabaseOrderRepository", () => {
     const repo = createSupabaseOrderRepository();
     expect(await repo.listImageCleanupCandidates("2026-04-01T00:00:00.000Z")).toEqual([]);
 
-    mockTables({ data: [{ id: "S1", sketch_data_url: null, reference_image_urls: null }], error: null });
+    mockTables({
+      data: [{ id: "S1", sketch_data_url: null, reference_image_urls: null, material_image_urls: null }],
+      error: null,
+    });
     expect(await repo.listImageCleanupCandidates("2026-04-01T00:00:00.000Z")).toEqual([
-      { id: "S1", sketchDataUrl: null, referenceImageUrls: [] },
+      { id: "S1", sketchDataUrl: null, referenceImageUrls: [], materialImageUrls: [] },
     ]);
   });
 

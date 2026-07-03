@@ -24,6 +24,8 @@ const baseOrder: Order = {
   notes: "",
   sketchDataUrl: null,
   referenceImageUrls: [],
+  materialImageUrls: [],
+  mainMaterialImageUrl: null,
   cancellationCharge: null,
   createdAt: "2026-06-24",
 };
@@ -133,5 +135,16 @@ describe("OrderCard", () => {
     render(<OrderCard order={order} />);
     expect(screen.queryByText(/Overdue/)).not.toBeInTheDocument();
     expect(screen.getByText(/^Due /)).toBeInTheDocument();
+  });
+
+  it("shows the main material photo thumbnail when present", () => {
+    const order: Order = { ...baseOrder, mainMaterialImageUrl: "https://signed.example/material-1.jpg" };
+    render(<OrderCard order={order} />);
+    expect(screen.getByAltText("Material")).toHaveAttribute("src", "https://signed.example/material-1.jpg");
+  });
+
+  it("shows no thumbnail when there is no main material photo", () => {
+    render(<OrderCard order={baseOrder} />);
+    expect(screen.queryByAltText("Material")).not.toBeInTheDocument();
   });
 });

@@ -1,6 +1,7 @@
 import StatusBadge from "@/components/orders/StatusBadge";
 import ProgressTracker from "@/components/orders/ProgressTracker";
 import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
+import MaterialImageGallery from "@/components/orders/MaterialImageGallery";
 import TopBar from "@/components/layout/TopBar";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { PublicOrder } from "@/lib/db";
@@ -16,6 +17,11 @@ export default function PublicOrderBody({ order }: { order: PublicOrder }) {
       <TopBar title={`Order ${order.id}`} subtitle="Sara Designer Studio" />
 
       <div className="scroll-area px-4 pt-4 space-y-4">
+        <div>
+          <p className="section-label">Material photos</p>
+          <MaterialImageGallery images={order.materialImageUrls} />
+        </div>
+
         <ProgressTracker status={order.status} />
 
         <div className="flex items-center gap-3">

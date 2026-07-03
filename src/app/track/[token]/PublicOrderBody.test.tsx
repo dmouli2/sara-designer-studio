@@ -17,6 +17,8 @@ const baseOrder: PublicOrder = {
   notes: "Handle with care",
   sketchDataUrl: "https://signed.example/sketch.png",
   referenceImageUrls: ["https://signed.example/reference.jpg"],
+  materialImageUrls: ["https://signed.example/material.jpg"],
+  mainMaterialImageUrl: "https://signed.example/material.jpg",
   cancellationCharge: null,
   createdAt: "2026-06-01",
 };
@@ -70,6 +72,16 @@ describe("PublicOrderBody", () => {
   it("shows a placeholder when there are no reference photos", () => {
     render(<PublicOrderBody order={{ ...baseOrder, referenceImageUrls: [] }} />);
     expect(screen.getByText("No reference photos")).toBeInTheDocument();
+  });
+
+  it("shows the material photos gallery at the top when present", () => {
+    render(<PublicOrderBody order={baseOrder} />);
+    expect(screen.getByAltText("Material 1")).toBeInTheDocument();
+  });
+
+  it("shows a placeholder when there are no material photos", () => {
+    render(<PublicOrderBody order={{ ...baseOrder, materialImageUrls: [] }} />);
+    expect(screen.getByText("No material photos")).toBeInTheDocument();
   });
 
   it("lists line items with quantity and amount when present", () => {

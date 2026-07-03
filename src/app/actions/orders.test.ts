@@ -13,7 +13,7 @@ import {
   deleteOrder,
 } from "./orders";
 import { mockRefresh } from "../../../vitest.setup";
-import { MAX_REFERENCE_IMAGES } from "@/types";
+import { MAX_REFERENCE_IMAGES, MAX_MATERIAL_IMAGES } from "@/types";
 import type { GarmentMeasurements, OrderLineItem, Order } from "@/types";
 
 vi.mock("@/lib/dal", () => ({ requireRole: vi.fn() }));
@@ -51,15 +51,25 @@ const order: Order = {
   notes: "",
   sketchDataUrl: null,
   referenceImageUrls: [],
+  materialImageUrls: ["orders/SDS-001/material-1.jpg"],
+  mainMaterialImageUrl: null,
   cancellationCharge: null,
   createdAt: "2026-06-01T00:00:00.000Z",
 };
 
 // The server allocates the id (via nextOrderId) and cancellationCharge only
 // ever gets set via cancelOrder — callers of createOrder supply neither.
-const { id: _omittedId, cancellationCharge: _omittedCharge, ...orderInput } = order;
+// mainMaterialImageUrl is always derived on read (never a write field), so
+// it's omitted here too, matching OrderWriteInput's Omit list.
+const {
+  id: _omittedId,
+  cancellationCharge: _omittedCharge,
+  mainMaterialImageUrl: _omittedMain,
+  ...orderInput
+} = order;
 void _omittedId;
 void _omittedCharge;
+void _omittedMain;
 
 describe("orders actions", () => {
   const list = vi.fn();
@@ -94,6 +104,7 @@ describe("orders actions", () => {
     vi.mocked(getImageStorage).mockReturnValue({
       upload,
       getSignedUrl: vi.fn(),
+      getSignedUrls: vi.fn(),
       delete: storageDelete,
     });
   });
@@ -130,6 +141,15 @@ describe("orders actions", () => {
     expect(upload).not.toHaveBeenCalled();
   });
 
+  it("createOrder rejects zero material photos without allocating an id or touching the database", async () => {
+    await expect(
+      createOrder({ ...orderInput, materialImageUrls: [], masterId: null, tailorId: null })
+    ).rejects.toThrow("At least one material photo is required.");
+    expect(nextOrderId).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+    expect(upload).not.toHaveBeenCalled();
+  });
+
   it("createOrder uploads base64 images to Storage, keyed by the server-allocated id, and persists paths instead of raw data", async () => {
     create.mockResolvedValue(order);
     await createOrder({
@@ -138,15 +158,18 @@ describe("orders actions", () => {
       tailorId: null,
       sketchDataUrl: "data:image/png;base64,aGVsbG8=",
       referenceImageUrls: ["data:image/jpeg;base64,d29ybGQ=", "data:image/jpeg;base64,dGVzdA=="],
+      materialImageUrls: ["data:image/jpeg;base64,ZmFicmlj"],
     });
 
     expect(upload).toHaveBeenCalledWith("orders/SDS-001/sketch.png", "data:image/png;base64,aGVsbG8=");
     expect(upload).toHaveBeenCalledWith("orders/SDS-001/reference-1.jpg", "data:image/jpeg;base64,d29ybGQ=");
     expect(upload).toHaveBeenCalledWith("orders/SDS-001/reference-2.jpg", "data:image/jpeg;base64,dGVzdA==");
+    expect(upload).toHaveBeenCalledWith("orders/SDS-001/material-1.jpg", "data:image/jpeg;base64,ZmFicmlj");
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         sketchDataUrl: "orders/SDS-001/sketch.png",
         referenceImageUrls: ["orders/SDS-001/reference-1.jpg", "orders/SDS-001/reference-2.jpg"],
+        materialImageUrls: ["orders/SDS-001/material-1.jpg"],
       })
     );
   });
@@ -156,9 +179,20 @@ describe("orders actions", () => {
     const tooMany = Array.from({ length: MAX_REFERENCE_IMAGES + 2 }, (_, i) => `data:image/jpeg;base64,img${i}`);
     await createOrder({ ...orderInput, masterId: null, tailorId: null, referenceImageUrls: tooMany });
 
+    // The fixture's default materialImageUrls is already a stored path (not
+    // a data: URL), so it triggers no upload of its own here.
     expect(upload).toHaveBeenCalledTimes(MAX_REFERENCE_IMAGES);
     const created = create.mock.calls[0][0];
     expect(created.referenceImageUrls).toHaveLength(MAX_REFERENCE_IMAGES);
+  });
+
+  it("createOrder caps uploaded material images to the max allowed", async () => {
+    create.mockResolvedValue(order);
+    const tooMany = Array.from({ length: MAX_MATERIAL_IMAGES + 2 }, (_, i) => `data:image/jpeg;base64,img${i}`);
+    await createOrder({ ...orderInput, masterId: null, tailorId: null, materialImageUrls: tooMany });
+
+    const created = create.mock.calls[0][0];
+    expect(created.materialImageUrls).toHaveLength(MAX_MATERIAL_IMAGES);
   });
 
   it("createOrder skips uploads when no image data is provided", async () => {
@@ -167,6 +201,20 @@ describe("orders actions", () => {
     expect(upload).not.toHaveBeenCalled();
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({ sketchDataUrl: null, referenceImageUrls: [] })
+    );
+  });
+
+  it("createOrder leaves an already-stored material image path untouched instead of re-uploading it", async () => {
+    create.mockResolvedValue(order);
+    await createOrder({
+      ...orderInput,
+      masterId: null,
+      tailorId: null,
+      materialImageUrls: ["orders/SDS-001/material-1.jpg"],
+    });
+    expect(upload).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ materialImageUrls: ["orders/SDS-001/material-1.jpg"] })
     );
   });
 
@@ -288,9 +336,12 @@ describe("orders actions", () => {
     expect(requireRole).toHaveBeenCalledWith(["admin"]);
     expect(deleteFn).toHaveBeenCalledWith("SDS-001");
     expect(storageDelete).toHaveBeenCalledWith("orders/SDS-001/sketch.png");
-    expect(storageDelete).toHaveBeenCalledTimes(MAX_REFERENCE_IMAGES + 1);
+    expect(storageDelete).toHaveBeenCalledTimes(MAX_REFERENCE_IMAGES + MAX_MATERIAL_IMAGES + 1);
     for (let i = 1; i <= MAX_REFERENCE_IMAGES; i++) {
       expect(storageDelete).toHaveBeenCalledWith(`orders/SDS-001/reference-${i}.jpg`);
+    }
+    for (let i = 1; i <= MAX_MATERIAL_IMAGES; i++) {
+      expect(storageDelete).toHaveBeenCalledWith(`orders/SDS-001/material-${i}.jpg`);
     }
   });
 });

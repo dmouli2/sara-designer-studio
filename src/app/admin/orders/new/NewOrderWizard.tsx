@@ -8,6 +8,7 @@ import Toast from "@/components/layout/Toast";
 import MeasurementForm, { emptyMeasurementsForDress } from "@/components/orders/MeasurementForm";
 import SketchCanvas from "@/components/orders/SketchCanvas";
 import ReferenceImageUpload from "@/components/orders/ReferenceImageUpload";
+import MaterialImageUpload from "@/components/orders/MaterialImageUpload";
 import FabricManagerSheet from "@/components/orders/FabricManagerSheet";
 import { DRESS_TYPES, LINE_ITEM_PRESETS, lineItemCategoryForDress } from "@/lib/mock";
 import { formatCurrency, isValidIndianMobile, buildOrderWhatsAppMessage, buildWhatsAppShareUrl } from "@/lib/utils";
@@ -30,6 +31,7 @@ interface OrderDraft {
   fabricName: string;
   metres: string;
   custFabric: string;
+  materialImages: string[];
   meas: GarmentMeasurements;
   notes: string;
   sketch: string | null;
@@ -92,6 +94,7 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
   const [manageOpen, setManageOpen] = useState(false);
   const [metres, setMetres]         = useState("2");
   const [custFabric, setCustFabric] = useState("");
+  const [materialImages, setMaterialImages] = useState<string[]>([]);
 
   // Step 2 — measurements + notes + sketch + images
   const [meas, setMeas]             = useState<GarmentMeasurements>(() => emptyMeasurementsForDress(DRESS_TYPES[0]));
@@ -125,21 +128,24 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
     const timer = setTimeout(() => {
       const data: OrderDraft = {
         step, dress, name, phone, matSource,
-        fabricName: fabric?.name ?? "", metres, custFabric,
+        fabricName: fabric?.name ?? "", metres, custFabric, materialImages,
         meas, notes, sketch, refImages, lineItems, delivery, advance,
       };
       try {
         localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
       } catch {
         try {
-          localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...data, sketch: null, refImages: [] }));
+          localStorage.setItem(
+            DRAFT_KEY,
+            JSON.stringify({ ...data, sketch: null, refImages: [], materialImages: [] })
+          );
         } catch {
           // localStorage unavailable — drafts just don't persist
         }
       }
     }, DRAFT_SAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [dress, step, name, phone, matSource, fabric, metres, custFabric, meas, notes, sketch, refImages, lineItems, delivery, advance, placedOrder]);
+  }, [dress, step, name, phone, matSource, fabric, metres, custFabric, materialImages, meas, notes, sketch, refImages, lineItems, delivery, advance, placedOrder]);
 
   function resumeDraft() {
     if (!draft) return;
@@ -152,6 +158,7 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
     if (savedFabric) setFabric(savedFabric);
     setMetres(draft.metres);
     setCustFabric(draft.custFabric);
+    setMaterialImages(draft.materialImages ?? []);
     setMeas(draft.meas);
     setNotes(draft.notes);
     setSketch(draft.sketch);
@@ -200,6 +207,7 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
         notes,
         sketchDataUrl: sketch,
         referenceImageUrls: refImages,
+        materialImageUrls: materialImages,
       });
       clearDraft();
       setPlacedOrder({ id: created.id, publicToken: created.publicToken });
@@ -338,6 +346,14 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
               </div>
             </div>
 
+            <div>
+              <p className="section-label">Material photos</p>
+              <MaterialImageUpload value={materialImages} onChange={setMaterialImages} />
+              {materialImages.length === 0 && (
+                <p className="text-xs text-red-600 mt-1.5">Take at least one photo of the material to continue.</p>
+              )}
+            </div>
+
             {matSource === "shop" ? (
               <div>
                 <div className="flex items-center justify-between">
@@ -384,7 +400,12 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
 
             <button
               onClick={() => setStep(2)}
-              disabled={!name.trim() || !isValidIndianMobile(phone) || (matSource === "shop" && !fabric)}
+              disabled={
+                !name.trim() ||
+                !isValidIndianMobile(phone) ||
+                (matSource === "shop" && !fabric) ||
+                materialImages.length === 0
+              }
               className="btn-primary disabled:opacity-40"
             >
               Next: Measurements →
