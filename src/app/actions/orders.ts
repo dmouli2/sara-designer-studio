@@ -102,6 +102,7 @@ export async function createOrder(
     cancellationCharge: null,
   });
   revalidatePath("/admin/orders");
+  refresh();
   return created;
 }
 
@@ -175,4 +176,5 @@ export async function deleteOrder(id: string): Promise<void> {
     ...materialDeletes,
   ]);
   revalidateOrderPaths(id);
+  refresh();
 }

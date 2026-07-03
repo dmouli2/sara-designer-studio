@@ -15,14 +15,10 @@ import OrderFiltersSheet, {
   type OrderFilterValues,
 } from "@/components/orders/OrderFiltersSheet";
 import { cn, isOrderOverdue, matchesOrderSearch } from "@/lib/utils";
+import { ORDERS_PAGE_SIZE } from "./pageSize";
 import type { AssignedStaff, Order, OrderStatus } from "@/types";
 
 type OrderFilter = OrderStatus | "all" | "overdue";
-
-// One page of order history. The server page loads the first page; older
-// pages are appended on demand so the list doesn't grow unbounded with years
-// of history. Must match what src/app/admin/orders/page.tsx requests.
-export const ORDERS_PAGE_SIZE = 200;
 
 const FILTERS: { id: OrderFilter; label: string }[] = [
   { id: "all",          label: "All" },

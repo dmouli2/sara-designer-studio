@@ -1,6 +1,7 @@
 import { requireRole } from "@/lib/dal";
 import { getOrders } from "@/app/actions/orders";
-import OrdersBody, { ORDERS_PAGE_SIZE } from "./OrdersBody";
+import OrdersBody from "./OrdersBody";
+import { ORDERS_PAGE_SIZE } from "./pageSize";
 
 export default async function AdminOrdersPage() {
   await requireRole(["admin"]);

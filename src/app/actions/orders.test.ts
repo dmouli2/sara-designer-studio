@@ -12,7 +12,7 @@ import {
   cancelOrder,
   deleteOrder,
 } from "./orders";
-import { mockRefresh } from "../../../vitest.setup";
+import { mockRefresh, mockRevalidatePath } from "../../../vitest.setup";
 import { MAX_REFERENCE_IMAGES, MAX_MATERIAL_IMAGES } from "@/types";
 import type { GarmentMeasurements, OrderLineItem, Order } from "@/types";
 
@@ -129,6 +129,10 @@ describe("orders actions", () => {
     expect(requireRole).toHaveBeenCalledWith(["admin"]);
     expect(nextOrderId).toHaveBeenCalledWith("Blouse");
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ id: "SDS-001", cancellationCharge: null }));
+    // revalidatePath alone doesn't bust the client router cache — without
+    // refresh() the orders list stays stale and the new order never shows.
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/admin/orders");
+    expect(mockRefresh).toHaveBeenCalled();
     expect(result).toEqual(order);
   });
 
@@ -343,5 +347,6 @@ describe("orders actions", () => {
     for (let i = 1; i <= MAX_MATERIAL_IMAGES; i++) {
       expect(storageDelete).toHaveBeenCalledWith(`orders/SDS-001/material-${i}.jpg`);
     }
+    expect(mockRefresh).toHaveBeenCalled();
   });
 });

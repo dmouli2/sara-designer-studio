@@ -45,4 +45,15 @@ describe("AdminOrdersPage", () => {
     expect(getOrders).toHaveBeenCalled();
     expect(screen.getByText("C1")).toBeInTheDocument();
   });
+
+  it("requests the first page with a real numeric limit", async () => {
+    // Regression: ORDERS_PAGE_SIZE was once exported from the "use client"
+    // OrdersBody module — imported into this Server Component it became a
+    // client-reference stub, the query range became (0, NaN), and the list
+    // silently rendered empty.
+    render(await AdminOrdersPage());
+    const filter = vi.mocked(getOrders).mock.calls[0][0];
+    expect(filter).toEqual({ limit: 200 });
+    expect(typeof filter?.limit).toBe("number");
+  });
 });

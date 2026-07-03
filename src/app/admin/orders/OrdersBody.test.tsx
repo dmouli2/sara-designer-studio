@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import OrdersBody, { ORDERS_PAGE_SIZE } from "./OrdersBody";
+import OrdersBody from "./OrdersBody";
+import { ORDERS_PAGE_SIZE } from "./pageSize";
 import { getOrders } from "@/app/actions/orders";
 import { mockRouter } from "../../../../vitest.setup";
 import type { Order } from "@/types";
