@@ -1,11 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { DRESS_TYPES, FABRICS, LINE_ITEM_PRESETS, lineItemCategoryForDress } from "./mock";
+import { DRESS_TYPES, LINE_ITEM_PRESETS, lineItemCategoryForDress } from "./mock";
 
 describe("static mock data", () => {
-  it("exposes dress types and fabrics", () => {
+  it("exposes dress types", () => {
     expect(DRESS_TYPES).toContain("Blouse");
     expect(DRESS_TYPES).toContain("Salwar");
-    expect(FABRICS.length).toBeGreaterThan(0);
   });
 
   it("exposes line item presets for blouse and salwar", () => {

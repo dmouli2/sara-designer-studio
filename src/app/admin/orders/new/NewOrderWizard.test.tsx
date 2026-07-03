@@ -3,11 +3,24 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import NewOrderWizard, { DRAFT_KEY } from "./NewOrderWizard";
 import { createOrder } from "@/app/actions/orders";
+import { createFabric } from "@/app/actions/fabrics";
 import { mockRouter } from "../../../../../vitest.setup";
+import type { Fabric } from "@/lib/db/types";
 
 vi.mock("@/app/actions/orders", () => ({
   createOrder: vi.fn(),
 }));
+
+vi.mock("@/app/actions/fabrics", () => ({
+  createFabric: vi.fn(),
+  updateFabric: vi.fn(),
+  deleteFabric: vi.fn(),
+}));
+
+const TEST_FABRICS: Fabric[] = [
+  { id: "f1", name: "Cotton", price: 120 },
+  { id: "f2", name: "Silk", price: 350 },
+];
 
 async function chooseOrderType(user: ReturnType<typeof userEvent.setup>, type: "Blouse" | "Salwar" = "Blouse") {
   await user.click(screen.getByText(type));
@@ -32,7 +45,7 @@ describe("NewOrderWizard", () => {
 
   describe("order-type selector", () => {
     it("shows the order-type selector before any wizard fields", () => {
-      render(<NewOrderWizard />);
+      render(<NewOrderWizard fabrics={TEST_FABRICS} />);
       expect(screen.getByText("What are we stitching?")).toBeInTheDocument();
       expect(screen.getByText("Blouse")).toBeInTheDocument();
       expect(screen.getByText("Salwar")).toBeInTheDocument();
@@ -41,14 +54,14 @@ describe("NewOrderWizard", () => {
 
     it("goes back to the orders list when back is clicked on the selector", async () => {
       const user = userEvent.setup();
-      const { container } = render(<NewOrderWizard />);
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
       await user.click(container.querySelector(".rounded-full")!);
       expect(mockRouter.back).toHaveBeenCalled();
     });
 
     it("enters the wizard at step 1 once an order type is chosen", async () => {
       const user = userEvent.setup();
-      render(<NewOrderWizard />);
+      render(<NewOrderWizard fabrics={TEST_FABRICS} />);
       await chooseOrderType(user, "Blouse");
 
       expect(screen.getByText("New Order · Step 1/3")).toBeInTheDocument();
@@ -57,7 +70,7 @@ describe("NewOrderWizard", () => {
 
     it("goes back to the order-type selector (not the orders list) when back is clicked on step 1", async () => {
       const user = userEvent.setup();
-      const { container } = render(<NewOrderWizard />);
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
       await chooseOrderType(user, "Blouse");
       await user.click(container.querySelector(".rounded-full")!);
 
@@ -67,7 +80,7 @@ describe("NewOrderWizard", () => {
 
     it("lets the order type be changed from step 1 via the Change link", async () => {
       const user = userEvent.setup();
-      render(<NewOrderWizard />);
+      render(<NewOrderWizard fabrics={TEST_FABRICS} />);
       await chooseOrderType(user, "Blouse");
       await user.click(screen.getByText("Change"));
 
@@ -76,7 +89,7 @@ describe("NewOrderWizard", () => {
 
     it("shows the salwar measurement form when Salwar is chosen", async () => {
       const user = userEvent.setup();
-      render(<NewOrderWizard />);
+      render(<NewOrderWizard fabrics={TEST_FABRICS} />);
       await chooseOrderType(user, "Salwar");
       await fillStep1AndAdvance(user);
 
@@ -86,7 +99,7 @@ describe("NewOrderWizard", () => {
 
   it("shows step 1 with the Next button disabled until name and phone are filled", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard />);
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
 
     expect(screen.getByText("New Order · Step 1/3")).toBeInTheDocument();
@@ -101,7 +114,7 @@ describe("NewOrderWizard", () => {
 
   it("rejects an invalid phone number and blocks advancing to step 2", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard />);
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     const nextBtn = screen.getByText("Next: Measurements →");
 
@@ -114,7 +127,7 @@ describe("NewOrderWizard", () => {
 
   it("accepts a phone number with a +91 prefix", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard />);
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     await user.type(screen.getByPlaceholderText("Full name *"), "Test Customer");
     await user.type(screen.getByPlaceholderText("Phone / WhatsApp *"), "+919876543210");
@@ -125,7 +138,7 @@ describe("NewOrderWizard", () => {
 
   it("shows the shop fabric picker by default and computes fabric cost", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard />);
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     expect(screen.getByText("Select fabric")).toBeInTheDocument();
     await user.click(screen.getByText("Silk"));
@@ -134,7 +147,7 @@ describe("NewOrderWizard", () => {
 
   it("recomputes fabric cost when the metres field changes", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard />);
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     const metresInput = screen.getByPlaceholderText("Metres required");
     await user.clear(metresInput);
@@ -144,7 +157,7 @@ describe("NewOrderWizard", () => {
 
   it("updates the style notes field on the measurements step", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard />);
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     await fillStep1AndAdvance(user);
     const notesInput = screen.getByPlaceholderText("Embroidery, piping, closures, special requests…");
@@ -154,7 +167,7 @@ describe("NewOrderWizard", () => {
 
   it("switches to customer-supplied fabric details", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard />);
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     await user.click(screen.getByText("Customer brings"));
     expect(screen.getByText("Customer fabric details")).toBeInTheDocument();
@@ -163,7 +176,7 @@ describe("NewOrderWizard", () => {
 
   it("advances to the measurements step and back button goes to step 1 instead of router.back", async () => {
     const user = userEvent.setup();
-    const { container } = render(<NewOrderWizard />);
+    const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     await fillStep1AndAdvance(user);
 
@@ -177,7 +190,7 @@ describe("NewOrderWizard", () => {
 
   it("moves from measurements to pricing", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard />);
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     await fillStep1AndAdvance(user);
     await user.click(screen.getByText("Next: Pricing →"));
@@ -188,7 +201,7 @@ describe("NewOrderWizard", () => {
 
   it("submits the order with computed totals and navigates to the orders list", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard />);
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     await fillStep1AndAdvance(user);
     await user.click(screen.getByText("Next: Pricing →"));
@@ -229,7 +242,7 @@ describe("NewOrderWizard", () => {
   it("opens a WhatsApp share link with the order details when sharing", async () => {
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
     const user = userEvent.setup();
-    render(<NewOrderWizard />);
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     await fillStep1AndAdvance(user);
     await user.click(screen.getByText("Next: Pricing →"));
@@ -252,7 +265,7 @@ describe("NewOrderWizard", () => {
       () => new Promise((resolve) => (resolveCreate = resolve)) as never
     );
     const user = userEvent.setup();
-    render(<NewOrderWizard />);
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     await fillStep1AndAdvance(user);
     await user.click(screen.getByText("Next: Pricing →"));
@@ -270,7 +283,7 @@ describe("NewOrderWizard", () => {
   it("shows an error toast and re-enables submit when placing the order fails", async () => {
     vi.mocked(createOrder).mockRejectedValue(new Error("network down"));
     const user = userEvent.setup();
-    render(<NewOrderWizard />);
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     await fillStep1AndAdvance(user);
     await user.click(screen.getByText("Next: Pricing →"));
@@ -285,7 +298,7 @@ describe("NewOrderWizard", () => {
 
   it("disables the submit button and shows a message until a delivery date is set", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard />);
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     await fillStep1AndAdvance(user);
     await user.click(screen.getByText("Next: Pricing →"));
@@ -301,7 +314,7 @@ describe("NewOrderWizard", () => {
 
   it("labels customer-supplied material correctly on submit", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard />);
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     await user.click(screen.getByText("Customer brings"));
     await user.type(screen.getByPlaceholderText("e.g. Blue silk, floral print"), "Blue silk");
@@ -316,7 +329,7 @@ describe("NewOrderWizard", () => {
 
   it("falls back to a generic label when customer fabric details are left blank", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard />);
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     await user.click(screen.getByText("Customer brings"));
     await fillStep1AndAdvance(user);
@@ -330,7 +343,7 @@ describe("NewOrderWizard", () => {
 
   it("treats a cleared quantity or amount field as zero", async () => {
     const user = userEvent.setup();
-    render(<NewOrderWizard />);
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     await fillStep1AndAdvance(user);
     await user.click(screen.getByText("Next: Pricing →"));
@@ -349,7 +362,7 @@ describe("NewOrderWizard", () => {
   describe("draft persistence", () => {
     it("mirrors the in-progress order to localStorage and resumes it after a restart", async () => {
       const user = userEvent.setup();
-      const { unmount } = render(<NewOrderWizard />);
+      const { unmount } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
       await chooseOrderType(user);
       await user.type(screen.getByPlaceholderText("Full name *"), "Test Customer");
 
@@ -361,7 +374,7 @@ describe("NewOrderWizard", () => {
 
       // Simulate the PWA being killed and reopened.
       unmount();
-      render(<NewOrderWizard />);
+      render(<NewOrderWizard fabrics={TEST_FABRICS} />);
 
       expect(await screen.findByText(/Unfinished Blouse order for Test Customer/)).toBeInTheDocument();
       await user.click(screen.getByText("Resume draft"));
@@ -376,7 +389,7 @@ describe("NewOrderWizard", () => {
         DRAFT_KEY,
         JSON.stringify({ dress: "Blouse", name: "Old Customer", step: 1 })
       );
-      render(<NewOrderWizard />);
+      render(<NewOrderWizard fabrics={TEST_FABRICS} />);
 
       expect(await screen.findByText(/Unfinished Blouse order for Old Customer/)).toBeInTheDocument();
       await user.click(screen.getByText("Discard"));
@@ -387,7 +400,7 @@ describe("NewOrderWizard", () => {
 
     it("ignores unparseable or dress-less drafts", async () => {
       window.localStorage.setItem(DRAFT_KEY, "not json{");
-      render(<NewOrderWizard />);
+      render(<NewOrderWizard fabrics={TEST_FABRICS} />);
       await waitFor(() => {
         expect(screen.queryByText(/Unfinished/)).not.toBeInTheDocument();
       });
@@ -395,7 +408,7 @@ describe("NewOrderWizard", () => {
 
     it("clears the draft once the order is placed", async () => {
       const user = userEvent.setup();
-      render(<NewOrderWizard />);
+      render(<NewOrderWizard fabrics={TEST_FABRICS} />);
       await chooseOrderType(user);
       await fillStep1AndAdvance(user);
       await user.click(screen.getByText("Next: Pricing →"));
@@ -406,6 +419,62 @@ describe("NewOrderWizard", () => {
       await user.click(screen.getByText("✓ Confirm & Place Order"));
       expect(await screen.findByText("Order placed successfully!")).toBeInTheDocument();
       expect(window.localStorage.getItem(DRAFT_KEY)).toBeNull();
+    });
+  });
+
+  describe("dynamic fabrics", () => {
+    it("disables Next and shows a hint when the shop has no fabrics yet", async () => {
+      const user = userEvent.setup();
+      render(<NewOrderWizard fabrics={[]} />);
+      await chooseOrderType(user);
+
+      await user.type(screen.getByPlaceholderText("Full name *"), "Test Customer");
+      await user.type(screen.getByPlaceholderText("Phone / WhatsApp *"), "9999999999");
+
+      expect(screen.getByText("Add at least one fabric to continue.")).toBeInTheDocument();
+      expect(screen.getByText("Next: Measurements →")).toBeDisabled();
+    });
+
+    it("still allows customer-supplied fabric when the shop list is empty", async () => {
+      const user = userEvent.setup();
+      render(<NewOrderWizard fabrics={[]} />);
+      await chooseOrderType(user);
+
+      await user.click(screen.getByText("Customer brings"));
+      await user.type(screen.getByPlaceholderText("Full name *"), "Test Customer");
+      await user.type(screen.getByPlaceholderText("Phone / WhatsApp *"), "9999999999");
+
+      expect(screen.getByText("Next: Measurements →")).not.toBeDisabled();
+    });
+
+    it("opens the fabric manager from the add tile, and a newly added fabric becomes selectable", async () => {
+      vi.mocked(createFabric).mockResolvedValue({ fabric: { id: "f9", name: "Organza", price: 260 } });
+      const user = userEvent.setup();
+      render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await chooseOrderType(user);
+
+      await user.click(screen.getByText("+ Add fabric"));
+      expect(screen.getByText("Manage fabrics")).toBeInTheDocument();
+
+      await user.type(screen.getByLabelText("Fabric name"), "Organza");
+      await user.type(screen.getByLabelText("Price per metre"), "260");
+      await user.click(screen.getByText("Add", { selector: "button" }));
+      expect(createFabric).toHaveBeenCalledWith({ name: "Organza", price: 260 });
+
+      await user.click(screen.getByText("Done", { selector: "button" }));
+
+      // The new fabric shows in the grid and can be selected for the order.
+      await user.click(screen.getByText("Organza"));
+      expect(screen.getByText(/Fabric cost:/)).toHaveTextContent("₹520"); // 260 * 2m
+    });
+
+    it("opens the fabric manager from the Manage link", async () => {
+      const user = userEvent.setup();
+      render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await chooseOrderType(user);
+
+      await user.click(screen.getByText("Manage"));
+      expect(screen.getByText("Manage fabrics")).toBeInTheDocument();
     });
   });
 });

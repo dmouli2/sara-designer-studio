@@ -1,6 +1,7 @@
 import type { Database } from "./types";
 import { createSupabaseStaffRepository } from "./supabase/staffRepository";
 import { createSupabaseOrderRepository } from "./supabase/orderRepository";
+import { createSupabaseFabricRepository } from "./supabase/fabricRepository";
 
 export * from "./types";
 
@@ -11,6 +12,7 @@ export function getDb(): Database {
     db = {
       staff: createSupabaseStaffRepository(),
       orders: createSupabaseOrderRepository(),
+      fabrics: createSupabaseFabricRepository(),
     };
   }
   return db;

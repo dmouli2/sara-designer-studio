@@ -93,7 +93,29 @@ export interface OrderRepository {
   listImageCleanupCandidates(cutoffIso: string): Promise<OrderImageCleanupCandidate[]>;
 }
 
+// Shop fabric price list (₹/metre), managed by the admin from the new-order
+// wizard. Orders snapshot the fabric into their `material` text, so fabric
+// edits/deletes never affect existing orders.
+export interface Fabric {
+  id: string;
+  name: string;
+  price: number;
+}
+
+export interface FabricWriteInput {
+  name: string;
+  price: number;
+}
+
+export interface FabricRepository {
+  list(): Promise<Fabric[]>;
+  create(input: FabricWriteInput): Promise<Fabric>;
+  update(id: string, patch: Partial<FabricWriteInput>): Promise<Fabric>;
+  delete(id: string): Promise<void>;
+}
+
 export interface Database {
   staff: StaffRepository;
   orders: OrderRepository;
+  fabrics: FabricRepository;
 }

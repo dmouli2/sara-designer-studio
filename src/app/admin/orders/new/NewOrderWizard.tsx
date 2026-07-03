@@ -8,9 +8,11 @@ import Toast from "@/components/layout/Toast";
 import MeasurementForm, { emptyMeasurementsForDress } from "@/components/orders/MeasurementForm";
 import SketchCanvas from "@/components/orders/SketchCanvas";
 import ReferenceImageUpload from "@/components/orders/ReferenceImageUpload";
-import { DRESS_TYPES, FABRICS, LINE_ITEM_PRESETS, lineItemCategoryForDress } from "@/lib/mock";
+import FabricManagerSheet from "@/components/orders/FabricManagerSheet";
+import { DRESS_TYPES, LINE_ITEM_PRESETS, lineItemCategoryForDress } from "@/lib/mock";
 import { formatCurrency, isValidIndianMobile, buildOrderWhatsAppMessage, buildWhatsAppShareUrl } from "@/lib/utils";
 import { createOrder } from "@/app/actions/orders";
+import type { Fabric } from "@/lib/db/types";
 import type { GarmentMeasurements, OrderLineItem } from "@/types";
 
 // A half-entered order (17 measurement fields, sketch, photos) must survive
@@ -65,7 +67,7 @@ function defaultLineItems(dress: string): OrderLineItem[] {
   ];
 }
 
-export default function NewOrderWizard() {
+export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: Fabric[] }) {
   const router = useRouter();
 
   const [step, setStep]             = useState(1);
@@ -79,11 +81,15 @@ export default function NewOrderWizard() {
   // per-category id series — S2131.. or B2401.. — the order will get).
   const [dress, setDress]           = useState<string | null>(null);
 
-  // Step 1 — customer + material
+  // Step 1 — customer + material. The fabric price list is admin-managed in
+  // the DB; fabricList is kept in state so adds/edits/deletes made through
+  // the manager sheet show up without a reload.
   const [name, setName]             = useState("");
   const [phone, setPhone]           = useState("");
   const [matSource, setMatSource]   = useState<"shop" | "customer">("shop");
-  const [fabric, setFabric]         = useState(FABRICS[0]);
+  const [fabricList, setFabricList] = useState<Fabric[]>(initialFabrics);
+  const [fabric, setFabric]         = useState<Fabric | null>(initialFabrics[0] ?? null);
+  const [manageOpen, setManageOpen] = useState(false);
   const [metres, setMetres]         = useState("2");
   const [custFabric, setCustFabric] = useState("");
 
@@ -98,7 +104,7 @@ export default function NewOrderWizard() {
   const [delivery, setDelivery]     = useState("");
   const [advance, setAdvance]       = useState("");
 
-  const fabricCost = matSource === "shop" ? fabric.price * parseFloat(metres || "0") : 0;
+  const fabricCost = matSource === "shop" && fabric ? fabric.price * parseFloat(metres || "0") : 0;
   const stitchTotal = lineItems.reduce((s, li) => s + (li.qty > 0 ? li.amount : 0), 0);
   const total   = fabricCost + stitchTotal;
   const balance = total - parseFloat(advance || "0");
@@ -119,7 +125,7 @@ export default function NewOrderWizard() {
     const timer = setTimeout(() => {
       const data: OrderDraft = {
         step, dress, name, phone, matSource,
-        fabricName: fabric.name, metres, custFabric,
+        fabricName: fabric?.name ?? "", metres, custFabric,
         meas, notes, sketch, refImages, lineItems, delivery, advance,
       };
       try {
@@ -142,7 +148,7 @@ export default function NewOrderWizard() {
     setName(draft.name);
     setPhone(draft.phone);
     setMatSource(draft.matSource);
-    const savedFabric = FABRICS.find((f) => f.name === draft.fabricName);
+    const savedFabric = fabricList.find((f) => f.name === draft.fabricName);
     if (savedFabric) setFabric(savedFabric);
     setMetres(draft.metres);
     setCustFabric(draft.custFabric);
@@ -181,7 +187,7 @@ export default function NewOrderWizard() {
         phone,
         dress,
         material: matSource === "shop"
-          ? `${fabric.name} (shop)`
+          ? `${fabric?.name ?? "Fabric"} (shop)`
           : `${custFabric || "Customer fabric"} (customer)`,
         status: "new",
         amount: total,
@@ -334,16 +340,36 @@ export default function NewOrderWizard() {
 
             {matSource === "shop" ? (
               <div>
-                <p className="section-label">Select fabric</p>
+                <div className="flex items-center justify-between">
+                  <p className="section-label">Select fabric</p>
+                  <button
+                    type="button"
+                    onClick={() => setManageOpen(true)}
+                    className="text-xs font-medium text-[#C9A84C] mb-2"
+                  >
+                    Manage
+                  </button>
+                </div>
                 <div className="grid grid-cols-2 gap-2 mb-3">
-                  {FABRICS.map((f) => (
-                    <button key={f.name} type="button" onClick={() => setFabric(f)}
-                      className={`p-3 rounded-xl border text-left transition-all ${fabric.name === f.name ? "border-[#C9A84C] bg-[#FBF6E8]" : "border-[#E5E0D5] bg-white"}`}>
-                      <p className={`text-sm font-semibold ${fabric.name === f.name ? "text-[#7A6020]" : "text-[#0F0F0F]"}`}>{f.name}</p>
-                      <p className={`text-xs mt-0.5 ${fabric.name === f.name ? "text-[#C9A84C]" : "text-[#9A9A9A]"}`}>₹{f.price}/m</p>
+                  {fabricList.map((f) => (
+                    <button key={f.id} type="button" onClick={() => setFabric(f)}
+                      className={`p-3 rounded-xl border text-left transition-all ${fabric?.id === f.id ? "border-[#C9A84C] bg-[#FBF6E8]" : "border-[#E5E0D5] bg-white"}`}>
+                      <p className={`text-sm font-semibold ${fabric?.id === f.id ? "text-[#7A6020]" : "text-[#0F0F0F]"}`}>{f.name}</p>
+                      <p className={`text-xs mt-0.5 ${fabric?.id === f.id ? "text-[#C9A84C]" : "text-[#9A9A9A]"}`}>₹{f.price}/m</p>
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => setManageOpen(true)}
+                    className="p-3 rounded-xl border-2 border-dashed border-[#E5E0D5] bg-white text-left transition-all active:bg-[#F9F8F6]"
+                  >
+                    <p className="text-sm font-semibold text-[#9A9A9A]">+ Add fabric</p>
+                    <p className="text-xs mt-0.5 text-[#9A9A9A]">name & ₹/m</p>
+                  </button>
                 </div>
+                {fabricList.length === 0 && (
+                  <p className="text-xs text-red-600 mb-2">Add at least one fabric to continue.</p>
+                )}
                 <input className="input" placeholder="Metres required" type="number" value={metres} onChange={(e) => setMetres(e.target.value)} />
                 <p className="text-xs text-[#9A9A9A] mt-1.5">
                   Fabric cost: <span className="text-[#C9A84C] font-medium">{formatCurrency(fabricCost)}</span>
@@ -356,7 +382,11 @@ export default function NewOrderWizard() {
               </div>
             )}
 
-            <button onClick={() => setStep(2)} disabled={!name.trim() || !isValidIndianMobile(phone)} className="btn-primary disabled:opacity-40">
+            <button
+              onClick={() => setStep(2)}
+              disabled={!name.trim() || !isValidIndianMobile(phone) || (matSource === "shop" && !fabric)}
+              className="btn-primary disabled:opacity-40"
+            >
               Next: Measurements →
             </button>
             <div className="h-4" />
@@ -444,7 +474,7 @@ export default function NewOrderWizard() {
             {/* Summary */}
             <div className="card-gold">
               <p className="text-xs font-semibold text-[#7A6020] mb-3">Order summary</p>
-              {matSource === "shop" && (
+              {matSource === "shop" && fabric && (
                 <div className="flex justify-between text-xs text-[#A8882E] mb-1.5">
                   <span>Fabric ({fabric.name} × {metres}m)</span>
                   <span>{formatCurrency(fabricCost)}</span>
@@ -508,6 +538,20 @@ export default function NewOrderWizard() {
           </div>
         </div>
       )}
+
+      <FabricManagerSheet
+        open={manageOpen}
+        fabrics={fabricList}
+        onChange={(next) => {
+          setFabricList(next);
+          // Keep the selection valid: follow renames/price edits, and fall
+          // back to the first fabric if the selected one was deleted.
+          setFabric((selected) =>
+            selected ? (next.find((f) => f.id === selected.id) ?? next[0] ?? null) : (next[0] ?? null)
+          );
+        }}
+        onClose={() => setManageOpen(false)}
+      />
 
       <Toast message={error} onDismiss={() => setError(null)} />
     </div>
