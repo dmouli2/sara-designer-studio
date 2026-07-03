@@ -9,10 +9,10 @@ export function emptySalwar(): SalwarMeasurements {
     top: {
       oShalwar: "", lShalwar: "", length: "", shoulder: "",
       hs: "", sl: "", tlcs: "", ah: "", bust: "", ub: "",
-      waist: "", hip: "", fnNr: "", bn: "", height: "",
+      waist: "", hip: "", fnNr: "", bn: "",
     },
     pant: {
-      hip: "", waist: "", kl: "", tl: "", fullLength: "", yoke: "",
+      height: "", hip: "", waist: "", kl: "", tl: "", fullLength: "", yoke: "",
     },
     shawl: "",
   };
@@ -34,10 +34,10 @@ const TOP_FIELDS: { key: keyof SalwarMeasurements["top"]; label: string }[] = [
   { key: "hip",      label: "Hip" },
   { key: "fnNr",     label: "FN / NR" },
   { key: "bn",       label: "BN" },
-  { key: "height",   label: "Height" },
 ];
 
 const PANT_FIELDS: { key: keyof SalwarMeasurements["pant"]; label: string }[] = [
+  { key: "height",     label: "Height" },
   { key: "hip",        label: "Hip" },
   { key: "waist",      label: "Waist" },
   { key: "kl",         label: "KL" },

@@ -7,7 +7,7 @@ import type {
   OrderListFilter,
   OrderImageCleanupCandidate,
 } from "../types";
-import type { Order, OrderStatus, GarmentMeasurements, OrderLineItem } from "@/types";
+import type { Order, OrderStatus, GarmentMeasurements, SalwarMeasurements, OrderLineItem } from "@/types";
 
 interface EmbeddedStaff {
   id: string;
@@ -53,8 +53,7 @@ const DETAIL_COLUMNS = `*, ${STAFF_EMBEDS}`;
 // sibling type change in src/types/index.ts). Orders written before that
 // change still have the old shape in their `measurements` jsonb — normalize
 // on read rather than requiring every stored row to be migrated up front.
-function normalizeMeasurements(raw: GarmentMeasurements): GarmentMeasurements {
-  if (!raw || raw.type !== "blouse") return raw;
+function normalizeBlouseMeasurements(raw: GarmentMeasurements): GarmentMeasurements {
   const toSingle = (v: unknown): string => {
     if (typeof v === "string") return v;
     if (v && typeof v === "object" && "lb" in v) return String((v as { lb?: unknown }).lb ?? "");
@@ -81,6 +80,30 @@ function normalizeMeasurements(raw: GarmentMeasurements): GarmentMeasurements {
     sareeFall: toSingle(m.sareeFall),
     piko: toSingle(m.piko),
   };
+}
+
+// Salwar's Height field moved from M. Top to M. Pant (see the sibling type
+// change in src/types/index.ts). Orders written before that change still
+// have it nested under `top` — move it over on read rather than requiring
+// every stored row to be migrated up front.
+function normalizeSalwarMeasurements(raw: GarmentMeasurements): GarmentMeasurements {
+  const m = raw as unknown as { top: Record<string, unknown>; pant: Record<string, unknown> };
+  const legacyHeight = m.top?.height;
+  if (m.pant?.height || legacyHeight === undefined) return raw;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { height: _height, ...restTop } = m.top;
+  return {
+    ...(raw as SalwarMeasurements),
+    top: restTop as SalwarMeasurements["top"],
+    pant: { ...(raw as SalwarMeasurements).pant, height: String(legacyHeight ?? "") },
+  };
+}
+
+function normalizeMeasurements(raw: GarmentMeasurements): GarmentMeasurements {
+  if (!raw) return raw;
+  if (raw.type === "blouse") return normalizeBlouseMeasurements(raw);
+  if (raw.type === "salwar") return normalizeSalwarMeasurements(raw);
+  return raw;
 }
 
 function toOrder(row: OrderRow): Order {

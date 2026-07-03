@@ -51,9 +51,9 @@ describe("MeasurementGrid", () => {
         oShalwar: "46", lShalwar: "44", length: "50", shoulder: "14",
         hs: "7", sl: "22", tlcs: "20", ah: "16",
         bust: "36", ub: "32", waist: "30", hip: "38",
-        fnNr: "7", bn: "5", height: "160",
+        fnNr: "7", bn: "5",
       },
-      pant: { hip: "38", waist: "30", kl: "56", tl: "48", fullLength: "100", yoke: "12" },
+      pant: { height: "160", hip: "38", waist: "30", kl: "56", tl: "48", fullLength: "100", yoke: "12" },
       shawl: "Given",
     };
     render(<MeasurementGrid measurements={m} />);
@@ -70,15 +70,34 @@ describe("MeasurementGrid", () => {
     expect(screen.getByText("Given")).toBeInTheDocument();
   });
 
+  it("renders Height under M. Pant, not M. Top", () => {
+    const m: SalwarMeasurements = {
+      type: "salwar",
+      top: {
+        oShalwar: "", lShalwar: "", length: "", shoulder: "",
+        hs: "", sl: "", tlcs: "", ah: "", bust: "", ub: "",
+        waist: "", hip: "", fnNr: "", bn: "",
+      },
+      pant: { height: "160", hip: "38", waist: "30", kl: "56", tl: "48", fullLength: "100", yoke: "12" },
+      shawl: "",
+    };
+    render(<MeasurementGrid measurements={m} />);
+    const pantGrid = screen.getByText("M. Pant").nextElementSibling!;
+    expect(pantGrid).toHaveTextContent("Height");
+    expect(pantGrid).toHaveTextContent("160 in");
+    const topGrid = screen.getByText("M. Top").nextElementSibling!;
+    expect(topGrid).not.toHaveTextContent("Height");
+  });
+
   it("omits the shawl section when empty", () => {
     const m: SalwarMeasurements = {
       type: "salwar",
       top: {
         oShalwar: "", lShalwar: "", length: "", shoulder: "",
         hs: "", sl: "", tlcs: "", ah: "", bust: "", ub: "",
-        waist: "", hip: "", fnNr: "", bn: "", height: "",
+        waist: "", hip: "", fnNr: "", bn: "",
       },
-      pant: { hip: "", waist: "", kl: "", tl: "", fullLength: "", yoke: "" },
+      pant: { height: "", hip: "", waist: "", kl: "", tl: "", fullLength: "", yoke: "" },
       shawl: "",
     };
     render(<MeasurementGrid measurements={m} />);

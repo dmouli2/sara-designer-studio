@@ -302,6 +302,64 @@ describe("createSupabaseOrderRepository", () => {
     expect(result?.measurements).toEqual(measurements);
   });
 
+  it("findById moves a legacy salwar Height from M.Top to M.Pant", async () => {
+    const legacySalwar = {
+      type: "salwar",
+      top: {
+        oShalwar: "46", lShalwar: "44", length: "50", shoulder: "14",
+        hs: "7", sl: "22", tlcs: "20", ah: "16",
+        bust: "36", ub: "32", waist: "30", hip: "38",
+        fnNr: "7", bn: "5", height: "160",
+      },
+      pant: { hip: "38", waist: "30", kl: "56", tl: "48", fullLength: "100", yoke: "12" },
+      shawl: "",
+    };
+    mockTables({ data: { ...orderRow, measurements: legacySalwar }, error: null });
+    const repo = createSupabaseOrderRepository();
+    const result = await repo.findById("SDS-001");
+    expect(result?.measurements).toMatchObject({
+      top: { oShalwar: "46" },
+      pant: { height: "160", hip: "38" },
+    });
+    expect((result?.measurements as { top: Record<string, unknown> }).top).not.toHaveProperty("height");
+  });
+
+  it("findById leaves an already-migrated salwar (Height under pant) untouched", async () => {
+    const salwar = {
+      type: "salwar",
+      top: {
+        oShalwar: "46", lShalwar: "44", length: "50", shoulder: "14",
+        hs: "7", sl: "22", tlcs: "20", ah: "16",
+        bust: "36", ub: "32", waist: "30", hip: "38",
+        fnNr: "7", bn: "5",
+      },
+      pant: { height: "160", hip: "38", waist: "30", kl: "56", tl: "48", fullLength: "100", yoke: "12" },
+      shawl: "",
+    };
+    mockTables({ data: { ...orderRow, measurements: salwar }, error: null });
+    const repo = createSupabaseOrderRepository();
+    const result = await repo.findById("SDS-001");
+    expect(result?.measurements).toEqual(salwar);
+  });
+
+  it("findById leaves a salwar with neither top nor pant Height untouched", async () => {
+    const salwar = {
+      type: "salwar",
+      top: {
+        oShalwar: "46", lShalwar: "44", length: "50", shoulder: "14",
+        hs: "7", sl: "22", tlcs: "20", ah: "16",
+        bust: "36", ub: "32", waist: "30", hip: "38",
+        fnNr: "7", bn: "5",
+      },
+      pant: { hip: "38", waist: "30", kl: "56", tl: "48", fullLength: "100", yoke: "12" },
+      shawl: "",
+    };
+    mockTables({ data: { ...orderRow, measurements: salwar }, error: null });
+    const repo = createSupabaseOrderRepository();
+    const result = await repo.findById("SDS-001");
+    expect(result?.measurements).toEqual(salwar);
+  });
+
   it("findById returns null when not found", async () => {
     mockTables({ data: null, error: null });
     const repo = createSupabaseOrderRepository();

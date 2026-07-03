@@ -55,9 +55,9 @@ export interface SalwarMeasurements {
     hip:      string;
     fnNr:     string;
     bn:       string;
-    height:   string;
   };
   pant: {
+    height:     string;
     hip:        string;
     waist:      string;
     kl:         string; // Knee Length

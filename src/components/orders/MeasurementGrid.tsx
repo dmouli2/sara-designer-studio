@@ -66,11 +66,11 @@ export default function MeasurementGrid({ measurements }: { measurements: Garmen
           <Cell label="Hip"       value={m.top.hip} />
           <Cell label="FN / NR"   value={m.top.fnNr} />
           <Cell label="BN"        value={m.top.bn} />
-          <Cell label="Height"    value={m.top.height} />
         </div>
 
         <SectionLabel>M. Pant</SectionLabel>
         <div className="grid grid-cols-3 gap-2">
+          <Cell label="Height"      value={m.pant.height} />
           <Cell label="Hip"         value={m.pant.hip} />
           <Cell label="Waist"       value={m.pant.waist} />
           <Cell label="KL"          value={m.pant.kl} />
