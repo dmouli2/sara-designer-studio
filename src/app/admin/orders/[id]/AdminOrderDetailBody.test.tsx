@@ -220,9 +220,15 @@ describe("AdminOrderDetailBody", () => {
     expect(screen.getByText("No reference photos")).toBeInTheDocument();
   });
 
-  it("shows the material photo gallery at the top when present", () => {
+  it("shows the material photo gallery between order details and measurements", () => {
     renderBody(order({ status: "new", materialImageUrls: ["data:image/png;base64,fabric"] }));
     expect(screen.getByAltText("Material 1")).toHaveAttribute("src", "data:image/png;base64,fabric");
+
+    const details = screen.getByText("Order details");
+    const photos = screen.getByText("Material photos");
+    const measurements = screen.getByText("Measurements");
+    expect(details.compareDocumentPosition(photos) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(photos.compareDocumentPosition(measurements) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("shows a placeholder when there are no material photos", () => {

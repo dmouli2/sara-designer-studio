@@ -44,12 +44,6 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
       />
 
       <div className="scroll-area px-4 pt-4 space-y-4">
-        {/* Material photos */}
-        <div>
-          <p className="section-label">Material photos</p>
-          <MaterialImageGallery images={order.materialImageUrls} />
-        </div>
-
         {/* Status */}
         <div className="flex items-center gap-3">
           <StatusBadge status={order.status} />
@@ -63,6 +57,12 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
           {order.notes && (
             <p className="text-[13px] text-[#A8882E]/80 mt-2 italic">&quot;{order.notes}&quot;</p>
           )}
+        </div>
+
+        {/* Material photos */}
+        <div>
+          <p className="section-label">Material photos</p>
+          <MaterialImageGallery images={order.materialImageUrls} />
         </div>
 
         {/* Measurements */}

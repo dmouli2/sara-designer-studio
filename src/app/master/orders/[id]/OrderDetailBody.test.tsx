@@ -77,9 +77,13 @@ describe("OrderDetailBody", () => {
     expect(screen.getByText("No reference photos")).toBeInTheDocument();
   });
 
-  it("renders the material photos at the top when present", () => {
+  it("renders the material photos after the dress card and before measurements", () => {
     render(<OrderDetailBody order={order({ status: "new", materialImageUrls: ["data:image/png;base64,fabric"] })} />);
     expect(screen.getByAltText("Material 1")).toHaveAttribute("src", "data:image/png;base64,fabric");
+
+    const photos = screen.getByText("Material photos");
+    const measurements = screen.getByText("Measurements");
+    expect(photos.compareDocumentPosition(measurements) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("shows a placeholder when there are no material photos", () => {

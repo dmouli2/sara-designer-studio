@@ -346,14 +346,6 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
               </div>
             </div>
 
-            <div>
-              <p className="section-label">Material photos</p>
-              <MaterialImageUpload value={materialImages} onChange={setMaterialImages} />
-              {materialImages.length === 0 && (
-                <p className="text-xs text-red-600 mt-1.5">Take at least one photo of the material to continue.</p>
-              )}
-            </div>
-
             {matSource === "shop" ? (
               <div>
                 <div className="flex items-center justify-between">
@@ -397,6 +389,14 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
                 <input className="input" placeholder="e.g. Blue silk, floral print" value={custFabric} onChange={(e) => setCustFabric(e.target.value)} />
               </div>
             )}
+
+            <div>
+              <p className="section-label">Material photos</p>
+              <MaterialImageUpload value={materialImages} onChange={setMaterialImages} />
+              {materialImages.length === 0 && (
+                <p className="text-xs text-red-600 mt-1.5">Take at least one photo of the material to continue.</p>
+              )}
+            </div>
 
             <button
               onClick={() => setStep(2)}

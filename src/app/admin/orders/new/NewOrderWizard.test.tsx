@@ -169,6 +169,26 @@ describe("NewOrderWizard", () => {
     expect(screen.getByText("Next: Measurements →")).toBeDisabled();
   });
 
+  it("renders Material photos as the last field group in step 1, after the fabric section", async () => {
+    const user = userEvent.setup();
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+    await chooseOrderType(user);
+
+    const fabricSection = screen.getByText("Select fabric");
+    const photosSection = screen.getByText("Material photos");
+    expect(
+      fabricSection.compareDocumentPosition(photosSection) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+
+    // Same ordering when the customer brings their own fabric
+    await user.click(screen.getByText("Customer brings"));
+    const custFabricSection = screen.getByText("Customer fabric details");
+    expect(
+      custFabricSection.compareDocumentPosition(screen.getByText("Material photos")) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
   it("shows the shop fabric picker by default and computes fabric cost", async () => {
     const user = userEvent.setup();
     render(<NewOrderWizard fabrics={TEST_FABRICS} />);

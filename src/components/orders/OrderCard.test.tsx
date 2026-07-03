@@ -137,10 +137,14 @@ describe("OrderCard", () => {
     expect(screen.getByText(/^Due /)).toBeInTheDocument();
   });
 
-  it("shows the main material photo thumbnail when present", () => {
+  it("shows the main material photo stretched to the full card height when present", () => {
     const order: Order = { ...baseOrder, mainMaterialImageUrl: "https://signed.example/material-1.jpg" };
     render(<OrderCard order={order} />);
-    expect(screen.getByAltText("Material")).toHaveAttribute("src", "https://signed.example/material-1.jpg");
+    const img = screen.getByAltText("Material");
+    expect(img).toHaveAttribute("src", "https://signed.example/material-1.jpg");
+    // Stretches with the card's flex row instead of a fixed square height
+    expect(img.parentElement).toHaveClass("self-stretch");
+    expect(img.parentElement).not.toHaveClass("h-14");
   });
 
   it("shows no thumbnail when there is no main material photo", () => {

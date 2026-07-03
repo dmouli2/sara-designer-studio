@@ -74,9 +74,13 @@ describe("PublicOrderBody", () => {
     expect(screen.getByText("No reference photos")).toBeInTheDocument();
   });
 
-  it("shows the material photos gallery at the top when present", () => {
+  it("shows the material photos gallery after the dress card", () => {
     render(<PublicOrderBody order={baseOrder} />);
     expect(screen.getByAltText("Material 1")).toBeInTheDocument();
+
+    const dress = screen.getByText(baseOrder.dress);
+    const photos = screen.getByText("Material photos");
+    expect(dress.compareDocumentPosition(photos) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("shows a placeholder when there are no material photos", () => {

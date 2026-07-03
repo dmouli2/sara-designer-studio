@@ -28,7 +28,7 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
     >
       <div className="flex gap-3">
         {order.mainMaterialImageUrl && (
-          <div className="w-14 h-14 rounded-xl overflow-hidden border border-[#E5E0D5] shrink-0">
+          <div className="w-20 self-stretch rounded-xl overflow-hidden border border-[#E5E0D5] shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={order.mainMaterialImageUrl}

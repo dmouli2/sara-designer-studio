@@ -146,12 +146,6 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
       />
 
       <div className="scroll-area px-4 pt-4 space-y-4">
-        {/* Material photos */}
-        <div>
-          <p className="section-label">Material photos</p>
-          <MaterialImageGallery images={order.materialImageUrls} />
-        </div>
-
         {/* Progress */}
         <div className="card">
           <p className="section-label">Order progress</p>
@@ -174,6 +168,12 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
             <Row label="Material" value={order.material} />
             {order.notes && <Row label="Notes" value={order.notes} />}
           </div>
+        </div>
+
+        {/* Material photos */}
+        <div>
+          <p className="section-label">Material photos</p>
+          <MaterialImageGallery images={order.materialImageUrls} />
         </div>
 
         {/* Measurements */}

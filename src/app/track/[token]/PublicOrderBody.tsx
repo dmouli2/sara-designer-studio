@@ -17,11 +17,6 @@ export default function PublicOrderBody({ order }: { order: PublicOrder }) {
       <TopBar title={`Order ${order.id}`} subtitle="Sara Designer Studio" />
 
       <div className="scroll-area px-4 pt-4 space-y-4">
-        <div>
-          <p className="section-label">Material photos</p>
-          <MaterialImageGallery images={order.materialImageUrls} />
-        </div>
-
         <ProgressTracker status={order.status} />
 
         <div className="flex items-center gap-3">
@@ -35,6 +30,11 @@ export default function PublicOrderBody({ order }: { order: PublicOrder }) {
           {order.notes && (
             <p className="text-[13px] text-[#A8882E]/80 mt-2 italic">&quot;{order.notes}&quot;</p>
           )}
+        </div>
+
+        <div>
+          <p className="section-label">Material photos</p>
+          <MaterialImageGallery images={order.materialImageUrls} />
         </div>
 
         {order.sketchDataUrl && (
