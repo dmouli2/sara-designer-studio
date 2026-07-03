@@ -44,10 +44,22 @@ describe("proxy", () => {
     expect(response.headers.get("location")).toBeNull();
   });
 
-  it("redirects an authenticated user away from /login to their role home", async () => {
+  it("redirects an authenticated admin away from /login straight to the orders list", async () => {
     vi.mocked(decrypt).mockResolvedValue({ staffId: "s1", username: "admin", role: "admin", name: "Admin" });
     const response = await proxy(makeRequest("/login", "token"));
-    expect(response.headers.get("location")).toBe("http://localhost/admin");
+    expect(response.headers.get("location")).toBe("http://localhost/admin/orders");
+  });
+
+  it("redirects an authenticated user from the root path straight to their role home", async () => {
+    vi.mocked(decrypt).mockResolvedValue({ staffId: "m1", username: "mouli", role: "master", name: "Mouli" });
+    const response = await proxy(makeRequest("/", "token"));
+    expect(response.headers.get("location")).toBe("http://localhost/master/queue");
+  });
+
+  it("redirects an unauthenticated request on the root path to /login", async () => {
+    vi.mocked(decrypt).mockResolvedValue(null);
+    const response = await proxy(makeRequest("/"));
+    expect(response.headers.get("location")).toBe("http://localhost/login");
   });
 
   it("redirects a non-admin authenticated user away from /login to their role queue", async () => {
@@ -64,6 +76,12 @@ describe("proxy", () => {
       name: "Anitha K.",
     });
     const response = await proxy(makeRequest("/tailor/queue", "token"));
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("lets an unauthenticated request through to API routes, which do their own auth", async () => {
+    vi.mocked(decrypt).mockResolvedValue(null);
+    const response = await proxy(makeRequest("/api/health"));
     expect(response.headers.get("location")).toBeNull();
   });
 

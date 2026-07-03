@@ -28,6 +28,9 @@ export default function InstallBanner() {
     if (sessionStorage.getItem("install-dismissed")) return;
 
     if (isIOS()) {
+      // navigator.userAgent is unknowable during SSR, so this can't be the
+      // useState initializer without risking a hydration mismatch.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowIOS(true);
       return;
     }
@@ -93,7 +96,7 @@ export default function InstallBanner() {
         <p className="text-[#9A9A9A] text-xs leading-relaxed">
           Tap the <span className="text-[#C9A84C] font-semibold">Share</span> button{" "}
           <span className="text-white">⎋</span> at the bottom of Safari, then tap{" "}
-          <span className="text-[#C9A84C] font-semibold">"Add to Home Screen"</span>
+          <span className="text-[#C9A84C] font-semibold">&quot;Add to Home Screen&quot;</span>
         </p>
       </div>
     );

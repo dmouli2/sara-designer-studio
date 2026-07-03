@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode, type TouchEvent } from "react";
+import { useRef, useState, useTransition, type ReactNode, type TouchEvent } from "react";
 import { useRouter } from "next/navigation";
 import Spinner from "./Spinner";
 
@@ -18,7 +18,9 @@ export default function PullToRefresh({ children, className }: PullToRefreshProp
   const startY = useRef(0);
   const dragging = useRef(false);
   const [pullDistance, setPullDistance] = useState(0);
-  const [refreshing, setRefreshing] = useState(false);
+  // Ties the spinner to the actual refresh round trip instead of a fixed
+  // timeout — it hides when the fresh data has really rendered.
+  const [refreshing, startRefresh] = useTransition();
 
   function handleTouchStart(e: TouchEvent<HTMLDivElement>) {
     if (refreshing || (containerRef.current?.scrollTop ?? 0) > 0) return;
@@ -37,15 +39,11 @@ export default function PullToRefresh({ children, className }: PullToRefreshProp
     dragging.current = false;
 
     if (pullDistance >= PULL_THRESHOLD) {
-      setRefreshing(true);
-      router.refresh();
-      setTimeout(() => {
-        setRefreshing(false);
-        setPullDistance(0);
-      }, 600);
-    } else {
-      setPullDistance(0);
+      startRefresh(() => {
+        router.refresh();
+      });
     }
+    setPullDistance(0);
   }
 
   const indicatorHeight = refreshing ? 44 : pullDistance;

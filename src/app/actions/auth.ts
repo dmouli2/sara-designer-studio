@@ -16,8 +16,10 @@ export interface LoginState {
   error?: string;
 }
 
+// Mirrors roleHome in src/proxy.ts — admin goes straight to /admin/orders
+// so the post-login navigation is a single hop.
 function roleHome(role: Role): string {
-  return role === "admin" ? "/admin" : `/${role}/queue`;
+  return role === "admin" ? "/admin/orders" : `/${role}/queue`;
 }
 
 export async function login(_prevState: LoginState | undefined, formData: FormData): Promise<LoginState> {

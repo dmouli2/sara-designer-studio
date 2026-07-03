@@ -13,8 +13,10 @@ function isPublicTrackRoute(pathname: string): boolean {
   return pathname.startsWith("/track/");
 }
 
+// Admin lands directly on /admin/orders (not /admin, which is just a
+// redirect page) so a PWA launch reaches content in a single hop.
 function roleHome(role: Role): string {
-  return role === "admin" ? "/admin" : `/${role}/queue`;
+  return role === "admin" ? "/admin/orders" : `/${role}/queue`;
 }
 
 // Optimistic only: decrypts the cookie for a fast redirect, never hits the
@@ -26,11 +28,20 @@ export async function proxy(request: NextRequest) {
   const session = await decrypt(token);
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
 
+  // API route handlers (health ping, cron jobs) do their own auth — a login
+  // redirect would just bounce the cron to an HTML page and skip the work.
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+
   if (!isPublicRoute && !isPublicTrackRoute(pathname) && !session) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (isPublicRoute && session) {
+  // "/" and "/login" both funnel a logged-in user straight to their role
+  // home in one hop, instead of bouncing through the static "/" -> "/login"
+  // redirect page first.
+  if ((isPublicRoute || pathname === "/") && session) {
     return NextResponse.redirect(new URL(roleHome(session.role), request.url));
   }
 

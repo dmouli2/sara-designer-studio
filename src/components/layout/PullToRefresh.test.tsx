@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { act } from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import PullToRefresh from "./PullToRefresh";
 import { mockRouter } from "../../../vitest.setup";
@@ -32,8 +31,7 @@ describe("PullToRefresh", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("refreshes when pulled past the threshold and collapses after a delay", () => {
-    vi.useFakeTimers();
+  it("refreshes when pulled past the threshold and hides the spinner once the refresh settles", () => {
     const { container } = render(
       <PullToRefresh>
         <p>content</p>
@@ -46,11 +44,8 @@ describe("PullToRefresh", () => {
 
     fireEvent.touchEnd(root);
     expect(mockRouter.refresh).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("status")).toBeInTheDocument();
-
-    act(() => {
-      vi.advanceTimersByTime(600);
-    });
+    // The mocked refresh settles synchronously, so the transition is already
+    // over and the indicator has collapsed — no fixed timeout involved.
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
@@ -114,8 +109,7 @@ describe("PullToRefresh", () => {
     expect(mockRouter.refresh).toHaveBeenCalledTimes(1);
   });
 
-  it("ignores a new touchstart while already refreshing", () => {
-    vi.useFakeTimers();
+  it("allows another refresh once the previous one has settled", () => {
     const { container } = render(
       <PullToRefresh>
         <p>content</p>
@@ -129,7 +123,7 @@ describe("PullToRefresh", () => {
 
     pull(root, 90);
     fireEvent.touchEnd(root);
-    expect(mockRouter.refresh).toHaveBeenCalledTimes(1);
+    expect(mockRouter.refresh).toHaveBeenCalledTimes(2);
   });
 
   it("does not track pull distance when the gesture moves upward", () => {

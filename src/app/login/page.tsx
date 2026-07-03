@@ -7,8 +7,8 @@ import { login, type LoginState } from "@/app/actions/auth";
 import { cn } from "@/lib/utils";
 
 const initialState: LoginState = {};
-const SPLASH_HOLD_MS = 1300;
-const SPLASH_FADE_MS = 550;
+const SPLASH_HOLD_MS = 350;
+const SPLASH_FADE_MS = 300;
 
 export default function LoginPage() {
   const [state, formAction, pending] = useActionState(login, initialState);

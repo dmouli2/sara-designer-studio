@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { act, render } from "@testing-library/react";
 import ServiceWorkerRegister from "./ServiceWorkerRegister";
+import { mockRouter } from "../../vitest.setup";
 
 function mockServiceWorkerContainer(register: ReturnType<typeof vi.fn>) {
   const target = new EventTarget();
@@ -141,6 +142,42 @@ describe("ServiceWorkerRegister", () => {
 
     swContainer.dispatchEvent(new Event("controllerchange"));
     expect(window.location.reload).not.toHaveBeenCalled();
+  });
+
+  it("refreshes the router when the worker reports fresh content for the current page", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const update = vi.fn().mockResolvedValue(undefined);
+    const register = vi.fn().mockResolvedValue({ update });
+    const swContainer = mockServiceWorkerContainer(register);
+    Object.defineProperty(navigator, "serviceWorker", { value: swContainer, configurable: true });
+
+    render(<ServiceWorkerRegister />);
+
+    act(() => {
+      swContainer.dispatchEvent(
+        new MessageEvent("message", { data: { type: "NAV_UPDATED", url: window.location.href } })
+      );
+    });
+    expect(mockRouter.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores NAV_UPDATED messages for other pages and unrelated messages", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const update = vi.fn().mockResolvedValue(undefined);
+    const register = vi.fn().mockResolvedValue({ update });
+    const swContainer = mockServiceWorkerContainer(register);
+    Object.defineProperty(navigator, "serviceWorker", { value: swContainer, configurable: true });
+
+    render(<ServiceWorkerRegister />);
+
+    act(() => {
+      swContainer.dispatchEvent(
+        new MessageEvent("message", { data: { type: "NAV_UPDATED", url: "http://localhost/other-page" } })
+      );
+      swContainer.dispatchEvent(new MessageEvent("message", { data: { type: "SOMETHING_ELSE" } }));
+      swContainer.dispatchEvent(new MessageEvent("message", { data: null }));
+    });
+    expect(mockRouter.refresh).not.toHaveBeenCalled();
   });
 
   it("ignores a registration that resolves after the component has already unmounted", async () => {

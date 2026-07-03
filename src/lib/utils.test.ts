@@ -1,15 +1,73 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   cn,
   formatCurrency,
   formatDate,
   oneDayBefore,
+  isOrderOverdue,
+  matchesOrderSearch,
   isValidIndianMobile,
   toIndianMobileDigits,
   buildOrderWhatsAppMessage,
   buildWhatsAppShareUrl,
   ORDER_TERMS,
 } from "./utils";
+
+describe("isOrderOverdue", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("flags an active order whose due date has passed", () => {
+    expect(isOrderOverdue("2020-01-01", "cutting")).toBe(true);
+  });
+
+  it("does not flag an order due today or later", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 6, 3, 12, 0, 0)); // 3 Jul 2026 local
+    expect(isOrderOverdue("2026-07-03", "cutting")).toBe(false);
+    expect(isOrderOverdue("2026-07-04", "new")).toBe(false);
+    // Compared as local calendar days: yesterday is overdue from midnight.
+    expect(isOrderOverdue("2026-07-02", "stitching")).toBe(true);
+  });
+
+  it("never flags delivered or cancelled orders", () => {
+    expect(isOrderOverdue("2020-01-01", "delivered")).toBe(false);
+    expect(isOrderOverdue("2020-01-01", "cancelled")).toBe(false);
+  });
+
+  it("never flags an order without a due date", () => {
+    expect(isOrderOverdue("", "cutting")).toBe(false);
+  });
+});
+
+describe("matchesOrderSearch", () => {
+  const order = { id: "B2401", customer: "Priya Sharma", phone: "+91 98765-43210" };
+
+  it("matches everything on an empty or whitespace query", () => {
+    expect(matchesOrderSearch(order, "")).toBe(true);
+    expect(matchesOrderSearch(order, "   ")).toBe(true);
+  });
+
+  it("matches on customer name, case-insensitively", () => {
+    expect(matchesOrderSearch(order, "priya")).toBe(true);
+    expect(matchesOrderSearch(order, "SHARMA")).toBe(true);
+    expect(matchesOrderSearch(order, "anita")).toBe(false);
+  });
+
+  it("matches on the order id", () => {
+    expect(matchesOrderSearch(order, "b2401")).toBe(true);
+  });
+
+  it("matches on phone digits, ignoring formatting", () => {
+    expect(matchesOrderSearch(order, "98765 432")).toBe(true);
+    expect(matchesOrderSearch(order, "12345")).toBe(false);
+  });
+
+  it("does not phone-match a query with no digits", () => {
+    expect(matchesOrderSearch(order, "xyz")).toBe(false);
+  });
+});
 
 describe("cn", () => {
   it("merges class names and dedupes tailwind conflicts", () => {

@@ -54,8 +54,27 @@ export type OrderUpdateInput = Partial<OrderWriteInput>;
 // echoed back to them.
 export type PublicOrder = Omit<Order, "master" | "tailor" | "measurements">;
 
+// Server-side list narrowing — queues ask only for their own assignments and
+// statuses instead of hauling the whole orders table over the wire, and the
+// admin list pages through history instead of loading all of it.
+export interface OrderListFilter {
+  statuses?: OrderStatus[];
+  masterId?: string;
+  tailorId?: string;
+  limit?: number;
+  offset?: number;
+}
+
+// A delivered/cancelled order whose images are due for cleanup — just enough
+// to delete the storage objects and blank the columns.
+export interface OrderImageCleanupCandidate {
+  id: string;
+  sketchDataUrl: string | null;
+  referenceImageUrls: string[];
+}
+
 export interface OrderRepository {
-  list(): Promise<Order[]>;
+  list(filter?: OrderListFilter): Promise<Order[]>;
   findById(id: string): Promise<Order | null>;
   // Only the create response carries the freshly generated public_token —
   // it's shown to staff once, right after placing the order, to build the
@@ -69,6 +88,9 @@ export interface OrderRepository {
   // S2131.., Blouse: B2401..) via the Postgres sequence backing it — never
   // derive an order id from client randomness or `select max(id)+1`.
   nextOrderId(dress: string): Promise<string>;
+  // Delivered/cancelled orders older than the cutoff that still hold image
+  // data — consumed by the daily storage-cleanup cron.
+  listImageCleanupCandidates(cutoffIso: string): Promise<OrderImageCleanupCandidate[]>;
 }
 
 export interface Database {

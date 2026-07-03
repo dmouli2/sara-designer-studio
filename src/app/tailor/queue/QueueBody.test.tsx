@@ -86,4 +86,47 @@ describe("QueueBody", () => {
     await user.click(logoutBtn);
     expect(mockRouter.push).toHaveBeenCalledWith("/logout");
   });
+
+  it("filters the queue by search and shows a no-match state", async () => {
+    const user = userEvent.setup();
+    render(
+      <QueueBody
+        myOrders={[
+          order({ id: "B1", customer: "Priya Sharma" }),
+          order({ id: "B2", customer: "Anita Rao" }),
+        ]}
+        readyOrders={[]}
+      />
+    );
+
+    await user.type(screen.getByLabelText("Search orders"), "priya");
+    expect(screen.getByText("B1")).toBeInTheDocument();
+    expect(screen.queryByText("B2")).not.toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText("Search orders"));
+    await user.type(screen.getByLabelText("Search orders"), "nobody");
+    expect(screen.getByText("No jobs match your search")).toBeInTheDocument();
+  });
+
+  it("applies the search to the Done tab too", async () => {
+    const user = userEvent.setup();
+    render(
+      <QueueBody
+        myOrders={[]}
+        readyOrders={[
+          order({ id: "B3", customer: "Priya Sharma", status: "ready" }),
+          order({ id: "B4", customer: "Anita Rao", status: "ready" }),
+        ]}
+      />
+    );
+
+    await user.click(screen.getByText("Done"));
+    await user.type(screen.getByLabelText("Search orders"), "anita");
+    expect(screen.getByText("B4")).toBeInTheDocument();
+    expect(screen.queryByText("B3")).not.toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText("Search orders"));
+    await user.type(screen.getByLabelText("Search orders"), "nobody");
+    expect(screen.getByText("No jobs match your search")).toBeInTheDocument();
+  });
 });

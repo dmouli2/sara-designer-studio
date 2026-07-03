@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, isOrderOverdue } from "@/lib/utils";
 import StatusBadge from "./StatusBadge";
 import type { Order } from "@/types";
 
@@ -14,6 +14,7 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
   const isCancelled = order.status === "cancelled";
   const balance = order.amount - order.advance;
   const isNew = order.status === "new";
+  const overdue = isOrderOverdue(order.due, order.status);
 
   return (
     <div
@@ -21,6 +22,7 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
       className={cn(
         "card mb-3.5 cursor-pointer active:scale-[0.98] transition-all active:shadow-none",
         isNew && "border-l-4 border-l-[#C9A84C]",
+        overdue && "border-l-4 border-l-[#B04A4A]",
         className
       )}
     >
@@ -62,7 +64,13 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
       </div>
 
       <div className="flex items-center justify-between">
-        <span className="text-[12px] text-[#9A9A9A]">Due {formatDate(order.due)}</span>
+        {overdue ? (
+          <span className="text-[12px] font-semibold text-[#B04A4A]">
+            ⚠ Overdue · was due {formatDate(order.due)}
+          </span>
+        ) : (
+          <span className="text-[12px] text-[#9A9A9A]">Due {formatDate(order.due)}</span>
+        )}
         {showPrice && (
           <div className="text-right">
             {isCancelled ? (

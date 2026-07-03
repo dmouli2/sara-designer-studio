@@ -9,7 +9,6 @@ const STEPS: { id: OrderStatus; label: string }[] = [
   { id: "delivered",    label: "Done"     },
 ];
 
-const ORDER: OrderStatus[] = ["new", "cutting", "cutting_done", "stitching", "hemming_hook", "ready", "delivered"];
 
 export default function ProgressTracker({ status }: { status: OrderStatus }) {
   if (status === "cancelled") {
@@ -22,8 +21,6 @@ export default function ProgressTracker({ status }: { status: OrderStatus }) {
       </div>
     );
   }
-
-  const currentIdx = ORDER.indexOf(status);
 
   const stepIdx = (stepId: OrderStatus) => {
     const map: Record<OrderStatus, number> = {

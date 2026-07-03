@@ -1,7 +1,18 @@
 import { getSupabaseClient } from "../../supabase/client";
 import { getImageStorage } from "../../storage";
-import type { OrderRepository, OrderWriteInput, OrderUpdateInput } from "../types";
+import type {
+  OrderRepository,
+  OrderWriteInput,
+  OrderUpdateInput,
+  OrderListFilter,
+  OrderImageCleanupCandidate,
+} from "../types";
 import type { Order, OrderStatus, GarmentMeasurements, OrderLineItem } from "@/types";
+
+interface EmbeddedStaff {
+  id: string;
+  name: string;
+}
 
 interface OrderRow {
   id: string;
@@ -13,8 +24,10 @@ interface OrderRow {
   amount: number;
   advance: number;
   due: string;
-  master_id: string | null;
-  tailor_id: string | null;
+  // Assigned staff arrive embedded in the same query (PostgREST join through
+  // the master_id/tailor_id FKs) — no follow-up staff lookup.
+  master?: EmbeddedStaff | null;
+  tailor?: EmbeddedStaff | null;
   measurements: GarmentMeasurements;
   line_items: OrderLineItem[];
   notes: string;
@@ -25,25 +38,14 @@ interface OrderRow {
   public_token: string;
 }
 
+const STAFF_EMBEDS =
+  "master:staff!orders_master_id_fkey(id, name), tailor:staff!orders_tailor_id_fkey(id, name)";
+
 // Columns selected for list views, which never render sketch/reference images —
 // keeps those (potentially large, pre-Storage-migration) values off the wire.
-const LIST_COLUMNS =
-  "id, customer, phone, dress, material, status, amount, advance, due, master_id, tailor_id, measurements, line_items, notes, cancellation_charge, created_at";
+const LIST_COLUMNS = `id, customer, phone, dress, material, status, amount, advance, due, measurements, line_items, notes, cancellation_charge, created_at, ${STAFF_EMBEDS}`;
 
-async function resolveNames(ids: (string | null)[]): Promise<Map<string, string>> {
-  const uniqueIds = [...new Set(ids.filter((id): id is string => !!id))];
-  if (uniqueIds.length === 0) return new Map();
-
-  const { data, error } = await getSupabaseClient().from("staff").select("id, name").in("id", uniqueIds);
-  if (error) throw new Error(error.message);
-  return new Map(((data ?? []) as { id: string; name: string }[]).map((row) => [row.id, row.name]));
-}
-
-function toAssignedStaff(id: string | null, names: Map<string, string>) {
-  if (!id) return null;
-  const name = names.get(id);
-  return name ? { id, name } : null;
-}
+const DETAIL_COLUMNS = `*, ${STAFF_EMBEDS}`;
 
 // Blouse measurements used to be stored as { lb, ob } pairs, before O.B was
 // dropped and the columns became plain strings (see
@@ -81,7 +83,7 @@ function normalizeMeasurements(raw: GarmentMeasurements): GarmentMeasurements {
   };
 }
 
-function toOrder(row: OrderRow, names: Map<string, string>): Order {
+function toOrder(row: OrderRow): Order {
   return {
     id: row.id,
     customer: row.customer,
@@ -92,8 +94,8 @@ function toOrder(row: OrderRow, names: Map<string, string>): Order {
     amount: row.amount,
     advance: row.advance,
     due: row.due,
-    master: toAssignedStaff(row.master_id, names),
-    tailor: toAssignedStaff(row.tailor_id, names),
+    master: row.master ?? null,
+    tailor: row.tailor ?? null,
     measurements: normalizeMeasurements(row.measurements),
     lineItems: row.line_items,
     notes: row.notes,
@@ -119,12 +121,12 @@ async function resolveImageUrls(paths: string[]): Promise<string[]> {
   return urls.filter((url): url is string => url !== null);
 }
 
-async function toOrderWithImages(row: OrderRow, names: Map<string, string>): Promise<Order> {
+async function toOrderWithImages(row: OrderRow): Promise<Order> {
   const [sketchDataUrl, referenceImageUrls] = await Promise.all([
     resolveImageUrl(row.sketch_data_url),
     resolveImageUrls(row.reference_image_urls),
   ]);
-  return { ...toOrder(row, names), sketchDataUrl, referenceImageUrls };
+  return { ...toOrder(row), sketchDataUrl, referenceImageUrls };
 }
 
 function toInsertRow(input: OrderWriteInput) {
@@ -172,42 +174,45 @@ function toUpdateRow(patch: OrderUpdateInput): Record<string, unknown> {
 
 export function createSupabaseOrderRepository(): OrderRepository {
   return {
-    async list() {
-      const { data, error } = await getSupabaseClient()
+    async list(filter?: OrderListFilter) {
+      let query = getSupabaseClient()
         .from("orders")
         .select(LIST_COLUMNS)
         .order("created_at", { ascending: false });
+      if (filter?.statuses?.length) query = query.in("status", filter.statuses);
+      if (filter?.masterId) query = query.eq("master_id", filter.masterId);
+      if (filter?.tailorId) query = query.eq("tailor_id", filter.tailorId);
+      if (filter?.limit !== undefined) {
+        const offset = filter.offset ?? 0;
+        query = query.range(offset, offset + filter.limit - 1);
+      }
+
+      const { data, error } = await query;
       if (error) throw new Error(error.message);
-      const rows = (data ?? []) as Omit<OrderRow, "sketch_data_url" | "reference_image_urls">[];
-      const names = await resolveNames(rows.flatMap((r) => [r.master_id, r.tailor_id]));
-      return rows.map((row) =>
-        toOrder({ ...row, sketch_data_url: null, reference_image_urls: [] }, names)
-      );
+      const rows = (data ?? []) as unknown as Omit<OrderRow, "sketch_data_url" | "reference_image_urls">[];
+      return rows.map((row) => toOrder({ ...row, sketch_data_url: null, reference_image_urls: [] }));
     },
 
     async findById(id: string) {
       const { data, error } = await getSupabaseClient()
         .from("orders")
-        .select("*")
+        .select(DETAIL_COLUMNS)
         .eq("id", id)
         .maybeSingle();
       if (error) throw new Error(error.message);
       if (!data) return null;
-      const row = data as OrderRow;
-      const names = await resolveNames([row.master_id, row.tailor_id]);
-      return toOrderWithImages(row, names);
+      return toOrderWithImages(data as unknown as OrderRow);
     },
 
     async create(input: OrderWriteInput) {
       const { data, error } = await getSupabaseClient()
         .from("orders")
         .insert(toInsertRow(input))
-        .select("*")
+        .select(DETAIL_COLUMNS)
         .single();
       if (error) throw new Error(error.message);
-      const row = data as OrderRow;
-      const names = await resolveNames([row.master_id, row.tailor_id]);
-      const order = await toOrderWithImages(row, names);
+      const row = data as unknown as OrderRow;
+      const order = await toOrderWithImages(row);
       return { ...order, publicToken: row.public_token };
     },
 
@@ -216,12 +221,10 @@ export function createSupabaseOrderRepository(): OrderRepository {
         .from("orders")
         .update(toUpdateRow(patch))
         .eq("id", id)
-        .select("*")
+        .select(DETAIL_COLUMNS)
         .single();
       if (error) throw new Error(error.message);
-      const row = data as OrderRow;
-      const names = await resolveNames([row.master_id, row.tailor_id]);
-      return toOrderWithImages(row, names);
+      return toOrderWithImages(data as unknown as OrderRow);
     },
 
     async updateStatus(id: string, status: OrderStatus, extra?: OrderUpdateInput) {
@@ -233,8 +236,8 @@ export function createSupabaseOrderRepository(): OrderRepository {
       if (error) throw new Error(error.message);
     },
 
-    // Public route lookup (src/app/track/[token]/) — deliberately skips
-    // resolveNames (empty map) so master/tailor identities are never even
+    // Public route lookup (src/app/track/[token]/) — deliberately selects
+    // without the staff embeds so master/tailor identities are never even
     // fetched, then strips them (and measurements, which customers don't
     // need to see) from the response as defense in depth.
     async findByPublicToken(token: string) {
@@ -245,8 +248,7 @@ export function createSupabaseOrderRepository(): OrderRepository {
         .maybeSingle();
       if (error) throw new Error(error.message);
       if (!data) return null;
-      const row = data as OrderRow;
-      const order = await toOrderWithImages(row, new Map());
+      const order = await toOrderWithImages(data as OrderRow);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { master, tailor, measurements, ...publicOrder } = order;
       return publicOrder;
@@ -259,6 +261,26 @@ export function createSupabaseOrderRepository(): OrderRepository {
       const { data, error } = await getSupabaseClient().rpc("next_order_id", { dress_type: dress });
       if (error) throw new Error(error.message);
       return data as string;
+    },
+
+    // Feeds the daily storage-cleanup cron (src/app/api/cleanup-images/):
+    // finished orders past the retention window that still carry image data.
+    async listImageCleanupCandidates(cutoffIso: string) {
+      const { data, error } = await getSupabaseClient()
+        .from("orders")
+        .select("id, sketch_data_url, reference_image_urls")
+        .in("status", ["delivered", "cancelled"])
+        .lt("created_at", cutoffIso)
+        .or("sketch_data_url.not.is.null,reference_image_urls.neq.{}");
+      if (error) throw new Error(error.message);
+      const rows = (data ?? []) as Pick<OrderRow, "id" | "sketch_data_url" | "reference_image_urls">[];
+      return rows.map(
+        (row): OrderImageCleanupCandidate => ({
+          id: row.id,
+          sketchDataUrl: row.sketch_data_url,
+          referenceImageUrls: row.reference_image_urls ?? [],
+        })
+      );
     },
   };
 }

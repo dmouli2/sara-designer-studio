@@ -40,23 +40,24 @@ describe("TailorQueuePage", () => {
     vi.mocked(getOrders).mockReset();
   });
 
-  it("requires a tailor session and filters to orders assigned to this tailor", async () => {
+  it("requests only this tailor's active-stage orders and splits them across the tabs", async () => {
     const user = userEvent.setup();
+    // What the DB-side filter (tailorId + statuses) would return.
     const orders: Order[] = [
       order({ id: "B1", tailor: { id: "t1", name: "Anitha K." }, status: "stitching" }),
       order({ id: "B2", tailor: { id: "t1", name: "Anitha K." }, status: "ready" }),
-      order({ id: "B3", tailor: { id: "t2", name: "Suma M." }, status: "stitching" }),
-      order({ id: "B4", tailor: { id: "t1", name: "Anitha K." }, status: "delivered" }),
     ];
     vi.mocked(getOrders).mockResolvedValue(orders);
 
     render(await TailorQueuePage());
 
     expect(requireRole).toHaveBeenCalledWith(["tailor"]);
+    expect(getOrders).toHaveBeenCalledWith({
+      tailorId: "t1",
+      statuses: ["stitching", "ready"],
+    });
     expect(screen.getByText("B1")).toBeInTheDocument();
     expect(screen.queryByText("B2")).not.toBeInTheDocument();
-    expect(screen.queryByText("B3")).not.toBeInTheDocument();
-    expect(screen.queryByText("B4")).not.toBeInTheDocument();
 
     await user.click(screen.getByText("Done"));
     expect(screen.getByText("B2")).toBeInTheDocument();

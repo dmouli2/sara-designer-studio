@@ -318,4 +318,73 @@ describe("AdminOrderDetailBody", () => {
       expect(screen.getByText("Cancellation charge").nextSibling).toHaveTextContent("₹0");
     });
   });
+
+  describe("mutation error handling", () => {
+    it("shows an error toast when assigning a master fails", async () => {
+      vi.mocked(assignMaster).mockRejectedValue(new Error("offline"));
+      const user = userEvent.setup();
+      renderBody(order({ status: "new" }));
+
+      await user.selectOptions(screen.getByText(/^Assign master/).parentElement!.querySelector("select")!, "m1");
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save the change");
+    });
+
+    it("shows an error toast when assigning a tailor fails", async () => {
+      vi.mocked(assignTailor).mockRejectedValue(new Error("offline"));
+      const user = userEvent.setup();
+      renderBody(order({ status: "cutting_done" }));
+
+      await user.selectOptions(screen.getByText(/^Assign tailor/).parentElement!.querySelector("select")!, "t1");
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save the change");
+    });
+
+    it("shows an error toast when a status change fails", async () => {
+      vi.mocked(updateOrderStatus).mockRejectedValue(new Error("offline"));
+      const user = userEvent.setup();
+      renderBody(order({ status: "cutting" }));
+
+      await user.selectOptions(screen.getByText(/^Order status/).parentElement!.querySelector("select")!, "ready");
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save the change");
+    });
+
+    it("keeps the cancel dialog open and shows a toast when cancelling fails", async () => {
+      vi.mocked(cancelOrder).mockRejectedValue(new Error("offline"));
+      const user = userEvent.setup();
+      renderBody(order({ status: "new" }));
+
+      await user.click(screen.getByText("Cancel order"));
+      await user.type(screen.getByLabelText("Cancellation charge (₹)"), "500");
+      const confirmButtons = screen.getAllByText("Cancel order", { selector: "button" });
+      await user.click(confirmButtons[confirmButtons.length - 1]);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save the change");
+      // The dialog stays open so the admin can retry.
+      expect(screen.getByText("Cancel order AD1?")).toBeInTheDocument();
+    });
+
+    it("stays on the page and shows a toast when deleting fails", async () => {
+      vi.mocked(deleteOrder).mockRejectedValue(new Error("offline"));
+      const user = userEvent.setup();
+      renderBody(order({ status: "new" }));
+
+      await user.click(screen.getByText("Delete order"));
+      await user.click(screen.getByText("Delete permanently"));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't delete the order");
+      expect(mockRouter.push).not.toHaveBeenCalledWith("/admin/orders");
+    });
+
+    it("shows an error toast when releasing to ready fails", async () => {
+      vi.mocked(updateOrderStatus).mockRejectedValue(new Error("offline"));
+      const user = userEvent.setup();
+      renderBody(order({ status: "hemming_hook" }));
+
+      await user.click(screen.getByText(/Mark Hemming & Hook Done/));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save the change");
+    });
+  });
 });

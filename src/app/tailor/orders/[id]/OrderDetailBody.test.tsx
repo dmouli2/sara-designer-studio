@@ -122,4 +122,15 @@ describe("OrderDetailBody", () => {
     expect(screen.queryByText("In Progress — Stitching")).not.toBeInTheDocument();
     expect(screen.queryByText("Order is ready for pickup!")).not.toBeInTheDocument();
   });
+
+  it("shows an error toast and keeps the action usable when the handoff fails", async () => {
+    vi.mocked(updateOrderStatus).mockRejectedValue(new Error("offline"));
+    const user = userEvent.setup();
+    render(<OrderDetailBody order={order({ status: "stitching" })} />);
+
+    await user.click(screen.getByText("✓ Mark Stitching Done"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save the change");
+    expect(screen.getByText("✓ Mark Stitching Done")).not.toBeDisabled();
+  });
 });

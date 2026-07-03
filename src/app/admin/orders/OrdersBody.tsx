@@ -6,23 +6,35 @@ import { Plus, LogOut, Users, SlidersHorizontal, Search } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import BottomNav from "@/components/layout/BottomNav";
 import PullToRefresh from "@/components/layout/PullToRefresh";
+import Toast from "@/components/layout/Toast";
 import OrderCard from "@/components/orders/OrderCard";
+import { getOrders } from "@/app/actions/orders";
 import OrderFiltersSheet, {
   EMPTY_ORDER_FILTERS,
   hasActiveFilters,
   type OrderFilterValues,
 } from "@/components/orders/OrderFiltersSheet";
-import { cn } from "@/lib/utils";
+import { cn, isOrderOverdue, matchesOrderSearch } from "@/lib/utils";
 import type { AssignedStaff, Order, OrderStatus } from "@/types";
 
-const FILTERS: { id: OrderStatus | "all"; label: string }[] = [
+type OrderFilter = OrderStatus | "all" | "overdue";
+
+// One page of order history. The server page loads the first page; older
+// pages are appended on demand so the list doesn't grow unbounded with years
+// of history. Must match what src/app/admin/orders/page.tsx requests.
+export const ORDERS_PAGE_SIZE = 200;
+
+const FILTERS: { id: OrderFilter; label: string }[] = [
   { id: "all",          label: "All" },
+  { id: "overdue",      label: "Overdue" },
   { id: "new",          label: "New" },
   { id: "cutting",      label: "Cutting" },
+  { id: "cutting_done", label: "Cutting Done" },
   { id: "stitching",    label: "Stitching" },
   { id: "hemming_hook", label: "Hemming & Hook" },
   { id: "ready",        label: "Ready" },
   { id: "delivered",    label: "Delivered" },
+  { id: "cancelled",    label: "Cancelled" },
 ];
 
 const NAV_TABS = [
@@ -36,44 +48,59 @@ function uniqueStaff(list: (AssignedStaff | null)[]): AssignedStaff[] {
   return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function normalizeDigits(value: string): string {
-  return value.replace(/\D/g, "");
-}
-
-export default function OrdersBody({ orders }: { orders: Order[] }) {
+export default function OrdersBody({ initialOrders }: { initialOrders: Order[] }) {
   const router = useRouter();
-  const [filter, setFilter] = useState<OrderStatus | "all">("all");
+  const [filter, setFilter] = useState<OrderFilter>("all");
   const [advanced, setAdvanced] = useState<OrderFilterValues>(EMPTY_ORDER_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [olderOrders, setOlderOrders] = useState<Order[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(initialOrders.length === ORDERS_PAGE_SIZE);
+  const [error, setError] = useState<string | null>(null);
+
+  // A pull-to-refresh re-renders the server page and replaces initialOrders;
+  // previously loaded older pages are kept and deduped against it.
+  const orders = useMemo(() => {
+    const seen = new Set(initialOrders.map((o) => o.id));
+    return [...initialOrders, ...olderOrders.filter((o) => !seen.has(o.id))];
+  }, [initialOrders, olderOrders]);
+
+  async function loadOlder() {
+    setLoadingMore(true);
+    try {
+      const older = await getOrders({ limit: ORDERS_PAGE_SIZE, offset: orders.length });
+      setOlderOrders((prev) => [...prev, ...older]);
+      setHasMore(older.length === ORDERS_PAGE_SIZE);
+    } catch {
+      setError("Couldn't load older orders. Check your connection and try again.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   const masters = useMemo(() => uniqueStaff(orders.map((o) => o.master)), [orders]);
   const tailors = useMemo(() => uniqueStaff(orders.map((o) => o.tailor)), [orders]);
 
-  const searchTerm = search.trim().toLowerCase();
-  const searchDigits = normalizeDigits(search);
-
   const filtered = orders
-    .filter((o) => filter === "all" || o.status === filter)
+    .filter((o) =>
+      filter === "all" ? true : filter === "overdue" ? isOrderOverdue(o.due, o.status) : o.status === filter
+    )
     .filter((o) => !advanced.masterId || o.master?.id === advanced.masterId)
     .filter((o) => !advanced.tailorId || o.tailor?.id === advanced.tailorId)
     .filter((o) => !advanced.due || o.due.slice(0, 10) === advanced.due)
-    .filter(
-      (o) =>
-        !searchTerm ||
-        o.customer.toLowerCase().includes(searchTerm) ||
-        (searchDigits && normalizeDigits(o.phone).includes(searchDigits))
-    );
+    .filter((o) => matchesOrderSearch(o, search));
 
   const filtersActive = hasActiveFilters(advanced);
 
-  const activeCount = orders.filter((o) => !["delivered"].includes(o.status)).length;
+  const activeCount = orders.filter((o) => !["delivered", "cancelled"].includes(o.status)).length;
+  const overdueCount = orders.filter((o) => isOrderOverdue(o.due, o.status)).length;
 
   return (
     <div className="screen">
       <TopBar
         title="Sara Designer Studio"
-        subtitle={`${activeCount} active orders`}
+        subtitle={overdueCount > 0 ? `${activeCount} active · ${overdueCount} overdue` : `${activeCount} active orders`}
         right={
           <div className="flex items-center gap-2">
             <button
@@ -157,6 +184,16 @@ export default function OrdersBody({ orders }: { orders: Order[] }) {
             />
           ))
         )}
+        {hasMore && (
+          <button
+            type="button"
+            onClick={loadOlder}
+            disabled={loadingMore}
+            className="w-full py-3 mb-3 text-[13px] font-medium text-[#6B6B6B] border border-[#E5E0D5] rounded-xl bg-white active:scale-[0.98] transition-all disabled:opacity-40"
+          >
+            {loadingMore ? "Loading…" : "Load older orders"}
+          </button>
+        )}
       </PullToRefresh>
 
       <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-[430px] sm:max-w-[600px] md:max-w-[700px] lg:max-w-[820px] z-40 pointer-events-none">
@@ -189,6 +226,8 @@ export default function OrdersBody({ orders }: { orders: Order[] }) {
         onClear={() => setAdvanced(EMPTY_ORDER_FILTERS)}
         onClose={() => setFiltersOpen(false)}
       />
+
+      <Toast message={error} onDismiss={() => setError(null)} />
     </div>
   );
 }

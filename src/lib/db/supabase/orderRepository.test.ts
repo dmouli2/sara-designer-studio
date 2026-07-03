@@ -19,6 +19,9 @@ function fakeQuery(result: QueryResult) {
     select: vi.fn(() => builder),
     eq: vi.fn(() => builder),
     in: vi.fn(() => builder),
+    lt: vi.fn(() => builder),
+    or: vi.fn(() => builder),
+    range: vi.fn(() => builder),
     order: vi.fn(() => builder),
     insert: vi.fn(() => builder),
     update: vi.fn(() => builder),
@@ -44,6 +47,8 @@ const measurements: GarmentMeasurements = {
 
 const lineItems: OrderLineItem[] = [{ particulars: "Blouse", qty: 1, amount: 1000 }];
 
+// Shaped like a PostgREST row with the staff embeds (master/tailor joined in
+// the same query through the master_id/tailor_id FKs).
 const orderRow = {
   id: "SDS-001",
   customer: "Priya",
@@ -54,8 +59,8 @@ const orderRow = {
   amount: 1000,
   advance: 300,
   due: "2026-07-10",
-  master_id: "m1",
-  tailor_id: null,
+  master: { id: "m1", name: "Ramesh K." },
+  tailor: null,
   measurements,
   line_items: lineItems,
   notes: "",
@@ -65,8 +70,6 @@ const orderRow = {
   created_at: "2026-06-01T00:00:00.000Z",
   public_token: "9f2b3c4d-1111-2222-3333-444455556666",
 };
-
-const staffRows = [{ id: "m1", name: "Ramesh K." }];
 
 describe("createSupabaseOrderRepository", () => {
   const from = vi.fn();
@@ -86,15 +89,13 @@ describe("createSupabaseOrderRepository", () => {
     });
   });
 
-  function mockTables(ordersResult: QueryResult, staffResult: QueryResult = { data: staffRows, error: null }) {
-    from.mockImplementation((table: string) =>
-      table === "orders" ? fakeQuery(ordersResult) : fakeQuery(staffResult)
-    );
+  function mockTables(ordersResult: QueryResult) {
+    from.mockImplementation(() => fakeQuery(ordersResult));
   }
 
   it("list selects only the columns list views need, excluding image blobs", async () => {
     const ordersQuery = fakeQuery({ data: [orderRow], error: null });
-    from.mockImplementation((table: string) => (table === "orders" ? ordersQuery : fakeQuery({ data: staffRows, error: null })));
+    from.mockImplementation(() => ordersQuery);
     const repo = createSupabaseOrderRepository();
     await repo.list();
 
@@ -102,6 +103,52 @@ describe("createSupabaseOrderRepository", () => {
     expect(selectArg).not.toBe("*");
     expect(selectArg).not.toContain("sketch_data_url");
     expect(selectArg).not.toContain("reference_image_url");
+    // Assigned staff come embedded in the same query — no follow-up lookup.
+    expect(selectArg).toContain("master:staff!orders_master_id_fkey");
+    expect(selectArg).toContain("tailor:staff!orders_tailor_id_fkey");
+  });
+
+  it("list runs a single query — never a second staff lookup", async () => {
+    mockTables({ data: [orderRow], error: null });
+    const repo = createSupabaseOrderRepository();
+    await repo.list();
+    expect(from).toHaveBeenCalledTimes(1);
+    expect(from).toHaveBeenCalledWith("orders");
+  });
+
+  it("list applies no narrowing when called without a filter", async () => {
+    const ordersQuery = fakeQuery({ data: [orderRow], error: null });
+    from.mockImplementation(() => ordersQuery);
+    const repo = createSupabaseOrderRepository();
+    await repo.list();
+    expect(ordersQuery.in).not.toHaveBeenCalled();
+    expect(ordersQuery.eq).not.toHaveBeenCalled();
+    expect(ordersQuery.range).not.toHaveBeenCalled();
+  });
+
+  it("list pushes status/assignee filters and paging into the query", async () => {
+    const ordersQuery = fakeQuery({ data: [orderRow], error: null });
+    from.mockImplementation(() => ordersQuery);
+    const repo = createSupabaseOrderRepository();
+    await repo.list({
+      statuses: ["new", "cutting"],
+      masterId: "m1",
+      tailorId: "t1",
+      limit: 200,
+      offset: 200,
+    });
+    expect(ordersQuery.in).toHaveBeenCalledWith("status", ["new", "cutting"]);
+    expect(ordersQuery.eq).toHaveBeenCalledWith("master_id", "m1");
+    expect(ordersQuery.eq).toHaveBeenCalledWith("tailor_id", "t1");
+    expect(ordersQuery.range).toHaveBeenCalledWith(200, 399);
+  });
+
+  it("list defaults the paging offset to zero", async () => {
+    const ordersQuery = fakeQuery({ data: [], error: null });
+    from.mockImplementation(() => ordersQuery);
+    const repo = createSupabaseOrderRepository();
+    await repo.list({ limit: 50 });
+    expect(ordersQuery.range).toHaveBeenCalledWith(0, 49);
   });
 
   it("list always returns empty/null image fields and never resolves signed URLs", async () => {
@@ -113,7 +160,7 @@ describe("createSupabaseOrderRepository", () => {
     expect(getSignedUrl).not.toHaveBeenCalled();
   });
 
-  it("list resolves master/tailor names and maps rows", async () => {
+  it("list maps rows with their embedded master/tailor", async () => {
     mockTables({ data: [orderRow], error: null });
     const repo = createSupabaseOrderRepository();
     const result = await repo.list();
@@ -121,15 +168,8 @@ describe("createSupabaseOrderRepository", () => {
     expect(result[0]).toMatchObject({ id: "SDS-001", master: { id: "m1", name: "Ramesh K." }, tailor: null });
   });
 
-  it("list skips the staff lookup when there are no assignments", async () => {
-    mockTables({ data: [{ ...orderRow, master_id: null }], error: null });
-    const repo = createSupabaseOrderRepository();
-    const result = await repo.list();
-    expect(result[0].master).toBeNull();
-  });
-
-  it("list treats a stale assignment id with no matching staff row as unassigned", async () => {
-    mockTables({ data: [orderRow], error: null }, { data: [], error: null });
+  it("list maps a missing embed to an unassigned order", async () => {
+    mockTables({ data: [{ ...orderRow, master: null }], error: null });
     const repo = createSupabaseOrderRepository();
     const result = await repo.list();
     expect(result[0].master).toBeNull();
@@ -141,23 +181,10 @@ describe("createSupabaseOrderRepository", () => {
     expect(await repo.list()).toEqual([]);
   });
 
-  it("list defaults staff name lookups to an empty map when staff data is null", async () => {
-    mockTables({ data: [orderRow], error: null }, { data: null, error: null });
-    const repo = createSupabaseOrderRepository();
-    const result = await repo.list();
-    expect(result[0].master).toBeNull();
-  });
-
   it("list throws on orders query error", async () => {
     mockTables({ data: null, error: { message: "list failed" } });
     const repo = createSupabaseOrderRepository();
     await expect(repo.list()).rejects.toThrow("list failed");
-  });
-
-  it("list throws on staff lookup error", async () => {
-    mockTables({ data: [orderRow], error: null }, { data: null, error: { message: "staff failed" } });
-    const repo = createSupabaseOrderRepository();
-    await expect(repo.list()).rejects.toThrow("staff failed");
   });
 
   it("findById resolves stored image paths to signed URLs", async () => {
@@ -340,9 +367,7 @@ describe("createSupabaseOrderRepository", () => {
 
   it("update applies only the provided fields", async () => {
     const ordersQuery = fakeQuery({ data: orderRow, error: null });
-    from.mockImplementation((table: string) =>
-      table === "orders" ? ordersQuery : fakeQuery({ data: staffRows, error: null })
-    );
+    from.mockImplementation(() => ordersQuery);
     const repo = createSupabaseOrderRepository();
     await repo.update("SDS-001", { status: "cutting", tailorId: "t1" });
     expect(ordersQuery.update).toHaveBeenCalledWith({ status: "cutting", tailor_id: "t1" });
@@ -350,9 +375,7 @@ describe("createSupabaseOrderRepository", () => {
 
   it("update maps every possible patch field to its column name", async () => {
     const ordersQuery = fakeQuery({ data: orderRow, error: null });
-    from.mockImplementation((table: string) =>
-      table === "orders" ? ordersQuery : fakeQuery({ data: staffRows, error: null })
-    );
+    from.mockImplementation(() => ordersQuery);
     const repo = createSupabaseOrderRepository();
     await repo.update("SDS-001", {
       customer: "New Customer",
@@ -400,9 +423,7 @@ describe("createSupabaseOrderRepository", () => {
 
   it("updateStatus delegates to update with the status merged in", async () => {
     const ordersQuery = fakeQuery({ data: orderRow, error: null });
-    from.mockImplementation((table: string) =>
-      table === "orders" ? ordersQuery : fakeQuery({ data: staffRows, error: null })
-    );
+    from.mockImplementation(() => ordersQuery);
     const repo = createSupabaseOrderRepository();
     await repo.updateStatus("SDS-001", "delivered", { notes: "done" });
     expect(ordersQuery.update).toHaveBeenCalledWith({ status: "delivered", notes: "done" });
@@ -425,7 +446,7 @@ describe("createSupabaseOrderRepository", () => {
 
   it("findByPublicToken looks up by the public_token column", async () => {
     const ordersQuery = fakeQuery({ data: orderRow, error: null });
-    from.mockImplementation((table: string) => (table === "orders" ? ordersQuery : fakeQuery({ data: staffRows, error: null })));
+    from.mockImplementation(() => ordersQuery);
     const repo = createSupabaseOrderRepository();
     await repo.findByPublicToken("9f2b3c4d-1111-2222-3333-444455556666");
     expect(ordersQuery.eq).toHaveBeenCalledWith("public_token", "9f2b3c4d-1111-2222-3333-444455556666");
@@ -433,7 +454,7 @@ describe("createSupabaseOrderRepository", () => {
 
   it("findByPublicToken never queries staff and strips master/tailor/measurements from the result", async () => {
     const ordersQuery = fakeQuery({ data: orderRow, error: null });
-    from.mockImplementation((table: string) => (table === "orders" ? ordersQuery : fakeQuery({ data: staffRows, error: null })));
+    from.mockImplementation(() => ordersQuery);
     const repo = createSupabaseOrderRepository();
     const result = await repo.findByPublicToken("9f2b3c4d-1111-2222-3333-444455556666");
     expect(from).not.toHaveBeenCalledWith("staff");
@@ -492,5 +513,51 @@ describe("createSupabaseOrderRepository", () => {
     rpc.mockResolvedValue({ data: null, error: { message: "sequence exhausted" } });
     const repo = createSupabaseOrderRepository();
     await expect(repo.nextOrderId("Blouse")).rejects.toThrow("sequence exhausted");
+  });
+
+  it("listImageCleanupCandidates narrows to old finished orders that still hold image data", async () => {
+    const ordersQuery = fakeQuery({
+      data: [
+        {
+          id: "B2401",
+          sketch_data_url: "orders/B2401/sketch.png",
+          reference_image_urls: ["orders/B2401/reference-1.jpg"],
+        },
+      ],
+      error: null,
+    });
+    from.mockImplementation(() => ordersQuery);
+    const repo = createSupabaseOrderRepository();
+    const result = await repo.listImageCleanupCandidates("2026-04-01T00:00:00.000Z");
+
+    expect(ordersQuery.in).toHaveBeenCalledWith("status", ["delivered", "cancelled"]);
+    expect(ordersQuery.lt).toHaveBeenCalledWith("created_at", "2026-04-01T00:00:00.000Z");
+    expect(ordersQuery.or).toHaveBeenCalledWith("sketch_data_url.not.is.null,reference_image_urls.neq.{}");
+    expect(result).toEqual([
+      {
+        id: "B2401",
+        sketchDataUrl: "orders/B2401/sketch.png",
+        referenceImageUrls: ["orders/B2401/reference-1.jpg"],
+      },
+    ]);
+  });
+
+  it("listImageCleanupCandidates defaults null data and missing arrays safely", async () => {
+    mockTables({ data: null, error: null });
+    const repo = createSupabaseOrderRepository();
+    expect(await repo.listImageCleanupCandidates("2026-04-01T00:00:00.000Z")).toEqual([]);
+
+    mockTables({ data: [{ id: "S1", sketch_data_url: null, reference_image_urls: null }], error: null });
+    expect(await repo.listImageCleanupCandidates("2026-04-01T00:00:00.000Z")).toEqual([
+      { id: "S1", sketchDataUrl: null, referenceImageUrls: [] },
+    ]);
+  });
+
+  it("listImageCleanupCandidates throws on db error", async () => {
+    mockTables({ data: null, error: { message: "cleanup scan failed" } });
+    const repo = createSupabaseOrderRepository();
+    await expect(repo.listImageCleanupCandidates("2026-04-01T00:00:00.000Z")).rejects.toThrow(
+      "cleanup scan failed"
+    );
   });
 });

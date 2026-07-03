@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import NewOrderWizard from "./NewOrderWizard";
+import NewOrderWizard, { DRAFT_KEY } from "./NewOrderWizard";
 import { createOrder } from "@/app/actions/orders";
 import { mockRouter } from "../../../../../vitest.setup";
 
@@ -247,6 +247,10 @@ describe("NewOrderWizard", () => {
   });
 
   it("disables the submit button while a submission is in flight", async () => {
+    let resolveCreate: (value: unknown) => void = () => {};
+    vi.mocked(createOrder).mockImplementation(
+      () => new Promise((resolve) => (resolveCreate = resolve)) as never
+    );
     const user = userEvent.setup();
     render(<NewOrderWizard />);
     await chooseOrderType(user);
@@ -258,6 +262,25 @@ describe("NewOrderWizard", () => {
 
     expect(screen.getByText("Placing order…")).toBeDisabled();
     expect(createOrder).toHaveBeenCalledTimes(1);
+
+    resolveCreate({ id: "B2401", publicToken: "tok-abc123" });
+    expect(await screen.findByText("Order placed successfully!")).toBeInTheDocument();
+  });
+
+  it("shows an error toast and re-enables submit when placing the order fails", async () => {
+    vi.mocked(createOrder).mockRejectedValue(new Error("network down"));
+    const user = userEvent.setup();
+    render(<NewOrderWizard />);
+    await chooseOrderType(user);
+    await fillStep1AndAdvance(user);
+    await user.click(screen.getByText("Next: Pricing →"));
+    await fillDeliveryDate(user);
+
+    await user.click(screen.getByText("✓ Confirm & Place Order"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't place the order");
+    expect(screen.queryByText("Order placed successfully!")).not.toBeInTheDocument();
+    expect(screen.getByText("✓ Confirm & Place Order")).not.toBeDisabled();
   });
 
   it("disables the submit button and shows a message until a delivery date is set", async () => {
@@ -321,5 +344,68 @@ describe("NewOrderWizard", () => {
     await user.type(amountInput, "5");
     await user.clear(amountInput);
     expect(amountInput).toHaveValue(null);
+  });
+
+  describe("draft persistence", () => {
+    it("mirrors the in-progress order to localStorage and resumes it after a restart", async () => {
+      const user = userEvent.setup();
+      const { unmount } = render(<NewOrderWizard />);
+      await chooseOrderType(user);
+      await user.type(screen.getByPlaceholderText("Full name *"), "Test Customer");
+
+      await waitFor(() => {
+        const raw = window.localStorage.getItem(DRAFT_KEY);
+        expect(raw).toBeTruthy();
+        expect(JSON.parse(raw!)).toMatchObject({ dress: "Blouse", name: "Test Customer" });
+      });
+
+      // Simulate the PWA being killed and reopened.
+      unmount();
+      render(<NewOrderWizard />);
+
+      expect(await screen.findByText(/Unfinished Blouse order for Test Customer/)).toBeInTheDocument();
+      await user.click(screen.getByText("Resume draft"));
+
+      expect(screen.getByText("New Order · Step 1/3")).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("Full name *")).toHaveValue("Test Customer");
+    });
+
+    it("discards a saved draft on request", async () => {
+      const user = userEvent.setup();
+      window.localStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ dress: "Blouse", name: "Old Customer", step: 1 })
+      );
+      render(<NewOrderWizard />);
+
+      expect(await screen.findByText(/Unfinished Blouse order for Old Customer/)).toBeInTheDocument();
+      await user.click(screen.getByText("Discard"));
+
+      expect(screen.queryByText(/Unfinished Blouse order/)).not.toBeInTheDocument();
+      expect(window.localStorage.getItem(DRAFT_KEY)).toBeNull();
+    });
+
+    it("ignores unparseable or dress-less drafts", async () => {
+      window.localStorage.setItem(DRAFT_KEY, "not json{");
+      render(<NewOrderWizard />);
+      await waitFor(() => {
+        expect(screen.queryByText(/Unfinished/)).not.toBeInTheDocument();
+      });
+    });
+
+    it("clears the draft once the order is placed", async () => {
+      const user = userEvent.setup();
+      render(<NewOrderWizard />);
+      await chooseOrderType(user);
+      await fillStep1AndAdvance(user);
+      await user.click(screen.getByText("Next: Pricing →"));
+      await fillDeliveryDate(user);
+
+      await waitFor(() => expect(window.localStorage.getItem(DRAFT_KEY)).toBeTruthy());
+
+      await user.click(screen.getByText("✓ Confirm & Place Order"));
+      expect(await screen.findByText("Order placed successfully!")).toBeInTheDocument();
+      expect(window.localStorage.getItem(DRAFT_KEY)).toBeNull();
+    });
   });
 });

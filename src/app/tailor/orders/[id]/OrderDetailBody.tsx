@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
+import Toast from "@/components/layout/Toast";
 import StatusBadge from "@/components/orders/StatusBadge";
 import MeasurementGrid from "@/components/orders/MeasurementGrid";
 import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
@@ -14,6 +15,7 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
   const router = useRouter();
   const [order, setOrder] = useState(initialOrder);
   const [marking, setMarking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isCancelled = order.status === "cancelled";
   // Hemming & Hook is an admin-verified finishing gate — the tailor's part
@@ -23,9 +25,14 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
 
   async function handleMarkStitchingDone() {
     setMarking(true);
-    const updated = await updateOrderStatus(order.id, "hemming_hook");
-    setOrder(updated);
-    setMarking(false);
+    try {
+      const updated = await updateOrderStatus(order.id, "hemming_hook");
+      setOrder(updated);
+    } catch {
+      setError("Couldn't save the change. Check your connection and try again.");
+    } finally {
+      setMarking(false);
+    }
   }
 
   return (
@@ -47,7 +54,7 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
         <div className="card-gold">
           <p className="text-[16px] font-semibold text-[#7A6020]">{order.dress} · {order.material}</p>
           {order.notes && (
-            <p className="text-[13px] text-[#A8882E]/80 mt-1.5 italic">"{order.notes}"</p>
+            <p className="text-[13px] text-[#A8882E]/80 mt-1.5 italic">&quot;{order.notes}&quot;</p>
           )}
         </div>
 
@@ -100,6 +107,8 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
 
         <div className="h-4" />
       </div>
+
+      <Toast message={error} onDismiss={() => setError(null)} />
     </div>
   );
 }

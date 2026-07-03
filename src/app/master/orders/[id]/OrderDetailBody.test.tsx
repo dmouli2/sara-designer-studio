@@ -88,4 +88,19 @@ describe("OrderDetailBody", () => {
     await user.click(container.querySelector(".rounded-full")!);
     expect(mockRouter.push).toHaveBeenCalledWith("/master/queue");
   });
+
+  it("shows an error toast and keeps the action usable when marking done fails", async () => {
+    vi.mocked(updateOrderStatus).mockRejectedValue(new Error("offline"));
+    const user = userEvent.setup();
+    render(<OrderDetailBody order={order({ status: "cutting" })} />);
+
+    await user.click(screen.getByText("✓ Mark Cutting Done"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save the change");
+    expect(screen.getByText("✓ Mark Cutting Done")).not.toBeDisabled();
+
+    // Tapping the toast dismisses it.
+    await user.click(screen.getByRole("alert"));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });

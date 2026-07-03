@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, MessageCircle } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
+import Toast from "@/components/layout/Toast";
 import MeasurementForm, { emptyMeasurementsForDress } from "@/components/orders/MeasurementForm";
 import SketchCanvas from "@/components/orders/SketchCanvas";
 import ReferenceImageUpload from "@/components/orders/ReferenceImageUpload";
@@ -11,6 +12,49 @@ import { DRESS_TYPES, FABRICS, LINE_ITEM_PRESETS, lineItemCategoryForDress } fro
 import { formatCurrency, isValidIndianMobile, buildOrderWhatsAppMessage, buildWhatsAppShareUrl } from "@/lib/utils";
 import { createOrder } from "@/app/actions/orders";
 import type { GarmentMeasurements, OrderLineItem } from "@/types";
+
+// A half-entered order (17 measurement fields, sketch, photos) must survive
+// the PWA being killed by an incoming call — every change is mirrored to
+// localStorage and offered back as a resumable draft.
+export const DRAFT_KEY = "sds-new-order-draft";
+const DRAFT_SAVE_DEBOUNCE_MS = 400;
+
+interface OrderDraft {
+  step: number;
+  dress: string;
+  name: string;
+  phone: string;
+  matSource: "shop" | "customer";
+  fabricName: string;
+  metres: string;
+  custFabric: string;
+  meas: GarmentMeasurements;
+  notes: string;
+  sketch: string | null;
+  refImages: string[];
+  lineItems: OrderLineItem[];
+  delivery: string;
+  advance: string;
+}
+
+function readDraft(): OrderDraft | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as OrderDraft;
+    return parsed && typeof parsed === "object" && parsed.dress ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearDraft() {
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // localStorage unavailable — nothing to clear
+  }
+}
 
 function defaultLineItems(dress: string): OrderLineItem[] {
   const cat = lineItemCategoryForDress(dress);
@@ -27,6 +71,8 @@ export default function NewOrderWizard() {
   const [step, setStep]             = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [placedOrder, setPlacedOrder] = useState<{ id: string; publicToken: string } | null>(null);
+  const [error, setError]           = useState<string | null>(null);
+  const [draft, setDraft]           = useState<OrderDraft | null>(null);
 
   // Order type — gates the rest of the wizard; customer details etc. can't
   // be entered until one of Blouse/Salwar is chosen (also picks which
@@ -57,6 +103,64 @@ export default function NewOrderWizard() {
   const total   = fabricCost + stitchTotal;
   const balance = total - parseFloat(advance || "0");
 
+  // Offer a previously saved draft once, on mount. localStorage is
+  // client-only, so this can't move into the useState initializer — the
+  // server-rendered HTML would never contain the banner and hydration would
+  // mismatch whenever a draft exists.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDraft(readDraft());
+  }, []);
+
+  // Mirror the in-progress order to localStorage, debounced so typing doesn't
+  // thrash. If the images push past the storage quota, save everything else.
+  useEffect(() => {
+    if (!dress || placedOrder) return;
+    const timer = setTimeout(() => {
+      const data: OrderDraft = {
+        step, dress, name, phone, matSource,
+        fabricName: fabric.name, metres, custFabric,
+        meas, notes, sketch, refImages, lineItems, delivery, advance,
+      };
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+      } catch {
+        try {
+          localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...data, sketch: null, refImages: [] }));
+        } catch {
+          // localStorage unavailable — drafts just don't persist
+        }
+      }
+    }, DRAFT_SAVE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [dress, step, name, phone, matSource, fabric, metres, custFabric, meas, notes, sketch, refImages, lineItems, delivery, advance, placedOrder]);
+
+  function resumeDraft() {
+    if (!draft) return;
+    setStep(draft.step);
+    setDress(draft.dress);
+    setName(draft.name);
+    setPhone(draft.phone);
+    setMatSource(draft.matSource);
+    const savedFabric = FABRICS.find((f) => f.name === draft.fabricName);
+    if (savedFabric) setFabric(savedFabric);
+    setMetres(draft.metres);
+    setCustFabric(draft.custFabric);
+    setMeas(draft.meas);
+    setNotes(draft.notes);
+    setSketch(draft.sketch);
+    setRefImages(draft.refImages);
+    setLineItems(draft.lineItems);
+    setDelivery(draft.delivery);
+    setAdvance(draft.advance);
+    setDraft(null);
+  }
+
+  function discardDraft() {
+    clearDraft();
+    setDraft(null);
+  }
+
   function handleDressChange(d: string) {
     setDress(d);
     setMeas(emptyMeasurementsForDress(d));
@@ -71,26 +175,33 @@ export default function NewOrderWizard() {
     if (submitting || !dress) return;
     setSubmitting(true);
     const activeItems = lineItems.filter((li) => li.qty > 0 && li.amount > 0);
-    const created = await createOrder({
-      customer: name,
-      phone,
-      dress,
-      material: matSource === "shop"
-        ? `${fabric.name} (shop)`
-        : `${custFabric || "Customer fabric"} (customer)`,
-      status: "new",
-      amount: total,
-      advance: parseFloat(advance || "0"),
-      due: delivery,
-      masterId: null,
-      tailorId: null,
-      measurements: meas,
-      lineItems: activeItems,
-      notes,
-      sketchDataUrl: sketch,
-      referenceImageUrls: refImages,
-    });
-    setPlacedOrder({ id: created.id, publicToken: created.publicToken });
+    try {
+      const created = await createOrder({
+        customer: name,
+        phone,
+        dress,
+        material: matSource === "shop"
+          ? `${fabric.name} (shop)`
+          : `${custFabric || "Customer fabric"} (customer)`,
+        status: "new",
+        amount: total,
+        advance: parseFloat(advance || "0"),
+        due: delivery,
+        masterId: null,
+        tailorId: null,
+        measurements: meas,
+        lineItems: activeItems,
+        notes,
+        sketchDataUrl: sketch,
+        referenceImageUrls: refImages,
+      });
+      clearDraft();
+      setPlacedOrder({ id: created.id, publicToken: created.publicToken });
+    } catch {
+      setError("Couldn't place the order. Check your connection and try again — nothing was lost.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function handleShareOnWhatsApp() {
@@ -116,6 +227,30 @@ export default function NewOrderWizard() {
       <div className="screen">
         <TopBar title="New Order" subtitle="Choose order type" onBack={() => router.back()} />
         <div className="scroll-area px-4 pt-6 space-y-4">
+          {draft && (
+            <div className="rounded-2xl border border-[#EDD98A] bg-[#FBF6E8] p-4">
+              <p className="text-sm font-semibold text-[#7A6020]">
+                Unfinished {draft.dress} order{draft.name ? ` for ${draft.name}` : ""}
+              </p>
+              <p className="text-xs text-[#A8882E] mt-0.5">Continue where you left off?</p>
+              <div className="flex gap-2 mt-3">
+                <button
+                  type="button"
+                  onClick={resumeDraft}
+                  className="flex-1 py-2.5 rounded-xl bg-[#C9A84C] text-[#0F0F0F] text-sm font-semibold active:scale-95 transition-transform"
+                >
+                  Resume draft
+                </button>
+                <button
+                  type="button"
+                  onClick={discardDraft}
+                  className="flex-1 py-2.5 rounded-xl border border-[#E5E0D5] bg-white text-sm font-medium text-[#6B6B6B] active:scale-95 transition-transform"
+                >
+                  Discard
+                </button>
+              </div>
+            </div>
+          )}
           <p className="section-label">What are we stitching?</p>
           {DRESS_TYPES.map((d) => (
             <button
@@ -373,6 +508,8 @@ export default function NewOrderWizard() {
           </div>
         </div>
       )}
+
+      <Toast message={error} onDismiss={() => setError(null)} />
     </div>
   );
 }

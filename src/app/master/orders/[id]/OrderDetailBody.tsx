@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
+import Toast from "@/components/layout/Toast";
 import StatusBadge from "@/components/orders/StatusBadge";
 import MeasurementGrid from "@/components/orders/MeasurementGrid";
 import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
@@ -15,16 +16,22 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
   const [order, setOrder] = useState(initialOrder);
   const [confirmed, setConfirmed] = useState(false);
   const [marking, setMarking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isCancelled = order.status === "cancelled";
   const alreadyDone = !isCancelled && (order.status === "cutting_done" || !["new", "cutting"].includes(order.status));
 
   async function handleMarkDone() {
     setMarking(true);
-    const updated = await updateOrderStatus(order.id, "cutting_done");
-    setOrder(updated);
-    setMarking(false);
-    setConfirmed(true);
+    try {
+      const updated = await updateOrderStatus(order.id, "cutting_done");
+      setOrder(updated);
+      setConfirmed(true);
+    } catch {
+      setError("Couldn't save the change. Check your connection and try again.");
+    } finally {
+      setMarking(false);
+    }
   }
 
   return (
@@ -47,7 +54,7 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
           <p className="text-[16px] font-semibold text-[#7A6020]">{order.dress}</p>
           <p className="text-[14px] text-[#A8882E] mt-0.5">{order.material}</p>
           {order.notes && (
-            <p className="text-[13px] text-[#A8882E]/80 mt-2 italic">"{order.notes}"</p>
+            <p className="text-[13px] text-[#A8882E]/80 mt-2 italic">&quot;{order.notes}&quot;</p>
           )}
         </div>
 
@@ -94,6 +101,8 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
 
         <div className="h-4" />
       </div>
+
+      <Toast message={error} onDismiss={() => setError(null)} />
     </div>
   );
 }

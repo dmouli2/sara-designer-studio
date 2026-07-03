@@ -24,12 +24,12 @@ describe("LoginPage", () => {
     expect(container.querySelectorAll('img[src*="logo-white"]')).toHaveLength(2);
 
     act(() => {
-      vi.advanceTimersByTime(1300);
+      vi.advanceTimersByTime(350);
     });
     expect(container.querySelectorAll('img[src*="logo-white"]')).toHaveLength(2);
 
     act(() => {
-      vi.advanceTimersByTime(550);
+      vi.advanceTimersByTime(300);
     });
     expect(container.querySelectorAll('img[src*="logo-white"]')).toHaveLength(1);
   });

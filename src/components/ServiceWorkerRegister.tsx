@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 const UPDATE_CHECK_INTERVAL_MS = 60_000;
 
 export default function ServiceWorkerRegister() {
+  const router = useRouter();
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
@@ -25,6 +27,16 @@ export default function ServiceWorkerRegister() {
     };
     sw.addEventListener("controllerchange", onControllerChange);
 
+    // The worker serves app pages cache-first for an instant paint, then
+    // posts NAV_UPDATED once the fresh copy has landed — re-fetch the data
+    // for the page the user is actually looking at.
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === "NAV_UPDATED" && event.data.url === window.location.href) {
+        router.refresh();
+      }
+    };
+    sw.addEventListener("message", onMessage);
+
     sw.register("/sw.js", { updateViaCache: "none" })
       .then((registration) => {
         if (cancelled) return;
@@ -42,10 +54,11 @@ export default function ServiceWorkerRegister() {
     return () => {
       cancelled = true;
       sw.removeEventListener("controllerchange", onControllerChange);
+      sw.removeEventListener("message", onMessage);
       if (interval) clearInterval(interval);
       if (onVisibilityChange) document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, []);
+  }, [router]);
 
   if (!updating) return null;
 

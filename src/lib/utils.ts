@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { OrderStatus } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -22,6 +23,33 @@ export function oneDayBefore(dateStr: string): string {
   const date = new Date(dateStr);
   date.setUTCDate(date.getUTCDate() - 1);
   return date.toISOString().slice(0, 10);
+}
+
+// An order is overdue when its delivery date is before today's local calendar
+// day and it hasn't already been delivered or cancelled. Compared as
+// "YYYY-MM-DD" strings in local time (not UTC) so an order due yesterday
+// reads as overdue from midnight IST, not from 05:30.
+export function isOrderOverdue(due: string, status: OrderStatus): boolean {
+  if (!due || status === "delivered" || status === "cancelled") return false;
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return due.slice(0, 10) < today;
+}
+
+// Shared order-search predicate (admin list + role queues): matches on
+// customer name, order id, or phone digits. An empty query matches everything.
+export function matchesOrderSearch(
+  order: { customer: string; phone: string; id: string },
+  query: string
+): boolean {
+  const term = query.trim().toLowerCase();
+  if (!term) return true;
+  const digits = query.replace(/\D/g, "");
+  return (
+    order.customer.toLowerCase().includes(term) ||
+    order.id.toLowerCase().includes(term) ||
+    (digits.length > 0 && order.phone.replace(/\D/g, "").includes(digits))
+  );
 }
 
 // Accepts a 10-digit Indian mobile number, optionally prefixed with +91, 91, or 0.

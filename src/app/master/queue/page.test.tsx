@@ -40,25 +40,26 @@ describe("MasterQueuePage", () => {
     vi.mocked(getOrders).mockReset();
   });
 
-  it("requires a master session and filters to orders assigned to this master", async () => {
+  it("requests only this master's active-stage orders and splits them across the tabs", async () => {
     const user = userEvent.setup();
+    // What the DB-side filter (masterId + statuses) would return.
     const orders: Order[] = [
       order({ id: "A1", master: { id: "m1", name: "Ramesh K." }, status: "new" }),
       order({ id: "A2", master: { id: "m1", name: "Ramesh K." }, status: "cutting" }),
       order({ id: "A3", master: { id: "m1", name: "Ramesh K." }, status: "cutting_done" }),
-      order({ id: "A4", master: { id: "m2", name: "Suresh M." }, status: "new" }),
-      order({ id: "A5", master: { id: "m1", name: "Ramesh K." }, status: "stitching" }),
     ];
     vi.mocked(getOrders).mockResolvedValue(orders);
 
     render(await MasterQueuePage());
 
     expect(requireRole).toHaveBeenCalledWith(["master"]);
+    expect(getOrders).toHaveBeenCalledWith({
+      masterId: "m1",
+      statuses: ["new", "cutting", "cutting_done"],
+    });
     expect(screen.getByText("A1")).toBeInTheDocument();
     expect(screen.getByText("A2")).toBeInTheDocument();
     expect(screen.queryByText("A3")).not.toBeInTheDocument();
-    expect(screen.queryByText("A4")).not.toBeInTheDocument();
-    expect(screen.queryByText("A5")).not.toBeInTheDocument();
 
     await user.click(screen.getByText("Completed"));
     expect(screen.getByText("A3")).toBeInTheDocument();

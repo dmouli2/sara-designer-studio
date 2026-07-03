@@ -120,4 +120,18 @@ describe("OrderCard", () => {
     await user.click(container.firstChild as Element);
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+
+  it("highlights an active order whose due date has passed as overdue", () => {
+    const order: Order = { ...baseOrder, due: "2020-01-01" };
+    const { container } = render(<OrderCard order={order} />);
+    expect(screen.getByText(/Overdue · was due/)).toBeInTheDocument();
+    expect(container.firstChild).toHaveClass("border-l-[#B04A4A]");
+  });
+
+  it("does not mark a delivered order as overdue even when past its due date", () => {
+    const order: Order = { ...baseOrder, due: "2020-01-01", status: "delivered" };
+    render(<OrderCard order={order} />);
+    expect(screen.queryByText(/Overdue/)).not.toBeInTheDocument();
+    expect(screen.getByText(/^Due /)).toBeInTheDocument();
+  });
 });

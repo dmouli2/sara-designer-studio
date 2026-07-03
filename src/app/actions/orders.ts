@@ -2,7 +2,7 @@
 
 import { revalidatePath, refresh } from "next/cache";
 import { requireRole } from "@/lib/dal";
-import { getDb, type OrderWriteInput, type OrderUpdateInput } from "@/lib/db";
+import { getDb, type OrderWriteInput, type OrderUpdateInput, type OrderListFilter } from "@/lib/db";
 import { getImageStorage } from "@/lib/storage";
 import { MAX_REFERENCE_IMAGES, type Order, type OrderStatus } from "@/types";
 
@@ -44,9 +44,9 @@ async function storeReferenceImages(orderId: string, values: string[]): Promise<
   return paths.filter((p): p is string => !!p);
 }
 
-export async function getOrders(): Promise<Order[]> {
+export async function getOrders(filter?: OrderListFilter): Promise<Order[]> {
   await requireRole([...ALL_ROLES]);
-  return getDb().orders.list();
+  return getDb().orders.list(filter);
 }
 
 export async function getOrder(id: string): Promise<Order | null> {

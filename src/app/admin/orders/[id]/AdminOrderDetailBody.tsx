@@ -9,6 +9,7 @@ import MeasurementGrid from "@/components/orders/MeasurementGrid";
 import ProgressTracker from "@/components/orders/ProgressTracker";
 import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
 import ConfirmDialog from "@/components/layout/ConfirmDialog";
+import Toast from "@/components/layout/Toast";
 import CancelOrderDialog from "@/components/orders/CancelOrderDialog";
 import { assignMaster, assignTailor, updateOrderStatus, cancelOrder, deleteOrder } from "@/app/actions/orders";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -45,6 +46,7 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [releasingToReady, setReleasingToReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isCancelled = order.status === "cancelled";
   const balance = order.amount - order.advance;
@@ -55,11 +57,18 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
   const cancellationCharge = order.cancellationCharge ?? 0;
   const cancelBalance = cancellationCharge - order.advance;
 
+  const SAVE_ERROR = "Couldn't save the change. Check your connection and try again.";
+
   async function handleReleaseToReady() {
     setReleasingToReady(true);
-    const updated = await updateOrderStatus(order.id, "ready");
-    setOrder(updated);
-    setReleasingToReady(false);
+    try {
+      const updated = await updateOrderStatus(order.id, "ready");
+      setOrder(updated);
+    } catch {
+      setError(SAVE_ERROR);
+    } finally {
+      setReleasingToReady(false);
+    }
   }
 
   // Selecting a master immediately saves and — for a brand-new order —
@@ -68,37 +77,63 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
   // assigned. Same pattern for tailor + "cutting_done" -> "stitching" below.
   async function handleMasterChange(masterId: string) {
     setAssigningMaster(true);
-    const updated = await assignMaster(order.id, masterId || null);
-    setOrder(updated);
-    setAssigningMaster(false);
+    try {
+      const updated = await assignMaster(order.id, masterId || null);
+      setOrder(updated);
+    } catch {
+      setError(SAVE_ERROR);
+    } finally {
+      setAssigningMaster(false);
+    }
   }
 
   async function handleTailorChange(tailorId: string) {
     setAssigningTailor(true);
-    const updated = await assignTailor(order.id, tailorId || null);
-    setOrder(updated);
-    setAssigningTailor(false);
+    try {
+      const updated = await assignTailor(order.id, tailorId || null);
+      setOrder(updated);
+    } catch {
+      setError(SAVE_ERROR);
+    } finally {
+      setAssigningTailor(false);
+    }
   }
 
   async function handleStatusChange(status: OrderStatus) {
     setChangingStatus(true);
-    const updated = await updateOrderStatus(order.id, status);
-    setOrder(updated);
-    setChangingStatus(false);
+    try {
+      const updated = await updateOrderStatus(order.id, status);
+      setOrder(updated);
+    } catch {
+      setError(SAVE_ERROR);
+    } finally {
+      setChangingStatus(false);
+    }
   }
 
   async function handleCancel(charge: number) {
     setCancelling(true);
-    const updated = await cancelOrder(order.id, charge);
-    setOrder(updated);
-    setCancelling(false);
-    setCancelOpen(false);
+    try {
+      const updated = await cancelOrder(order.id, charge);
+      setOrder(updated);
+      setCancelOpen(false);
+    } catch {
+      setError(SAVE_ERROR);
+    } finally {
+      setCancelling(false);
+    }
   }
 
   async function handleDelete() {
     setDeleting(true);
-    await deleteOrder(order.id);
-    router.push("/admin/orders");
+    try {
+      await deleteOrder(order.id);
+      router.push("/admin/orders");
+    } catch {
+      setError("Couldn't delete the order. Check your connection and try again.");
+      setDeleting(false);
+      setDeleteOpen(false);
+    }
   }
 
   return (
@@ -330,6 +365,8 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
         onConfirm={handleCancel}
         onCancel={() => setCancelOpen(false)}
       />
+
+      <Toast message={error} onDismiss={() => setError(null)} />
     </div>
   );
 }

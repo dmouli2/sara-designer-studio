@@ -48,4 +48,36 @@ describe("GET /sw.js", () => {
     expect(body).toContain("/_next/static/");
     expect(body).toContain('request.mode === "navigate"');
   });
+
+  it("serves app-page navigations cache-first and notifies pages when fresh content lands", async () => {
+    const res = await GET();
+    const body = await res.text();
+    // Instant paint from cache, revalidate in the background…
+    expect(body).toContain("NAV_UPDATED");
+    expect(body).toContain("notifyNavUpdated");
+    // …but never cache a redirected (session-expired) response under the page URL.
+    expect(body).toContain("res.redirected");
+  });
+
+  it("keeps the session-dependent entry points network-first", async () => {
+    const res = await GET();
+    const body = await res.text();
+    expect(body).toContain('url.pathname === "/" || url.pathname === "/login"');
+  });
+
+  it("never intercepts Next.js RSC data requests", async () => {
+    const res = await GET();
+    const body = await res.text();
+    expect(body).toContain('url.searchParams.has("_rsc")');
+    expect(body).toContain('request.headers.get("RSC")');
+  });
+
+  it("does not precache the root redirect in the shell", async () => {
+    const res = await GET();
+    const body = await res.text();
+    const shellLine = body.split("\n").find((line) => line.startsWith("const SHELL"));
+    expect(shellLine).toBeDefined();
+    expect(shellLine).not.toContain('"/",');
+    expect(shellLine).toContain('"/login"');
+  });
 });
