@@ -1,5 +1,26 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { compressImageToDataUrl } from "./image";
+import { compressImageToDataUrl, dataUrlToFile } from "./image";
+
+describe("dataUrlToFile", () => {
+  it("decodes a base64 data URL into a File with the right type, name and bytes", async () => {
+    // "ZmFicmlj" is base64 for "fabric".
+    const file = dataUrlToFile("data:image/jpeg;base64,ZmFicmlj", "material-1.jpg");
+    expect(file).toBeInstanceOf(File);
+    expect(file.name).toBe("material-1.jpg");
+    expect(file.type).toBe("image/jpeg");
+    expect(Buffer.from(await file.arrayBuffer()).toString()).toBe("fabric");
+  });
+
+  it("preserves a png content type", () => {
+    const file = dataUrlToFile("data:image/png;base64,aGVsbG8=", "sketch.png");
+    expect(file.type).toBe("image/png");
+  });
+
+  it("throws on a malformed data URL", () => {
+    expect(() => dataUrlToFile("not-a-data-url", "x.jpg")).toThrow("Invalid data URL");
+    expect(() => dataUrlToFile("data:image/jpeg;utf8,plain", "x.jpg")).toThrow("Invalid data URL");
+  });
+});
 
 class FakeImage {
   width = 3000;

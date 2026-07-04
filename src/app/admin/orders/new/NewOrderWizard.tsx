@@ -12,6 +12,7 @@ import MaterialImageUpload from "@/components/orders/MaterialImageUpload";
 import FabricManagerSheet from "@/components/orders/FabricManagerSheet";
 import { DRESS_TYPES, LINE_ITEM_PRESETS, lineItemCategoryForDress } from "@/lib/mock";
 import { formatCurrency, isValidIndianMobile, buildOrderWhatsAppMessage, buildWhatsAppShareUrl } from "@/lib/utils";
+import { dataUrlToFile } from "@/lib/image";
 import { createOrder } from "@/app/actions/orders";
 import type { Fabric } from "@/lib/db/types";
 import type { GarmentMeasurements, OrderLineItem } from "@/types";
@@ -22,17 +23,23 @@ import type { GarmentMeasurements, OrderLineItem } from "@/types";
 export const DRAFT_KEY = "sds-new-order-draft";
 const DRAFT_SAVE_DEBOUNCE_MS = 400;
 
-// Photos travel to createOrder as base64 in the Server Action body, which is
-// capped at 4mb in next.config.ts (Vercel's own request ceiling is 4.5MB).
-// Checked client-side before submitting so an oversized order gets a clear
-// "remove a photo" message instead of a request the server silently rejects
-// — that rejection happens before the action even runs, which used to
-// surface as a misleading "check your connection" error.
+// Photos travel to createOrder as multipart Files (see dataUrlToFile in
+// src/lib/image.ts for why they must never ride inside the action arguments
+// as base64 strings). The action body is capped at 4mb in next.config.ts and
+// Vercel's own request ceiling is 4.5MB — checked client-side before
+// submitting so an oversized order gets a clear "remove a photo" message
+// instead of a request the server rejects before our code even runs, which
+// used to surface as a misleading "check your connection" error.
 export const MAX_PHOTO_PAYLOAD_BYTES = 3.5 * 1024 * 1024;
 
-// Base64 data-URL strings are pure ASCII, so string length ≈ bytes on the wire.
+// State holds photos as base64 data URLs; on the wire they're binary Files,
+// so the payload is ~3/4 of the base64 character count.
 function photoPayloadBytes(sketch: string | null, refImages: string[], materialImages: string[]): number {
-  return [sketch ?? "", ...refImages, ...materialImages].reduce((sum, value) => sum + value.length, 0);
+  const base64Chars = [sketch ?? "", ...refImages, ...materialImages].reduce(
+    (sum, value) => sum + value.length,
+    0
+  );
+  return Math.round(base64Chars * 0.75);
 }
 
 interface OrderDraft {
@@ -211,26 +218,31 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
     setSubmitting(true);
     const activeItems = lineItems.filter((li) => li.qty > 0 && li.amount > 0);
     try {
-      const created = await createOrder({
-        customer: name,
-        phone,
-        dress,
-        material: matSource === "shop"
-          ? `${fabric?.name ?? "Fabric"} (shop)`
-          : `${custFabric || "Customer fabric"} (customer)`,
-        status: "new",
-        amount: total,
-        advance: parseFloat(advance || "0"),
-        due: delivery,
-        masterId: null,
-        tailorId: null,
-        measurements: meas,
-        lineItems: activeItems,
-        notes,
-        sketchDataUrl: sketch,
-        referenceImageUrls: refImages,
-        materialImageUrls: materialImages,
-      });
+      const photos = new FormData();
+      if (sketch) photos.append("sketch", dataUrlToFile(sketch, "sketch.png"));
+      refImages.forEach((img, i) => photos.append("reference", dataUrlToFile(img, `reference-${i + 1}.jpg`)));
+      materialImages.forEach((img, i) => photos.append("material", dataUrlToFile(img, `material-${i + 1}.jpg`)));
+
+      const created = await createOrder(
+        {
+          customer: name,
+          phone,
+          dress,
+          material: matSource === "shop"
+            ? `${fabric?.name ?? "Fabric"} (shop)`
+            : `${custFabric || "Customer fabric"} (customer)`,
+          status: "new",
+          amount: total,
+          advance: parseFloat(advance || "0"),
+          due: delivery,
+          masterId: null,
+          tailorId: null,
+          measurements: meas,
+          lineItems: activeItems,
+          notes,
+        },
+        photos
+      );
       clearDraft();
       setPlacedOrder({ id: created.id, publicToken: created.publicToken });
     } catch {

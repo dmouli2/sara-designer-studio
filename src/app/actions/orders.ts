@@ -17,47 +17,43 @@ function revalidateOrderPaths(id: string) {
   revalidatePath("/tailor/queue");
 }
 
-function isDataUrl(value: string | null | undefined): value is string {
-  return !!value && value.startsWith("data:");
+// Photos arrive from the wizard as multipart Files (never as base64 strings
+// inside the action arguments — React's deserializer hard-caps string
+// characters inside nested arrays at 1e6, which real orders exceeded with
+// just two photos). Re-encoded to a data URL here only as the hand-off
+// format the ImageStorage port expects.
+async function fileToDataUrl(file: File): Promise<string> {
+  const buffer = Buffer.from(await file.arrayBuffer());
+  return `data:${file.type || "image/jpeg"};base64,${buffer.toString("base64")}`;
 }
 
-// The wizard still sends a base64 data URL; this uploads it to Storage and
-// swaps it for the storage path before it ever reaches the `orders` table.
-async function storeSketch(orderId: string, value: string | null): Promise<string | null> {
-  if (!isDataUrl(value)) return value ?? null;
+function filesFrom(photos: FormData, field: string, max: number): File[] {
+  return photos
+    .getAll(field)
+    .filter((entry): entry is File => entry instanceof File)
+    .slice(0, max);
+}
+
+// Each kind uploads to fixed, predictable slots (sketch.png,
+// reference-1..8.jpg, material-1..8.jpg) so deleteOrder can clean them up
+// without needing to know how many were used. material-1.jpg is always the
+// "main" photo used as the order-card thumbnail.
+async function storeSketch(orderId: string, photos: FormData): Promise<string | null> {
+  const [file] = filesFrom(photos, "sketch", 1);
+  if (!file) return null;
   const path = `orders/${orderId}/sketch.png`;
-  await getImageStorage().upload(path, value);
+  await getImageStorage().upload(path, await fileToDataUrl(file));
   return path;
 }
 
-// Reference photos upload to fixed, predictable slots (reference-1..8.jpg) so
-// deleteOrder can clean them up without needing to know how many were used.
-async function storeReferenceImages(orderId: string, values: string[]): Promise<string[]> {
-  const paths = await Promise.all(
-    values.slice(0, MAX_REFERENCE_IMAGES).map(async (value, i) => {
-      if (!isDataUrl(value)) return value || null;
-      const path = `orders/${orderId}/reference-${i + 1}.jpg`;
-      await getImageStorage().upload(path, value);
+async function storePhotos(orderId: string, files: File[], slotPrefix: string): Promise<string[]> {
+  return Promise.all(
+    files.map(async (file, i) => {
+      const path = `orders/${orderId}/${slotPrefix}-${i + 1}.jpg`;
+      await getImageStorage().upload(path, await fileToDataUrl(file));
       return path;
     })
   );
-  return paths.filter((p): p is string => !!p);
-}
-
-// Material (fabric) photos — same fixed-slot pattern as reference photos, so
-// deleteOrder can clean them up without needing to know how many were taken.
-// The first slot (material-1.jpg) is always the "main" photo used as the
-// order-card thumbnail.
-async function storeMaterialImages(orderId: string, values: string[]): Promise<string[]> {
-  const paths = await Promise.all(
-    values.slice(0, MAX_MATERIAL_IMAGES).map(async (value, i) => {
-      if (!isDataUrl(value)) return value || null;
-      const path = `orders/${orderId}/material-${i + 1}.jpg`;
-      await getImageStorage().upload(path, value);
-      return path;
-    })
-  );
-  return paths.filter((p): p is string => !!p);
 }
 
 export async function getOrders(filter?: OrderListFilter): Promise<Order[]> {
@@ -70,14 +66,23 @@ export async function getOrder(id: string): Promise<Order | null> {
   return getDb().orders.findById(id);
 }
 
+// `photos` carries the images as multipart Files under the fields "sketch"
+// (at most one), "reference" and "material" (repeated) — see the transport
+// note on fileToDataUrl above for why they must not ride inside `input`.
 export async function createOrder(
-  input: Omit<OrderWriteInput, "id" | "cancellationCharge">
+  input: Omit<
+    OrderWriteInput,
+    "id" | "cancellationCharge" | "sketchDataUrl" | "referenceImageUrls" | "materialImageUrls"
+  >,
+  photos: FormData
 ): Promise<Order & { publicToken: string }> {
   await requireRole(["admin"]);
   if (!input.due) {
     throw new Error("Delivery date is required.");
   }
-  if (input.materialImageUrls.length === 0) {
+  const referenceFiles = filesFrom(photos, "reference", MAX_REFERENCE_IMAGES);
+  const materialFiles = filesFrom(photos, "material", MAX_MATERIAL_IMAGES);
+  if (materialFiles.length === 0) {
     throw new Error("At least one material photo is required.");
   }
 
@@ -86,9 +91,9 @@ export async function createOrder(
   const id = await getDb().orders.nextOrderId(input.dress);
 
   const [sketchDataUrl, referenceImageUrls, materialImageUrls] = await Promise.all([
-    storeSketch(id, input.sketchDataUrl),
-    storeReferenceImages(id, input.referenceImageUrls),
-    storeMaterialImages(id, input.materialImageUrls),
+    storeSketch(id, photos),
+    storePhotos(id, referenceFiles, "reference"),
+    storePhotos(id, materialFiles, "material"),
   ]);
 
   // cancellationCharge only ever exists once an order is cancelled — see

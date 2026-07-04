@@ -59,17 +59,43 @@ const order: Order = {
 
 // The server allocates the id (via nextOrderId) and cancellationCharge only
 // ever gets set via cancelOrder — callers of createOrder supply neither.
-// mainMaterialImageUrl is always derived on read (never a write field), so
-// it's omitted here too, matching OrderWriteInput's Omit list.
+// mainMaterialImageUrl is always derived on read (never a write field), and
+// the image fields don't ride in the input at all: photos travel as
+// multipart Files in a separate FormData (matching createOrder's Omit list).
 const {
   id: _omittedId,
   cancellationCharge: _omittedCharge,
   mainMaterialImageUrl: _omittedMain,
+  sketchDataUrl: _omittedSketch,
+  referenceImageUrls: _omittedRefs,
+  materialImageUrls: _omittedMats,
   ...orderInput
 } = order;
 void _omittedId;
 void _omittedCharge;
 void _omittedMain;
+void _omittedSketch;
+void _omittedRefs;
+void _omittedMats;
+
+function photoFile(content: string, name: string, type = "image/jpeg"): File {
+  return new File([content], name, { type });
+}
+
+function expectedDataUrl(content: string, type = "image/jpeg"): string {
+  return `data:${type};base64,${Buffer.from(content).toString("base64")}`;
+}
+
+// Minimal valid photo set: createOrder requires at least one material photo.
+function photosForm(entries?: { sketch?: File; reference?: File[]; material?: File[] }): FormData {
+  const photos = new FormData();
+  if (entries?.sketch) photos.append("sketch", entries.sketch);
+  for (const f of entries?.reference ?? []) photos.append("reference", f);
+  for (const f of entries?.material ?? [photoFile("fabric", "material-1.jpg")]) {
+    photos.append("material", f);
+  }
+  return photos;
+}
 
 describe("orders actions", () => {
   const list = vi.fn();
@@ -125,7 +151,7 @@ describe("orders actions", () => {
 
   it("createOrder requires admin, allocates an id from the dress category's sequence, and creates the order", async () => {
     create.mockResolvedValue(order);
-    const result = await createOrder({ ...orderInput, masterId: null, tailorId: null });
+    const result = await createOrder({ ...orderInput, masterId: null, tailorId: null }, photosForm());
     expect(requireRole).toHaveBeenCalledWith(["admin"]);
     expect(nextOrderId).toHaveBeenCalledWith("Blouse");
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ id: "SDS-001", cancellationCharge: null }));
@@ -137,9 +163,9 @@ describe("orders actions", () => {
   });
 
   it("createOrder rejects a missing delivery date without allocating an id or touching the database", async () => {
-    await expect(createOrder({ ...orderInput, due: "", masterId: null, tailorId: null })).rejects.toThrow(
-      "Delivery date is required."
-    );
+    await expect(
+      createOrder({ ...orderInput, due: "", masterId: null, tailorId: null }, photosForm())
+    ).rejects.toThrow("Delivery date is required.");
     expect(nextOrderId).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
     expect(upload).not.toHaveBeenCalled();
@@ -147,28 +173,37 @@ describe("orders actions", () => {
 
   it("createOrder rejects zero material photos without allocating an id or touching the database", async () => {
     await expect(
-      createOrder({ ...orderInput, materialImageUrls: [], masterId: null, tailorId: null })
+      createOrder({ ...orderInput, masterId: null, tailorId: null }, photosForm({ material: [] }))
     ).rejects.toThrow("At least one material photo is required.");
     expect(nextOrderId).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
     expect(upload).not.toHaveBeenCalled();
   });
 
-  it("createOrder uploads base64 images to Storage, keyed by the server-allocated id, and persists paths instead of raw data", async () => {
-    create.mockResolvedValue(order);
-    await createOrder({
-      ...orderInput,
-      masterId: null,
-      tailorId: null,
-      sketchDataUrl: "data:image/png;base64,aGVsbG8=",
-      referenceImageUrls: ["data:image/jpeg;base64,d29ybGQ=", "data:image/jpeg;base64,dGVzdA=="],
-      materialImageUrls: ["data:image/jpeg;base64,ZmFicmlj"],
-    });
+  it("createOrder ignores non-File entries smuggled into the photos FormData", async () => {
+    const photos = photosForm({ material: [] });
+    photos.append("material", "data:image/jpeg;base64,notafile");
+    await expect(createOrder({ ...orderInput, masterId: null, tailorId: null }, photos)).rejects.toThrow(
+      "At least one material photo is required."
+    );
+    expect(upload).not.toHaveBeenCalled();
+  });
 
-    expect(upload).toHaveBeenCalledWith("orders/SDS-001/sketch.png", "data:image/png;base64,aGVsbG8=");
-    expect(upload).toHaveBeenCalledWith("orders/SDS-001/reference-1.jpg", "data:image/jpeg;base64,d29ybGQ=");
-    expect(upload).toHaveBeenCalledWith("orders/SDS-001/reference-2.jpg", "data:image/jpeg;base64,dGVzdA==");
-    expect(upload).toHaveBeenCalledWith("orders/SDS-001/material-1.jpg", "data:image/jpeg;base64,ZmFicmlj");
+  it("createOrder uploads the multipart photos to Storage, keyed by the server-allocated id, and persists paths instead of raw data", async () => {
+    create.mockResolvedValue(order);
+    await createOrder(
+      { ...orderInput, masterId: null, tailorId: null },
+      photosForm({
+        sketch: photoFile("hello", "sketch.png", "image/png"),
+        reference: [photoFile("world", "reference-1.jpg"), photoFile("test", "reference-2.jpg")],
+        material: [photoFile("fabric", "material-1.jpg")],
+      })
+    );
+
+    expect(upload).toHaveBeenCalledWith("orders/SDS-001/sketch.png", expectedDataUrl("hello", "image/png"));
+    expect(upload).toHaveBeenCalledWith("orders/SDS-001/reference-1.jpg", expectedDataUrl("world"));
+    expect(upload).toHaveBeenCalledWith("orders/SDS-001/reference-2.jpg", expectedDataUrl("test"));
+    expect(upload).toHaveBeenCalledWith("orders/SDS-001/material-1.jpg", expectedDataUrl("fabric"));
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         sketchDataUrl: "orders/SDS-001/sketch.png",
@@ -178,68 +213,52 @@ describe("orders actions", () => {
     );
   });
 
+  it("createOrder defaults a file with no content type to image/jpeg", async () => {
+    create.mockResolvedValue(order);
+    await createOrder(
+      { ...orderInput, masterId: null, tailorId: null },
+      photosForm({ material: [photoFile("fabric", "material-1.jpg", "")] })
+    );
+    expect(upload).toHaveBeenCalledWith("orders/SDS-001/material-1.jpg", expectedDataUrl("fabric"));
+  });
+
   it("createOrder caps uploaded reference images to the max allowed", async () => {
     create.mockResolvedValue(order);
-    const tooMany = Array.from({ length: MAX_REFERENCE_IMAGES + 2 }, (_, i) => `data:image/jpeg;base64,img${i}`);
-    await createOrder({ ...orderInput, masterId: null, tailorId: null, referenceImageUrls: tooMany });
+    const tooMany = Array.from({ length: MAX_REFERENCE_IMAGES + 2 }, (_, i) =>
+      photoFile(`img${i}`, `reference-${i}.jpg`)
+    );
+    await createOrder({ ...orderInput, masterId: null, tailorId: null }, photosForm({ reference: tooMany }));
 
-    // The fixture's default materialImageUrls is already a stored path (not
-    // a data: URL), so it triggers no upload of its own here.
-    expect(upload).toHaveBeenCalledTimes(MAX_REFERENCE_IMAGES);
+    // + 1 for the default material photo photosForm always includes.
+    expect(upload).toHaveBeenCalledTimes(MAX_REFERENCE_IMAGES + 1);
     const created = create.mock.calls[0][0];
     expect(created.referenceImageUrls).toHaveLength(MAX_REFERENCE_IMAGES);
   });
 
   it("createOrder caps uploaded material images to the max allowed", async () => {
     create.mockResolvedValue(order);
-    const tooMany = Array.from({ length: MAX_MATERIAL_IMAGES + 2 }, (_, i) => `data:image/jpeg;base64,img${i}`);
-    await createOrder({ ...orderInput, masterId: null, tailorId: null, materialImageUrls: tooMany });
+    const tooMany = Array.from({ length: MAX_MATERIAL_IMAGES + 2 }, (_, i) =>
+      photoFile(`img${i}`, `material-${i}.jpg`)
+    );
+    await createOrder({ ...orderInput, masterId: null, tailorId: null }, photosForm({ material: tooMany }));
 
     const created = create.mock.calls[0][0];
     expect(created.materialImageUrls).toHaveLength(MAX_MATERIAL_IMAGES);
   });
 
-  it("createOrder skips uploads when no image data is provided", async () => {
+  it("createOrder uploads only the material photo when sketch and references are absent", async () => {
     create.mockResolvedValue(order);
-    await createOrder({ ...orderInput, masterId: null, tailorId: null, sketchDataUrl: null, referenceImageUrls: [] });
-    expect(upload).not.toHaveBeenCalled();
+    await createOrder({ ...orderInput, masterId: null, tailorId: null }, photosForm());
+    expect(upload).toHaveBeenCalledTimes(1);
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({ sketchDataUrl: null, referenceImageUrls: [] })
-    );
-  });
-
-  it("createOrder leaves an already-stored material image path untouched instead of re-uploading it", async () => {
-    create.mockResolvedValue(order);
-    await createOrder({
-      ...orderInput,
-      masterId: null,
-      tailorId: null,
-      materialImageUrls: ["orders/SDS-001/material-1.jpg"],
-    });
-    expect(upload).not.toHaveBeenCalled();
-    expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ materialImageUrls: ["orders/SDS-001/material-1.jpg"] })
-    );
-  });
-
-  it("createOrder leaves an already-stored reference image path untouched instead of re-uploading it", async () => {
-    create.mockResolvedValue(order);
-    await createOrder({
-      ...orderInput,
-      masterId: null,
-      tailorId: null,
-      referenceImageUrls: ["orders/SDS-001/reference-1.jpg"],
-    });
-    expect(upload).not.toHaveBeenCalled();
-    expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ referenceImageUrls: ["orders/SDS-001/reference-1.jpg"] })
     );
   });
 
   it("createOrder allocates a Salwar-series id when the order is a Salwar", async () => {
     create.mockResolvedValue(order);
     nextOrderId.mockResolvedValue("S2131");
-    await createOrder({ ...orderInput, dress: "Salwar", masterId: null, tailorId: null });
+    await createOrder({ ...orderInput, dress: "Salwar", masterId: null, tailorId: null }, photosForm());
     expect(nextOrderId).toHaveBeenCalledWith("Salwar");
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ id: "S2131" }));
   });

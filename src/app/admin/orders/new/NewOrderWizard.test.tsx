@@ -20,6 +20,12 @@ vi.mock("@/app/actions/fabrics", () => ({
 
 vi.mock("@/lib/image", () => ({
   compressImageToDataUrl: vi.fn(),
+  // Real implementation atob-decodes potentially huge strings — a cheap fake
+  // keeps the oversized-payload test fast while preserving the File shape
+  // the wizard sends to createOrder.
+  dataUrlToFile: vi.fn(
+    (dataUrl: string, filename: string) => new File(["decoded"], filename, { type: "image/jpeg" })
+  ),
 }));
 
 const TEST_FABRICS: Fabric[] = [
@@ -164,10 +170,11 @@ describe("NewOrderWizard", () => {
     await chooseOrderType(user);
     await fillStep1AndAdvance(user, container);
 
-    // One huge reference photo on step 2 pushes the payload past the limit
-    // (base64 length ≈ bytes on the wire).
+    // One huge reference photo on step 2 pushes the payload past the limit —
+    // photos ship as binary Files (~3/4 of the base64 character count), so
+    // the fixture must be comfortably over limit ÷ 0.75.
     vi.mocked(compressImageToDataUrl).mockResolvedValue(
-      "data:image/jpeg;base64," + "a".repeat(MAX_PHOTO_PAYLOAD_BYTES)
+      "data:image/jpeg;base64," + "a".repeat(Math.ceil((MAX_PHOTO_PAYLOAD_BYTES / 0.75) * 1.1))
     );
     const refInput = container.querySelector('input[type="file"]')!;
     fireEvent.change(refInput, {
@@ -310,6 +317,15 @@ describe("NewOrderWizard", () => {
     expect(submitted.masterId).toBeNull();
     expect(submitted.tailorId).toBeNull();
     expect(submitted.lineItems.length).toBeGreaterThan(0);
+    // Photos never ride inside the arguments (React caps base64 strings in
+    // nested arrays at 1e6 chars) — they go as multipart Files instead.
+    expect(submitted).not.toHaveProperty("materialImageUrls");
+    expect(submitted).not.toHaveProperty("referenceImageUrls");
+    expect(submitted).not.toHaveProperty("sketchDataUrl");
+    const photos = vi.mocked(createOrder).mock.calls[0][1] as FormData;
+    expect(photos).toBeInstanceOf(FormData);
+    expect(photos.getAll("material")).toHaveLength(1);
+    expect(photos.getAll("material")[0]).toBeInstanceOf(File);
 
     expect(screen.getByText("Order placed successfully!")).toBeInTheDocument();
     expect(screen.getByText("B2401", { exact: false })).toBeInTheDocument();

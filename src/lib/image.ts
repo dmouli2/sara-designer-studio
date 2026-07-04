@@ -1,3 +1,20 @@
+// Converts a base64 data URL (how the wizard holds photos in state, for
+// previews and localStorage drafts) back into a File for submission.
+// Photos must travel to the Server Action as multipart Files, never as
+// base64 strings inside the arguments: React's action deserializer counts
+// every string character inside nested arrays against a hard-coded 1e6
+// budget ("Maximum array nesting exceeded"), so two ~470KB-char photos in
+// one array kill the request — and binary is 33% smaller on the wire too.
+export function dataUrlToFile(dataUrl: string, filename: string): File {
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) throw new Error("Invalid data URL");
+  const [, contentType, base64] = match;
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new File([bytes], filename, { type: contentType });
+}
+
 // Resizes an image file to at most `maxDimension` on its longest edge and
 // re-encodes it as JPEG, cutting typical phone-camera photos (2-8MB) down to
 // tens of KB before they ever leave the device.
