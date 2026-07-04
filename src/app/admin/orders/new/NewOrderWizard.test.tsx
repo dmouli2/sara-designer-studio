@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import NewOrderWizard, { DRAFT_KEY } from "./NewOrderWizard";
+import NewOrderWizard, { DRAFT_KEY, MAX_PHOTO_PAYLOAD_BYTES } from "./NewOrderWizard";
 import { createOrder } from "@/app/actions/orders";
 import { createFabric } from "@/app/actions/fabrics";
 import { compressImageToDataUrl } from "@/lib/image";
@@ -156,6 +156,33 @@ describe("NewOrderWizard", () => {
 
     expect(screen.queryByText("Enter a valid 10-digit Indian mobile number.")).not.toBeInTheDocument();
     expect(screen.getByText("Next: Measurements →")).not.toBeDisabled();
+  });
+
+  it("blocks submit with a specific size error when photos exceed the action body limit", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+    await chooseOrderType(user);
+    await fillStep1AndAdvance(user, container);
+
+    // One huge reference photo on step 2 pushes the payload past the limit
+    // (base64 length ≈ bytes on the wire).
+    vi.mocked(compressImageToDataUrl).mockResolvedValue(
+      "data:image/jpeg;base64," + "a".repeat(MAX_PHOTO_PAYLOAD_BYTES)
+    );
+    const refInput = container.querySelector('input[type="file"]')!;
+    fireEvent.change(refInput, {
+      target: { files: [new File(["big"], "big.jpg", { type: "image/jpeg" })] },
+    });
+    await waitFor(() => expect(screen.getByAltText("Reference 1")).toBeInTheDocument());
+
+    await user.click(screen.getByText("Next: Pricing →"));
+    await fillDeliveryDate(user);
+    await user.click(screen.getByText("✓ Confirm & Place Order"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Photos are too large .* Remove a photo/);
+    // Never sent — the request would be rejected by the server's body cap.
+    expect(createOrder).not.toHaveBeenCalled();
+    expect(screen.queryByText("Order placed successfully!")).not.toBeInTheDocument();
   });
 
   it("disables Next and shows a hint until a material photo is taken, even with a valid fabric selected", async () => {

@@ -22,6 +22,19 @@ import type { GarmentMeasurements, OrderLineItem } from "@/types";
 export const DRAFT_KEY = "sds-new-order-draft";
 const DRAFT_SAVE_DEBOUNCE_MS = 400;
 
+// Photos travel to createOrder as base64 in the Server Action body, which is
+// capped at 4mb in next.config.ts (Vercel's own request ceiling is 4.5MB).
+// Checked client-side before submitting so an oversized order gets a clear
+// "remove a photo" message instead of a request the server silently rejects
+// — that rejection happens before the action even runs, which used to
+// surface as a misleading "check your connection" error.
+export const MAX_PHOTO_PAYLOAD_BYTES = 3.5 * 1024 * 1024;
+
+// Base64 data-URL strings are pure ASCII, so string length ≈ bytes on the wire.
+function photoPayloadBytes(sketch: string | null, refImages: string[], materialImages: string[]): number {
+  return [sketch ?? "", ...refImages, ...materialImages].reduce((sum, value) => sum + value.length, 0);
+}
+
 interface OrderDraft {
   step: number;
   dress: string;
@@ -186,6 +199,15 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
 
   async function handleSubmit() {
     if (submitting || !dress) return;
+
+    const payloadBytes = photoPayloadBytes(sketch, refImages, materialImages);
+    if (payloadBytes > MAX_PHOTO_PAYLOAD_BYTES) {
+      setError(
+        `Photos are too large to send together (${(payloadBytes / 1024 / 1024).toFixed(1)} MB, limit 3.5 MB). Remove a photo or two and try again.`
+      );
+      return;
+    }
+
     setSubmitting(true);
     const activeItems = lineItems.filter((li) => li.qty > 0 && li.amount > 0);
     try {
