@@ -19,6 +19,7 @@ vi.mock("@/app/actions/fabrics", () => ({
 }));
 
 vi.mock("@/lib/image", () => ({
+  MAX_PHOTO_PAYLOAD_BYTES: 3.5 * 1024 * 1024,
   compressImageToDataUrl: vi.fn(),
   // Real implementation atob-decodes potentially huge strings — a cheap fake
   // keeps the oversized-payload test fast while preserving the File shape
@@ -117,7 +118,10 @@ describe("NewOrderWizard", () => {
       await chooseOrderType(user, "Salwar");
       await fillStep1AndAdvance(user, container);
 
-      expect(screen.getByText("O.Shalwar")).toBeInTheDocument();
+      expect(screen.getByText("TLCS")).toBeInTheDocument();
+      // O.Shalwar / L.Shalwar were removed from the order form.
+      expect(screen.queryByText("O.Shalwar")).not.toBeInTheDocument();
+      expect(screen.queryByText("L.Shalwar")).not.toBeInTheDocument();
     });
   });
 
@@ -293,14 +297,21 @@ describe("NewOrderWizard", () => {
     await fillStep1AndAdvance(user, container);
     await user.click(screen.getByText("Next: Pricing →"));
 
-    const amountInputs = screen.getAllByPlaceholderText("0");
-    // Second row is "Lining Blouse" (qty 0 by default); bump its quantity too.
-    await user.type(amountInputs[2], "2");
-    // First row is the default "Blouse" line item (qty already 1); set its amount.
-    await user.type(amountInputs[1], "1500");
+    // First row is the default "Blouse" line item (qty already 1) at ₹1500;
+    // second row "Lining Blouse" gets qty 2 × ₹100 and a comment — its line
+    // must contribute 200, not 100.
+    await user.type(screen.getByLabelText("Blouse price"), "1500");
+    await user.type(screen.getByLabelText("Lining Blouse quantity"), "2");
+    await user.type(screen.getByLabelText("Lining Blouse price"), "100");
+    await user.type(screen.getByLabelText("Lining Blouse comments"), "  double stitch ");
     const advanceInput = screen.getByText("Advance collected (₹)").parentElement!.querySelector("input")!;
     await user.type(advanceInput, "500");
     await fillDeliveryDate(user);
+
+    // The on-screen summary uses the same qty × price math as the submission.
+    expect(screen.getByText("Lining Blouse ×2 @ ₹100")).toBeInTheDocument();
+    expect(screen.getByText("₹200")).toBeInTheDocument();
+    expect(screen.getByText("₹1,940")).toBeInTheDocument();
 
     await user.click(screen.getByText("✓ Confirm & Place Order"));
 
@@ -312,11 +323,15 @@ describe("NewOrderWizard", () => {
     expect(submitted.phone).toBe("9999999999");
     expect(submitted.status).toBe("new");
     expect(submitted.material).toMatch(/\(shop\)$/);
-    expect(submitted.amount).toBeGreaterThan(0);
+    // Cotton fabric 120 × 2m + Blouse 1×1500 + Lining Blouse 2×100.
+    expect(submitted.amount).toBe(240 + 1500 + 200);
     expect(submitted.advance).toBe(500);
     expect(submitted.masterId).toBeNull();
     expect(submitted.tailorId).toBeNull();
-    expect(submitted.lineItems.length).toBeGreaterThan(0);
+    expect(submitted.lineItems).toEqual([
+      { particulars: "Blouse", qty: 1, amount: 1500 },
+      { particulars: "Lining Blouse", qty: 2, amount: 100, note: "double stitch" },
+    ]);
     // Photos never ride inside the arguments (React caps base64 strings in
     // nested arrays at 1e6 chars) — they go as multipart Files instead.
     expect(submitted).not.toHaveProperty("materialImageUrls");

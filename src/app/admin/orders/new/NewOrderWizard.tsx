@@ -12,7 +12,7 @@ import MaterialImageUpload from "@/components/orders/MaterialImageUpload";
 import FabricManagerSheet from "@/components/orders/FabricManagerSheet";
 import { DRESS_TYPES, LINE_ITEM_PRESETS, lineItemCategoryForDress } from "@/lib/mock";
 import { formatCurrency, isValidIndianMobile, buildOrderWhatsAppMessage, buildWhatsAppShareUrl } from "@/lib/utils";
-import { dataUrlToFile } from "@/lib/image";
+import { dataUrlToFile, MAX_PHOTO_PAYLOAD_BYTES } from "@/lib/image";
 import { createOrder } from "@/app/actions/orders";
 import type { Fabric } from "@/lib/db/types";
 import type { GarmentMeasurements, OrderLineItem } from "@/types";
@@ -25,12 +25,8 @@ const DRAFT_SAVE_DEBOUNCE_MS = 400;
 
 // Photos travel to createOrder as multipart Files (see dataUrlToFile in
 // src/lib/image.ts for why they must never ride inside the action arguments
-// as base64 strings). The action body is capped at 4mb in next.config.ts and
-// Vercel's own request ceiling is 4.5MB — checked client-side before
-// submitting so an oversized order gets a clear "remove a photo" message
-// instead of a request the server rejects before our code even runs, which
-// used to surface as a misleading "check your connection" error.
-export const MAX_PHOTO_PAYLOAD_BYTES = 3.5 * 1024 * 1024;
+// as base64 strings), size-capped by MAX_PHOTO_PAYLOAD_BYTES (@/lib/image).
+export { MAX_PHOTO_PAYLOAD_BYTES } from "@/lib/image";
 
 // State holds photos as base64 data URLs; on the wire they're binary Files,
 // so the payload is ~3/4 of the base64 character count.
@@ -128,7 +124,9 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
   const [advance, setAdvance]       = useState("");
 
   const fabricCost = matSource === "shop" && fabric ? fabric.price * parseFloat(metres || "0") : 0;
-  const stitchTotal = lineItems.reduce((s, li) => s + (li.qty > 0 ? li.amount : 0), 0);
+  // Amount is the per-piece price, so every line contributes qty × amount —
+  // qty 2 at ₹100 must total ₹200, not ₹100.
+  const stitchTotal = lineItems.reduce((s, li) => s + li.qty * li.amount, 0);
   const total   = fabricCost + stitchTotal;
   const balance = total - parseFloat(advance || "0");
 
@@ -216,7 +214,9 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
     }
 
     setSubmitting(true);
-    const activeItems = lineItems.filter((li) => li.qty > 0 && li.amount > 0);
+    const activeItems = lineItems
+      .filter((li) => li.qty > 0 && li.amount > 0)
+      .map(({ note, ...li }) => (note?.trim() ? { ...li, note: note.trim() } : li));
     try {
       const photos = new FormData();
       if (sketch) photos.append("sketch", dataUrlToFile(sketch, "sketch.png"));
@@ -487,25 +487,35 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
               <p className="section-label">Order items</p>
               <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden bg-white">
                 {/* Header */}
-                <div className="grid grid-cols-[1fr_52px_80px] bg-[#F9F8F6] border-b border-[#E5E0D5] px-3 py-2">
+                <div className="grid grid-cols-[1fr_44px_64px_1fr] gap-2 bg-[#F9F8F6] border-b border-[#E5E0D5] px-3 py-2">
                   <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide">Item</span>
                   <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide text-center">Qty</span>
-                  <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide text-center">Amount ₹</span>
+                  <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide text-center">Price ₹</span>
+                  <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide">Comments</span>
                 </div>
                 {lineItems.map((li, i) => (
-                  <div key={i} className={`grid grid-cols-[1fr_52px_80px] items-center px-3 py-2 gap-2 ${i % 2 === 1 ? "bg-[#FDFCFA]" : "bg-white"} ${i > 0 ? "border-t border-[#F0EDE6]" : ""}`}>
+                  <div key={i} className={`grid grid-cols-[1fr_44px_64px_1fr] items-center px-3 py-2 gap-2 ${i % 2 === 1 ? "bg-[#FDFCFA]" : "bg-white"} ${i > 0 ? "border-t border-[#F0EDE6]" : ""}`}>
                     <span className="text-xs text-[#0F0F0F]">{li.particulars}</span>
                     <input
                       className="w-full text-center text-sm border border-[#E5E0D5] rounded-lg py-1.5 focus:outline-none focus:border-[#C9A84C]"
                       type="number" min="0" value={li.qty || ""}
                       placeholder="0"
+                      aria-label={`${li.particulars} quantity`}
                       onChange={(e) => setLineItem(i, { qty: parseInt(e.target.value) || 0 })}
                     />
                     <input
                       className="w-full text-center text-sm border border-[#E5E0D5] rounded-lg py-1.5 focus:outline-none focus:border-[#C9A84C]"
                       type="number" min="0" value={li.amount || ""}
                       placeholder="0"
+                      aria-label={`${li.particulars} price`}
                       onChange={(e) => setLineItem(i, { amount: parseFloat(e.target.value) || 0 })}
+                    />
+                    <input
+                      className="w-full min-w-0 text-[13px] border border-[#E5E0D5] rounded-lg py-1.5 px-2 focus:outline-none focus:border-[#C9A84C] placeholder:text-[#C4C0B6]"
+                      placeholder="(…)"
+                      aria-label={`${li.particulars} comments`}
+                      value={li.note ?? ""}
+                      onChange={(e) => setLineItem(i, { note: e.target.value })}
                     />
                   </div>
                 ))}
@@ -537,8 +547,8 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
               )}
               {lineItems.filter((li) => li.qty > 0 && li.amount > 0).map((li, i) => (
                 <div key={i} className="flex justify-between text-xs text-[#A8882E] mb-1.5">
-                  <span>{li.particulars} ×{li.qty}</span>
-                  <span>{formatCurrency(li.amount)}</span>
+                  <span>{li.particulars} ×{li.qty} @ {formatCurrency(li.amount)}</span>
+                  <span>{formatCurrency(li.qty * li.amount)}</span>
                 </div>
               ))}
               <div className="flex justify-between text-sm font-bold text-[#0F0F0F] border-t border-[#EDD98A] pt-2 mt-1">

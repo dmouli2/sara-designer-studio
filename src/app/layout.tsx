@@ -18,13 +18,23 @@ const playfair = Playfair_Display({
   display: "swap",
 });
 
+// metadataBase makes the og:image URL absolute — WhatsApp/social link
+// previews (e.g. the customer tracking link) ignore relative image URLs.
+// src/app/icon.png (Sara logo) is picked up automatically as the favicon.
 export const metadata: Metadata = {
+  metadataBase: new URL("https://sara-designer-studio.vercel.app"),
   title: "Sara Designer Studio",
   description: "Boutique order management",
   manifest: "/manifest.json",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Sara Studio" },
   icons: {
     apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    title: "Sara Designer Studio",
+    description: "Boutique order management",
+    siteName: "Sara Designer Studio",
+    images: [{ url: "/icon-512.png", width: 512, height: 512, alt: "Sara Designer Studio" }],
   },
 };
 

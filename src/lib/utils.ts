@@ -81,6 +81,7 @@ export const ORDER_TERMS: string[] = [
   "Delivery date can be extended for any reasons.",
   "Cancellation not available. 40% cancellation fee applies if requested.",
   "No design changes after order confirmation.",
+  "We kindly request your understanding that once an order has been placed, modifications to it will not be possible.",
   "No bargaining.",
   "Alterations will be done within 2 weeks. If not possible, additional charges will apply.",
 ];

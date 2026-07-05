@@ -4,19 +4,23 @@ import userEvent from "@testing-library/user-event";
 import SalwarMeasurementForm, { emptySalwar } from "./SalwarMeasurementForm";
 
 describe("emptySalwar", () => {
-  it("returns a blank salwar measurements object", () => {
+  it("returns a blank salwar measurements object without the dropped O./L.Shalwar fields", () => {
     const m = emptySalwar();
     expect(m.type).toBe("salwar");
-    expect(m.top.oShalwar).toBe("");
+    expect(m.top.length).toBe("");
+    expect(m.top.oShalwar).toBeUndefined();
+    expect(m.top.lShalwar).toBeUndefined();
     expect(m.pant.hip).toBe("");
     expect(m.shawl).toBe("");
   });
 });
 
 describe("SalwarMeasurementForm", () => {
-  it("shows the top-measurement tab by default, without the Height field", () => {
+  it("shows the top-measurement tab by default, without Height or the dropped O.Shalwar/L.Shalwar", () => {
     render(<SalwarMeasurementForm value={emptySalwar()} onChange={() => {}} />);
-    expect(screen.getByText("O.Shalwar")).toBeInTheDocument();
+    expect(screen.getByText("TLCS")).toBeInTheDocument();
+    expect(screen.queryByText("O.Shalwar")).not.toBeInTheDocument();
+    expect(screen.queryByText("L.Shalwar")).not.toBeInTheDocument();
     expect(screen.queryByText("KL")).not.toBeInTheDocument();
     expect(screen.queryByText("Height")).not.toBeInTheDocument();
   });
@@ -28,7 +32,7 @@ describe("SalwarMeasurementForm", () => {
     expect(screen.getByText("KL")).toBeInTheDocument();
     expect(screen.getByText("Height")).toBeInTheDocument();
     expect(screen.getByText("Shawl")).toBeInTheDocument();
-    expect(screen.queryByText("O.Shalwar")).not.toBeInTheDocument();
+    expect(screen.queryByText("TLCS")).not.toBeInTheDocument();
 
     const fieldLabels = screen.getAllByText(/^(Height|Hip|Waist|KL|TL|Full Length|Yoke)$/).map((el) => el.textContent);
     expect(fieldLabels[0]).toBe("Height");
@@ -38,12 +42,21 @@ describe("SalwarMeasurementForm", () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<SalwarMeasurementForm value={emptySalwar()} onChange={onChange} />);
-    const row = screen.getByText("Length").closest("div")!;
-    const input = row.querySelector("input")!;
-    await user.type(input, "5");
+    await user.type(screen.getByLabelText("Length"), "5");
     expect(onChange).toHaveBeenCalledWith({
       ...emptySalwar(),
       top: { ...emptySalwar().top, length: "5" },
+    });
+  });
+
+  it("updates a top field's note", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<SalwarMeasurementForm value={emptySalwar()} onChange={onChange} />);
+    await user.type(screen.getByLabelText("Bust note"), "x");
+    expect(onChange).toHaveBeenCalledWith({
+      ...emptySalwar(),
+      topNotes: { bust: "x" },
     });
   });
 
@@ -52,13 +65,30 @@ describe("SalwarMeasurementForm", () => {
     const onChange = vi.fn();
     render(<SalwarMeasurementForm value={emptySalwar()} onChange={onChange} />);
     await user.click(screen.getByText("M. Pant"));
-    const row = screen.getByText("Yoke").closest("div")!;
-    const input = row.querySelector("input")!;
-    await user.type(input, "1");
+    await user.type(screen.getByLabelText("Yoke"), "1");
     expect(onChange).toHaveBeenCalledWith({
       ...emptySalwar(),
       pant: { ...emptySalwar().pant, yoke: "1" },
     });
+  });
+
+  it("updates a pant field's note, keeping existing notes", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const value = { ...emptySalwar(), pantNotes: { hip: "loose" } };
+    render(<SalwarMeasurementForm value={value} onChange={onChange} />);
+    await user.click(screen.getByText("M. Pant"));
+    await user.type(screen.getByLabelText("KL note"), "y");
+    expect(onChange).toHaveBeenCalledWith({
+      ...value,
+      pantNotes: { hip: "loose", kl: "y" },
+    });
+  });
+
+  it("shows existing notes in the note inputs", () => {
+    const value = { ...emptySalwar(), topNotes: { waist: "with margin" } };
+    render(<SalwarMeasurementForm value={value} onChange={() => {}} />);
+    expect(screen.getByLabelText("Waist note")).toHaveValue("with margin");
   });
 
   it("updates the shawl free-text field", async () => {

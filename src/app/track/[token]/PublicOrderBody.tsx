@@ -57,12 +57,12 @@ export default function PublicOrderBody({ order }: { order: PublicOrder }) {
             <p className="section-label">Order items</p>
             <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden bg-white">
               {order.lineItems.map((li, i) => (
-                <div
-                  key={i}
-                  className={`flex justify-between px-3 py-2.5 text-sm ${i > 0 ? "border-t border-[#F0EDE6]" : ""}`}
-                >
-                  <span className="text-[#0F0F0F]">{li.particulars} ×{li.qty}</span>
-                  <span className="text-[#0F0F0F] font-medium">{formatCurrency(li.amount)}</span>
+                <div key={i} className={`px-3 py-2.5 ${i > 0 ? "border-t border-[#F0EDE6]" : ""}`}>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-[#0F0F0F]">{li.particulars} ×{li.qty}</span>
+                    <span className="text-[#0F0F0F] font-medium">{formatCurrency(li.qty * li.amount)}</span>
+                  </div>
+                  {li.note && <p className="text-xs text-[#A8882E] italic mt-0.5">({li.note})</p>}
                 </div>
               ))}
             </div>

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import MeasurementFieldRow from "./MeasurementFieldRow";
 import type { SalwarMeasurements } from "@/types";
 
 export function emptySalwar(): SalwarMeasurements {
   return {
     type: "salwar",
     top: {
-      oShalwar: "", lShalwar: "", length: "", shoulder: "",
+      length: "", shoulder: "",
       hs: "", sl: "", tlcs: "", ah: "", bust: "", ub: "",
       waist: "", hip: "", fnNr: "", bn: "",
     },
@@ -19,9 +20,9 @@ export function emptySalwar(): SalwarMeasurements {
 }
 
 // Labels match the physical order form exactly (see MeasurementGrid.tsx).
+// O.Shalwar / L.Shalwar were dropped from the form — old orders that carry
+// them still display in MeasurementGrid, they just can't be entered anymore.
 const TOP_FIELDS: { key: keyof SalwarMeasurements["top"]; label: string }[] = [
-  { key: "oShalwar", label: "O.Shalwar" },
-  { key: "lShalwar", label: "L.Shalwar" },
   { key: "length",   label: "Length" },
   { key: "shoulder", label: "Shoulder" },
   { key: "hs",       label: "HS" },
@@ -60,6 +61,12 @@ export default function SalwarMeasurementForm({ value, onChange }: Props) {
   function setPant(key: keyof SalwarMeasurements["pant"], v: string) {
     onChange({ ...value, pant: { ...value.pant, [key]: v } });
   }
+  function setTopNote(key: keyof SalwarMeasurements["top"], v: string) {
+    onChange({ ...value, topNotes: { ...value.topNotes, [key]: v } });
+  }
+  function setPantNote(key: keyof SalwarMeasurements["pant"], v: string) {
+    onChange({ ...value, pantNotes: { ...value.pantNotes, [key]: v } });
+  }
 
   return (
     <div className="space-y-4">
@@ -82,19 +89,16 @@ export default function SalwarMeasurementForm({ value, onChange }: Props) {
       {tab === "top" && (
         <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden bg-white">
           {TOP_FIELDS.map(({ key, label }, i) => (
-            <div
+            <MeasurementFieldRow
               key={key}
-              className={`flex items-center px-3 py-2 gap-3 ${i % 2 === 1 ? "bg-[#FDFCFA]" : "bg-white"} ${i > 0 ? "border-t border-[#F0EDE6]" : ""}`}
-            >
-              <span className="text-xs text-[#0F0F0F] flex-1">{label}</span>
-              <input
-                className="w-24 text-center text-sm border border-[#E5E0D5] rounded-lg py-1.5 focus:outline-none focus:border-[#C9A84C]"
-                placeholder="in"
-                type="number"
-                value={value.top[key]}
-                onChange={(e) => setTop(key, e.target.value)}
-              />
-            </div>
+              label={label}
+              value={value.top[key] ?? ""}
+              note={value.topNotes?.[key] ?? ""}
+              striped={i % 2 === 1}
+              bordered={i > 0}
+              onValueChange={(v) => setTop(key, v)}
+              onNoteChange={(v) => setTopNote(key, v)}
+            />
           ))}
         </div>
       )}
@@ -103,19 +107,16 @@ export default function SalwarMeasurementForm({ value, onChange }: Props) {
         <div className="space-y-4">
           <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden bg-white">
             {PANT_FIELDS.map(({ key, label }, i) => (
-              <div
+              <MeasurementFieldRow
                 key={key}
-                className={`flex items-center px-3 py-2 gap-3 ${i % 2 === 1 ? "bg-[#FDFCFA]" : "bg-white"} ${i > 0 ? "border-t border-[#F0EDE6]" : ""}`}
-              >
-                <span className="text-xs text-[#0F0F0F] flex-1">{label}</span>
-                <input
-                  className="w-24 text-center text-sm border border-[#E5E0D5] rounded-lg py-1.5 focus:outline-none focus:border-[#C9A84C]"
-                  placeholder="in"
-                  type="number"
-                  value={value.pant[key]}
-                  onChange={(e) => setPant(key, e.target.value)}
-                />
-              </div>
+                label={label}
+                value={value.pant[key]}
+                note={value.pantNotes?.[key] ?? ""}
+                striped={i % 2 === 1}
+                bordered={i > 0}
+                onValueChange={(v) => setPant(key, v)}
+                onNoteChange={(v) => setPantNote(key, v)}
+              />
             ))}
           </div>
 

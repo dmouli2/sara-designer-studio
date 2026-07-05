@@ -89,6 +89,57 @@ describe("MeasurementGrid", () => {
     expect(topGrid).not.toHaveTextContent("Height");
   });
 
+  it("hides the O.Shalwar/L.Shalwar cells for orders saved after the fields were dropped", () => {
+    const m: SalwarMeasurements = {
+      type: "salwar",
+      top: {
+        length: "50", shoulder: "14",
+        hs: "", sl: "", tlcs: "", ah: "", bust: "", ub: "",
+        waist: "", hip: "", fnNr: "", bn: "",
+      },
+      pant: { height: "", hip: "", waist: "", kl: "", tl: "", fullLength: "", yoke: "" },
+      shawl: "",
+    };
+    render(<MeasurementGrid measurements={m} />);
+    expect(screen.queryByText("O.Shalwar")).not.toBeInTheDocument();
+    expect(screen.queryByText("L.Shalwar")).not.toBeInTheDocument();
+    expect(screen.getByText("50 in")).toBeInTheDocument();
+  });
+
+  it("renders salwar per-field notes in brackets, including a note on an empty value", () => {
+    const m: SalwarMeasurements = {
+      type: "salwar",
+      top: {
+        length: "50", shoulder: "",
+        hs: "", sl: "", tlcs: "", ah: "", bust: "36", ub: "",
+        waist: "", hip: "", fnNr: "", bn: "",
+      },
+      pant: { height: "", hip: "38", waist: "", kl: "", tl: "", fullLength: "", yoke: "" },
+      shawl: "",
+      topNotes: { bust: "keep loose", shoulder: "as per old blouse" },
+      pantNotes: { hip: "with margin" },
+    };
+    render(<MeasurementGrid measurements={m} />);
+    expect(screen.getByText("(keep loose)")).toBeInTheDocument();
+    expect(screen.getByText("(with margin)")).toBeInTheDocument();
+    // Shoulder has no value but carries a note — the cell still renders.
+    expect(screen.getByText("Shoulder")).toBeInTheDocument();
+    expect(screen.getByText("(as per old blouse)")).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
+  });
+
+  it("renders blouse per-field notes in brackets", () => {
+    const m: BlouseMeasurements = {
+      type: "blouse",
+      length: "15", shoulder: "", hs: "", sl: "", mlos: "", tlos: "", ahs: "",
+      bust: "34", ub: "", waist: "", fnNr: "", bn: "", dart: "", dbd: "", p: "",
+      sareeFall: "", piko: "",
+      fieldNotes: { bust: "loose fit" },
+    };
+    render(<MeasurementGrid measurements={m} />);
+    expect(screen.getByText("(loose fit)")).toBeInTheDocument();
+  });
+
   it("omits the shawl section when empty", () => {
     const m: SalwarMeasurements = {
       type: "salwar",

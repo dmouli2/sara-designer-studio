@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Ban } from "lucide-react";
+import { Trash2, Ban, Pencil } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/orders/StatusBadge";
 import MeasurementGrid from "@/components/orders/MeasurementGrid";
@@ -50,6 +50,8 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
   const [error, setError] = useState<string | null>(null);
 
   const isCancelled = order.status === "cancelled";
+  // Delivered/cancelled orders are final records — no more edits.
+  const canEdit = !isCancelled && order.status !== "delivered";
   const balance = order.amount - order.advance;
   const showTailorAssign = ["cutting", "cutting_done", "stitching", "hemming_hook", "ready", "delivered"].includes(
     order.status
@@ -170,6 +172,16 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
           </div>
         </div>
 
+        {canEdit && (
+          <button
+            onClick={() => router.push(`/admin/orders/${order.id}/edit`)}
+            className="w-full flex items-center justify-center gap-2 py-3 text-[14px] font-medium text-[#0F0F0F] border border-[#E5E0D5] bg-white rounded-xl active:scale-[0.98] transition-all"
+          >
+            <Pencil size={16} />
+            Edit order
+          </button>
+        )}
+
         {/* Material photos */}
         <div>
           <p className="section-label">Material photos</p>
@@ -264,9 +276,12 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
               {order.lineItems?.length > 0 && (
                 <div className="space-y-1.5 mb-3">
                   {order.lineItems.map((li, i) => (
-                    <div key={i} className="flex justify-between text-[13px] text-[#6B6B6B]">
-                      <span>{li.particulars} ×{li.qty}</span>
-                      <span>{formatCurrency(li.amount)}</span>
+                    <div key={i}>
+                      <div className="flex justify-between text-[13px] text-[#6B6B6B]">
+                        <span>{li.particulars} ×{li.qty} @ {formatCurrency(li.amount)}</span>
+                        <span>{formatCurrency(li.qty * li.amount)}</span>
+                      </div>
+                      {li.note && <p className="text-[12px] text-[#A8882E] italic">({li.note})</p>}
                     </div>
                   ))}
                 </div>

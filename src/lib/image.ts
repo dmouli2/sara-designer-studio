@@ -1,3 +1,10 @@
+// Photos travel to Server Actions as multipart Files. The action body is
+// capped at 4mb in next.config.ts and Vercel's own request ceiling is 4.5MB —
+// checked client-side before submitting so an oversized order gets a clear
+// "remove a photo" message instead of a request the server rejects before our
+// code even runs, which used to surface as a misleading "connection" error.
+export const MAX_PHOTO_PAYLOAD_BYTES = 3.5 * 1024 * 1024;
+
 // Converts a base64 data URL (how the wizard holds photos in state, for
 // previews and localStorage drafts) back into a File for submission.
 // Photos must travel to the Server Action as multipart Files, never as
@@ -13,6 +20,18 @@ export function dataUrlToFile(dataUrl: string, filename: string): File {
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return new File([bytes], filename, { type: contentType });
+}
+
+// Edit-order galleries mix freshly captured photos (base64 data URLs) with
+// photos already in Storage (signed http URLs). A changed gallery is re-sent
+// in full as Files, so existing entries are fetched back as blobs — Supabase
+// Storage serves signed URLs with permissive CORS.
+export async function galleryEntryToFile(src: string, filename: string): Promise<File> {
+  if (src.startsWith("data:")) return dataUrlToFile(src, filename);
+  const res = await fetch(src);
+  if (!res.ok) throw new Error(`Failed to fetch existing photo (${res.status})`);
+  const blob = await res.blob();
+  return new File([blob], filename, { type: blob.type || "image/jpeg" });
 }
 
 // Resizes an image file to at most `maxDimension` on its longest edge and

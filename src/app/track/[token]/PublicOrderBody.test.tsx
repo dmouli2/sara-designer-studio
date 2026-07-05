@@ -110,6 +110,20 @@ describe("PublicOrderBody", () => {
     expect(container.querySelectorAll(".border-t.border-\\[\\#F0EDE6\\]")).toHaveLength(1);
   });
 
+  it("multiplies quantity × price for the line value and shows item comments", () => {
+    render(
+      <PublicOrderBody
+        order={{
+          ...baseOrder,
+          lineItems: [{ particulars: "Lining Blouse", qty: 2, amount: 100, note: "double stitch" }],
+        }}
+      />
+    );
+    expect(screen.getByText("Lining Blouse ×2")).toBeInTheDocument();
+    expect(screen.getByText("₹200")).toBeInTheDocument();
+    expect(screen.getByText("(double stitch)")).toBeInTheDocument();
+  });
+
   it("omits the order-items section when there are no line items", () => {
     render(<PublicOrderBody order={{ ...baseOrder, lineItems: [] }} />);
     expect(screen.queryByText("Order items")).not.toBeInTheDocument();

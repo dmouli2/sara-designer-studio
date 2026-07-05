@@ -47,4 +47,22 @@ describe("BlouseMeasurementForm", () => {
     await user.type(dartInput, "1");
     expect(onChange).toHaveBeenCalledWith({ ...emptyBlouse(), dart: "1" });
   });
+
+  it("updates a field's note, keeping existing notes", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const value = { ...emptyBlouse(), fieldNotes: { bust: "loose" } };
+    render(<BlouseMeasurementForm value={value} onChange={onChange} />);
+    await user.type(screen.getByLabelText("Waist note"), "x");
+    expect(onChange).toHaveBeenCalledWith({
+      ...value,
+      fieldNotes: { bust: "loose", waist: "x" },
+    });
+  });
+
+  it("shows existing notes in the note inputs", () => {
+    const value = { ...emptyBlouse(), fieldNotes: { sl: "elbow length" } };
+    render(<BlouseMeasurementForm value={value} onChange={() => {}} />);
+    expect(screen.getByLabelText("S.L note")).toHaveValue("elbow length");
+  });
 });

@@ -70,17 +70,36 @@ describe("AdminOrderDetailBody", () => {
     expect(screen.getByText("₹3,200")).toBeInTheDocument(); // balance
   });
 
-  it("shows notes and line items when present", () => {
+  it("shows notes and line items with qty × price line totals and item comments", () => {
     renderBody(
       order({
         status: "new",
         notes: "Heavy embroidery border",
-        lineItems: [{ particulars: "Blouse", qty: 1, amount: 3800 }],
+        lineItems: [
+          { particulars: "Blouse", qty: 1, amount: 3800 },
+          { particulars: "Lining Blouse", qty: 2, amount: 100, note: "double stitch" },
+        ],
       })
     );
     expect(screen.getByText("Notes")).toBeInTheDocument();
     expect(screen.getByText("Heavy embroidery border")).toBeInTheDocument();
-    expect(screen.getByText("Blouse ×1")).toBeInTheDocument();
+    expect(screen.getByText("Blouse ×1 @ ₹3,800")).toBeInTheDocument();
+    // qty 2 × ₹100 must display ₹200, and the item comment shows beneath.
+    expect(screen.getByText("Lining Blouse ×2 @ ₹100")).toBeInTheDocument();
+    expect(screen.getByText("₹200")).toBeInTheDocument();
+    expect(screen.getByText("(double stitch)")).toBeInTheDocument();
+  });
+
+  it("navigates to the edit page from the Edit order button", async () => {
+    const user = userEvent.setup();
+    renderBody(order({ status: "new" }));
+    await user.click(screen.getByText("Edit order"));
+    expect(mockRouter.push).toHaveBeenCalledWith("/admin/orders/AD1/edit");
+  });
+
+  it.each(["delivered", "cancelled"] as const)("hides the Edit order button for a %s order", (status) => {
+    renderBody(order({ status, cancellationCharge: status === "cancelled" ? 500 : null }));
+    expect(screen.queryByText("Edit order")).not.toBeInTheDocument();
   });
 
   it("shows the balance in green when the order is fully paid", () => {

@@ -250,6 +250,12 @@ describe("buildOrderWhatsAppMessage", () => {
       expect(message).toContain(`${i + 1}. ${term}`);
     });
   });
+
+  it("includes the polite no-modification policy note", () => {
+    expect(ORDER_TERMS).toContain(
+      "We kindly request your understanding that once an order has been placed, modifications to it will not be possible."
+    );
+  });
 });
 
 describe("buildWhatsAppShareUrl", () => {

@@ -6,11 +6,13 @@ import {
   getOrders,
   getOrder,
   createOrder,
+  updateOrder,
   assignMaster,
   assignTailor,
   updateOrderStatus,
   cancelOrder,
   deleteOrder,
+  type OrderEditInput,
 } from "./orders";
 import { mockRefresh, mockRevalidatePath } from "../../../vitest.setup";
 import { MAX_REFERENCE_IMAGES, MAX_MATERIAL_IMAGES } from "@/types";
@@ -261,6 +263,156 @@ describe("orders actions", () => {
     await createOrder({ ...orderInput, dress: "Salwar", masterId: null, tailorId: null }, photosForm());
     expect(nextOrderId).toHaveBeenCalledWith("Salwar");
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ id: "S2131" }));
+  });
+
+  describe("updateOrder", () => {
+    beforeEach(() => {
+      findById.mockResolvedValue(order);
+      update.mockResolvedValue(order);
+    });
+
+    it("requires admin, sends only the provided fields, and revalidates", async () => {
+      const result = await updateOrder("SDS-001", { customer: "Meena", advance: 400 });
+      expect(requireRole).toHaveBeenCalledWith(["admin"]);
+      expect(update).toHaveBeenCalledWith("SDS-001", { customer: "Meena", advance: 400 });
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/admin/orders");
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/admin/orders/SDS-001");
+      expect(mockRefresh).toHaveBeenCalled();
+      expect(result).toEqual(order);
+    });
+
+    it("throws when the order doesn't exist", async () => {
+      findById.mockResolvedValue(null);
+      await expect(updateOrder("missing", { customer: "X" })).rejects.toThrow("Order not found.");
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it.each(["delivered", "cancelled"] as const)("refuses to edit a %s order", async (status) => {
+      findById.mockResolvedValue({ ...order, status });
+      await expect(updateOrder("SDS-001", { customer: "X" })).rejects.toThrow(
+        "Delivered or cancelled orders can no longer be edited."
+      );
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it("drops fields outside the editable whitelist (status, assignments, image columns)", async () => {
+      const smuggled = {
+        customer: "Meena",
+        status: "delivered",
+        masterId: "m1",
+        materialImageUrls: ["orders/evil/material-1.jpg"],
+      } as OrderEditInput;
+      await updateOrder("SDS-001", smuggled);
+      expect(update).toHaveBeenCalledWith("SDS-001", { customer: "Meena" });
+    });
+
+    it("rejects clearing the delivery date", async () => {
+      await expect(updateOrder("SDS-001", { due: "" })).rejects.toThrow("Delivery date is required.");
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["amount", { amount: -5 }, "Enter a valid total amount."],
+      ["amount", { amount: NaN }, "Enter a valid total amount."],
+      ["advance", { advance: -1 }, "Enter a valid advance amount."],
+      ["advance", { advance: NaN }, "Enter a valid advance amount."],
+    ])("rejects an invalid %s", async (_field, patch, message) => {
+      await expect(updateOrder("SDS-001", patch)).rejects.toThrow(message);
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it("returns the current order untouched when nothing changed", async () => {
+      const result = await updateOrder("SDS-001", {});
+      expect(update).not.toHaveBeenCalled();
+      expect(mockRefresh).not.toHaveBeenCalled();
+      expect(result).toEqual(order);
+    });
+
+    it("ignores a photos FormData without change flags", async () => {
+      const photos = new FormData();
+      photos.append("material", photoFile("fabric", "material-1.jpg"));
+      const result = await updateOrder("SDS-001", {}, photos);
+      expect(upload).not.toHaveBeenCalled();
+      expect(storageDelete).not.toHaveBeenCalled();
+      expect(update).not.toHaveBeenCalled();
+      expect(result).toEqual(order);
+    });
+
+    it("replaces the sketch when flagged with a new file", async () => {
+      const photos = new FormData();
+      photos.append("sketchChanged", "1");
+      photos.append("sketch", photoFile("redrawn", "sketch.png", "image/png"));
+      await updateOrder("SDS-001", {}, photos);
+      expect(upload).toHaveBeenCalledWith("orders/SDS-001/sketch.png", expectedDataUrl("redrawn", "image/png"));
+      expect(update).toHaveBeenCalledWith("SDS-001", { sketchDataUrl: "orders/SDS-001/sketch.png" });
+    });
+
+    it("deletes the sketch when flagged with no file", async () => {
+      const photos = new FormData();
+      photos.append("sketchChanged", "1");
+      await updateOrder("SDS-001", {}, photos);
+      expect(storageDelete).toHaveBeenCalledWith("orders/SDS-001/sketch.png");
+      expect(upload).not.toHaveBeenCalled();
+      expect(update).toHaveBeenCalledWith("SDS-001", { sketchDataUrl: null });
+    });
+
+    it("rewrites the reference gallery: uploads the new set, deletes the leftover slots", async () => {
+      const photos = new FormData();
+      photos.append("referenceChanged", "1");
+      photos.append("reference", photoFile("one", "reference-1.jpg"));
+      photos.append("reference", photoFile("two", "reference-2.jpg"));
+      await updateOrder("SDS-001", {}, photos);
+
+      expect(upload).toHaveBeenCalledWith("orders/SDS-001/reference-1.jpg", expectedDataUrl("one"));
+      expect(upload).toHaveBeenCalledWith("orders/SDS-001/reference-2.jpg", expectedDataUrl("two"));
+      for (let i = 3; i <= MAX_REFERENCE_IMAGES; i++) {
+        expect(storageDelete).toHaveBeenCalledWith(`orders/SDS-001/reference-${i}.jpg`);
+      }
+      expect(storageDelete).toHaveBeenCalledTimes(MAX_REFERENCE_IMAGES - 2);
+      expect(update).toHaveBeenCalledWith("SDS-001", {
+        referenceImageUrls: ["orders/SDS-001/reference-1.jpg", "orders/SDS-001/reference-2.jpg"],
+      });
+    });
+
+    it("allows clearing the reference gallery entirely", async () => {
+      const photos = new FormData();
+      photos.append("referenceChanged", "1");
+      await updateOrder("SDS-001", {}, photos);
+      expect(storageDelete).toHaveBeenCalledTimes(MAX_REFERENCE_IMAGES);
+      expect(update).toHaveBeenCalledWith("SDS-001", { referenceImageUrls: [] });
+    });
+
+    it("rewrites the material gallery but refuses to leave it empty", async () => {
+      const photos = new FormData();
+      photos.append("materialChanged", "1");
+      await expect(updateOrder("SDS-001", {}, photos)).rejects.toThrow(
+        "At least one material photo is required."
+      );
+      expect(update).not.toHaveBeenCalled();
+
+      photos.append("material", photoFile("newfabric", "material-1.jpg"));
+      await updateOrder("SDS-001", {}, photos);
+      expect(upload).toHaveBeenCalledWith("orders/SDS-001/material-1.jpg", expectedDataUrl("newfabric"));
+      for (let i = 2; i <= MAX_MATERIAL_IMAGES; i++) {
+        expect(storageDelete).toHaveBeenCalledWith(`orders/SDS-001/material-${i}.jpg`);
+      }
+      expect(update).toHaveBeenCalledWith("SDS-001", {
+        materialImageUrls: ["orders/SDS-001/material-1.jpg"],
+      });
+    });
+
+    it("combines field and photo changes into one update", async () => {
+      const photos = new FormData();
+      photos.append("materialChanged", "1");
+      photos.append("material", photoFile("fabric", "material-1.jpg"));
+      const items: OrderLineItem[] = [{ particulars: "Blouse", qty: 2, amount: 700, note: "urgent" }];
+      await updateOrder("SDS-001", { lineItems: items, amount: 1400 }, photos);
+      expect(update).toHaveBeenCalledWith("SDS-001", {
+        lineItems: items,
+        amount: 1400,
+        materialImageUrls: ["orders/SDS-001/material-1.jpg"],
+      });
+    });
   });
 
   it("assignMaster requires admin, saves the assignment, and auto-advances a new order to cutting", async () => {

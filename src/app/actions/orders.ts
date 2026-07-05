@@ -4,7 +4,14 @@ import { revalidatePath, refresh } from "next/cache";
 import { requireRole } from "@/lib/dal";
 import { getDb, type OrderWriteInput, type OrderUpdateInput, type OrderListFilter } from "@/lib/db";
 import { getImageStorage } from "@/lib/storage";
-import { MAX_REFERENCE_IMAGES, MAX_MATERIAL_IMAGES, type Order, type OrderStatus } from "@/types";
+import {
+  MAX_REFERENCE_IMAGES,
+  MAX_MATERIAL_IMAGES,
+  type GarmentMeasurements,
+  type Order,
+  type OrderLineItem,
+  type OrderStatus,
+} from "@/types";
 
 const ALL_ROLES = ["admin", "master", "tailor"] as const;
 
@@ -109,6 +116,92 @@ export async function createOrder(
   revalidatePath("/admin/orders");
   refresh();
   return created;
+}
+
+// Only the fields the admin edit screen may change — deliberately narrower
+// than OrderUpdateInput so this action can never touch status, assignments,
+// the dress type (it picks the id series), or the image columns directly
+// (those only move through the photo-slot handling below).
+export interface OrderEditInput {
+  customer?: string;
+  phone?: string;
+  material?: string;
+  amount?: number;
+  advance?: number;
+  due?: string;
+  measurements?: GarmentMeasurements;
+  lineItems?: OrderLineItem[];
+  notes?: string;
+}
+
+const EDITABLE_FIELDS = [
+  "customer", "phone", "material", "amount", "advance", "due",
+  "measurements", "lineItems", "notes",
+] as const;
+
+async function deletePhotoSlots(orderId: string, slotPrefix: string, from: number, to: number) {
+  await Promise.all(
+    Array.from({ length: to - from + 1 }, (_, i) =>
+      getImageStorage().delete(`orders/${orderId}/${slotPrefix}-${from + i}.jpg`)
+    )
+  );
+}
+
+// Partial edit: only the fields the admin actually changed arrive in `patch`,
+// and only the photo galleries that changed arrive in `photos` (flagged with
+// "sketchChanged"/"referenceChanged"/"materialChanged" = "1"). A changed
+// gallery is sent in full and rewrites its fixed slots: new files overwrite
+// slots 1..n (upload is upsert), then leftover higher slots are deleted —
+// upload-before-delete so a failed upload can't lose the existing photos.
+export async function updateOrder(id: string, patch: OrderEditInput, photos?: FormData): Promise<Order> {
+  await requireRole(["admin"]);
+  const current = await getDb().orders.findById(id);
+  if (!current) throw new Error("Order not found.");
+  if (current.status === "delivered" || current.status === "cancelled") {
+    throw new Error("Delivered or cancelled orders can no longer be edited.");
+  }
+
+  const dbPatch: OrderUpdateInput = {};
+  for (const field of EDITABLE_FIELDS) {
+    if (patch[field] !== undefined) {
+      (dbPatch as Record<string, unknown>)[field] = patch[field];
+    }
+  }
+  if (dbPatch.due !== undefined && !dbPatch.due) {
+    throw new Error("Delivery date is required.");
+  }
+  for (const money of ["amount", "advance"] as const) {
+    const value = dbPatch[money];
+    if (value !== undefined && (!Number.isFinite(value) || value < 0)) {
+      throw new Error(`Enter a valid ${money === "amount" ? "total" : "advance"} amount.`);
+    }
+  }
+
+  if (photos?.get("sketchChanged") === "1") {
+    const stored = await storeSketch(id, photos);
+    if (!stored) await getImageStorage().delete(`orders/${id}/sketch.png`);
+    dbPatch.sketchDataUrl = stored;
+  }
+  if (photos?.get("referenceChanged") === "1") {
+    const files = filesFrom(photos, "reference", MAX_REFERENCE_IMAGES);
+    dbPatch.referenceImageUrls = await storePhotos(id, files, "reference");
+    await deletePhotoSlots(id, "reference", files.length + 1, MAX_REFERENCE_IMAGES);
+  }
+  if (photos?.get("materialChanged") === "1") {
+    const files = filesFrom(photos, "material", MAX_MATERIAL_IMAGES);
+    if (files.length === 0) {
+      throw new Error("At least one material photo is required.");
+    }
+    dbPatch.materialImageUrls = await storePhotos(id, files, "material");
+    await deletePhotoSlots(id, "material", files.length + 1, MAX_MATERIAL_IMAGES);
+  }
+
+  if (Object.keys(dbPatch).length === 0) return current;
+
+  const updated = await getDb().orders.update(id, dbPatch);
+  revalidateOrderPaths(id);
+  refresh();
+  return updated;
 }
 
 // Assigning a master starts the cutting stage — no separate "save

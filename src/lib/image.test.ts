@@ -1,5 +1,63 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { compressImageToDataUrl, dataUrlToFile } from "./image";
+import { compressImageToDataUrl, dataUrlToFile, galleryEntryToFile, MAX_PHOTO_PAYLOAD_BYTES } from "./image";
+
+describe("MAX_PHOTO_PAYLOAD_BYTES", () => {
+  it("stays under the 4mb server action body cap with headroom", () => {
+    expect(MAX_PHOTO_PAYLOAD_BYTES).toBe(3.5 * 1024 * 1024);
+  });
+});
+
+describe("galleryEntryToFile", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("converts a data URL entry without fetching", async () => {
+    globalThis.fetch = vi.fn();
+    const file = await galleryEntryToFile("data:image/jpeg;base64,ZmFicmlj", "material-1.jpg");
+    expect(file.name).toBe("material-1.jpg");
+    expect(Buffer.from(await file.arrayBuffer()).toString()).toBe("fabric");
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  // jsdom's Response rewrites blob content types, so fetch is faked with a
+  // minimal { ok, status, blob } object to keep the types under test.
+  it("fetches an existing photo back from its signed URL", async () => {
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      blob: async () => new Blob(["stored"], { type: "image/png" }),
+    })) as unknown as typeof fetch;
+    const file = await galleryEntryToFile("https://storage.example/material-1.jpg?sig=1", "material-1.jpg");
+    expect(globalThis.fetch).toHaveBeenCalledWith("https://storage.example/material-1.jpg?sig=1");
+    expect(file.name).toBe("material-1.jpg");
+    expect(file.type).toBe("image/png");
+    expect(Buffer.from(await file.arrayBuffer()).toString()).toBe("stored");
+  });
+
+  it("defaults the type to image/jpeg when the response has no content type", async () => {
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      blob: async () => new Blob(["stored"]),
+    })) as unknown as typeof fetch;
+    const file = await galleryEntryToFile("https://storage.example/material-1.jpg", "material-1.jpg");
+    expect(file.type).toBe("image/jpeg");
+  });
+
+  it("throws when the signed URL fetch fails", async () => {
+    globalThis.fetch = vi.fn(async () => ({
+      ok: false,
+      status: 403,
+      blob: async () => new Blob(),
+    })) as unknown as typeof fetch;
+    await expect(galleryEntryToFile("https://storage.example/expired.jpg", "x.jpg")).rejects.toThrow(
+      "Failed to fetch existing photo (403)"
+    );
+  });
+});
 
 describe("dataUrlToFile", () => {
   it("decodes a base64 data URL into a File with the right type, name and bytes", async () => {
