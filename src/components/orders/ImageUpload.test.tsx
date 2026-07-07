@@ -190,4 +190,26 @@ describe("ImageUpload", () => {
     expect(screen.queryByText("Add")).not.toBeInTheDocument();
     expect(screen.getByText("4/4 photos · limit reached")).toBeInTheDocument();
   });
+
+  it("passes compression overrides through to compressImageToDataUrl", async () => {
+    vi.mocked(compressImageToDataUrl).mockResolvedValue("data:image/jpeg;base64,big");
+    const { container } = render(
+      <ImageUpload value={[]} onChange={vi.fn()} {...baseProps} maxDimension={2800} quality={0.85} />
+    );
+
+    const [file] = makeFiles(1);
+    fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files: [file] } });
+
+    await waitFor(() => expect(compressImageToDataUrl).toHaveBeenCalledWith(file, 2800, 0.85));
+  });
+
+  it("uses default compression when no overrides are given", async () => {
+    vi.mocked(compressImageToDataUrl).mockResolvedValue("data:image/jpeg;base64,x");
+    const { container } = render(<ImageUpload value={[]} onChange={vi.fn()} {...baseProps} />);
+
+    const [file] = makeFiles(1);
+    fireEvent.change(container.querySelector('input[type="file"]')!, { target: { files: [file] } });
+
+    await waitFor(() => expect(compressImageToDataUrl).toHaveBeenCalledWith(file, undefined, undefined));
+  });
 });

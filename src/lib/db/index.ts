@@ -2,6 +2,7 @@ import type { Database } from "./types";
 import { createSupabaseStaffRepository } from "./supabase/staffRepository";
 import { createSupabaseOrderRepository } from "./supabase/orderRepository";
 import { createSupabaseFabricRepository } from "./supabase/fabricRepository";
+import { createSupabaseDraftOrderRepository } from "./supabase/draftOrderRepository";
 
 export * from "./types";
 
@@ -13,6 +14,7 @@ export function getDb(): Database {
       staff: createSupabaseStaffRepository(),
       orders: createSupabaseOrderRepository(),
       fabrics: createSupabaseFabricRepository(),
+      drafts: createSupabaseDraftOrderRepository(),
     };
   }
   return db;

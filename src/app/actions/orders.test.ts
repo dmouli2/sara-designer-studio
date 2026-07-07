@@ -182,6 +182,29 @@ describe("orders actions", () => {
     expect(upload).not.toHaveBeenCalled();
   });
 
+  it("createOrder allows zero material photos for a scanned order (scanOrder flag)", async () => {
+    create.mockResolvedValue(order);
+    const photos = photosForm({ material: [] });
+    photos.append("scanOrder", "1");
+
+    await createOrder({ ...orderInput, masterId: null, tailorId: null }, photos);
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "SDS-001", materialImageUrls: [] })
+    );
+    expect(upload).not.toHaveBeenCalled(); // no photos at all → nothing stored
+  });
+
+  it("createOrder still requires a material photo when the scanOrder flag is absent or wrong", async () => {
+    const photos = photosForm({ material: [] });
+    photos.append("scanOrder", "0");
+    await expect(
+      createOrder({ ...orderInput, masterId: null, tailorId: null }, photos)
+    ).rejects.toThrow("At least one material photo is required.");
+    expect(nextOrderId).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it("createOrder ignores non-File entries smuggled into the photos FormData", async () => {
     const photos = photosForm({ material: [] });
     photos.append("material", "data:image/jpeg;base64,notafile");

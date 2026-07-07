@@ -1,4 +1,4 @@
-import type { Order, OrderStatus, Role } from "@/types";
+import type { DraftOrderStatus, Order, OrderStatus, Role, SlipExtraction } from "@/types";
 
 export interface StaffAccount {
   id: string;
@@ -117,8 +117,45 @@ export interface FabricRepository {
   delete(id: string): Promise<void>;
 }
 
+// A scanned order slip waiting for admin verification. Deliberately has no
+// order id — drafts never advance the order-id sequences; confirming one
+// runs the normal createOrder path, which is where the real S…/B… id comes
+// from (see supabase/migrations/0008_draft_orders.sql).
+export interface DraftOrder {
+  id: string;
+  dress: string; // "Blouse" | "Salwar" | "" when the scan couldn't tell
+  scanImagePath: string;
+  extraction: SlipExtraction;
+  warnings: string[];
+  status: DraftOrderStatus;
+  confirmedOrderId: string | null;
+  createdAt: string;
+}
+
+// The id is supplied by the caller (crypto.randomUUID() in the drafts
+// action) so the scan photo's storage path can embed it before the row is
+// inserted — see createDraftFromScan.
+export interface DraftOrderWriteInput {
+  id: string;
+  dress: string;
+  scanImagePath: string;
+  extraction: SlipExtraction;
+  warnings: string[];
+}
+
+export interface DraftOrderRepository {
+  // Pending drafts only (status = 'draft'), newest first — confirmed and
+  // discarded drafts are history, not work to do.
+  list(): Promise<DraftOrder[]>;
+  findById(id: string): Promise<DraftOrder | null>;
+  create(input: DraftOrderWriteInput): Promise<DraftOrder>;
+  updateStatus(id: string, status: DraftOrderStatus, confirmedOrderId?: string): Promise<DraftOrder>;
+  delete(id: string): Promise<void>;
+}
+
 export interface Database {
   staff: StaffRepository;
   orders: OrderRepository;
   fabrics: FabricRepository;
+  drafts: DraftOrderRepository;
 }

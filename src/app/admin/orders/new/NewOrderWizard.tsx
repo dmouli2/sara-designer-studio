@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, MessageCircle } from "lucide-react";
+import { AlertTriangle, Camera, CheckCircle2, MessageCircle } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import Toast from "@/components/layout/Toast";
 import MeasurementForm, { emptyMeasurementsForDress } from "@/components/orders/MeasurementForm";
@@ -12,10 +12,23 @@ import MaterialImageUpload from "@/components/orders/MaterialImageUpload";
 import FabricManagerSheet from "@/components/orders/FabricManagerSheet";
 import { DRESS_TYPES, LINE_ITEM_PRESETS, lineItemCategoryForDress } from "@/lib/mock";
 import { formatCurrency, isValidIndianMobile, buildOrderWhatsAppMessage, buildWhatsAppShareUrl } from "@/lib/utils";
-import { dataUrlToFile, MAX_PHOTO_PAYLOAD_BYTES } from "@/lib/image";
+import { dataUrlToFile, galleryEntryToFile, MAX_PHOTO_PAYLOAD_BYTES } from "@/lib/image";
+import { FEATURE_SCAN_ORDERS } from "@/lib/features";
+import { lineItemsForDress, measurementsForDress, normalizeExtraction } from "@/lib/extraction/normalize";
 import { createOrder } from "@/app/actions/orders";
+import { confirmDraft } from "@/app/actions/drafts";
 import type { Fabric } from "@/lib/db/types";
-import type { GarmentMeasurements, OrderLineItem } from "@/types";
+import type { GarmentMeasurements, OrderLineItem, SlipExtraction } from "@/types";
+
+// A scanned draft being verified — everything the wizard needs to prefill
+// itself and, on success, mark the draft confirmed. Passed by page.tsx when
+// opened as /admin/orders/new?draft={id}.
+export interface ScanSource {
+  draftId: string;
+  scanImageUrl: string | null;
+  extraction: SlipExtraction;
+  warnings: string[];
+}
 
 // A half-entered order (17 measurement fields, sketch, photos) must survive
 // the PWA being killed by an incoming call — every change is mirrored to
@@ -85,8 +98,24 @@ function defaultLineItems(dress: string): OrderLineItem[] {
   ];
 }
 
-export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: Fabric[] }) {
+export default function NewOrderWizard({
+  fabrics: initialFabrics,
+  scan,
+  pendingDraftCount = 0,
+}: {
+  fabrics: Fabric[];
+  scan?: ScanSource;
+  pendingDraftCount?: number;
+}) {
   const router = useRouter();
+
+  // When verifying a scan, every extracted value lands in the same state the
+  // manual flow uses — so all validation, pricing and the createOrder path
+  // below are identical for scanned and hand-entered orders.
+  const scanPrefill = useMemo(
+    () => (scan ? normalizeExtraction(scan.extraction).prefill : null),
+    [scan]
+  );
 
   const [step, setStep]             = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -97,14 +126,17 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
   // Order type — gates the rest of the wizard; customer details etc. can't
   // be entered until one of Blouse/Salwar is chosen (also picks which
   // per-category id series — S2131.. or B2401.. — the order will get).
-  const [dress, setDress]           = useState<string | null>(null);
+  // A scan prefills it from the slip's printed header; when detection
+  // failed the gate screen asks, same as a manual order.
+  const [dress, setDress]           = useState<string | null>(scanPrefill?.dress ?? null);
 
   // Step 1 — customer + material. The fabric price list is admin-managed in
   // the DB; fabricList is kept in state so adds/edits/deletes made through
   // the manager sheet show up without a reload.
-  const [name, setName]             = useState("");
-  const [phone, setPhone]           = useState("");
-  const [matSource, setMatSource]   = useState<"shop" | "customer">("shop");
+  const [name, setName]             = useState(scanPrefill?.name ?? "");
+  const [phone, setPhone]           = useState(scanPrefill?.phone ?? "");
+  // Customer-supplied fabric is the common case, so it's the default.
+  const [matSource, setMatSource]   = useState<"shop" | "customer">("customer");
   const [fabricList, setFabricList] = useState<Fabric[]>(initialFabrics);
   const [fabric, setFabric]         = useState<Fabric | null>(initialFabrics[0] ?? null);
   const [manageOpen, setManageOpen] = useState(false);
@@ -112,16 +144,22 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
   const [custFabric, setCustFabric] = useState("");
   const [materialImages, setMaterialImages] = useState<string[]>([]);
 
-  // Step 2 — measurements + notes + sketch + images
-  const [meas, setMeas]             = useState<GarmentMeasurements>(() => emptyMeasurementsForDress(DRESS_TYPES[0]));
-  const [notes, setNotes]           = useState("");
+  // Step 2 — measurements + notes + sketch + images. The scan photo itself
+  // rides along as a reference image so the original slip stays viewable on
+  // the placed order.
+  const [meas, setMeas]             = useState<GarmentMeasurements>(
+    () => scanPrefill?.meas ?? emptyMeasurementsForDress(DRESS_TYPES[0])
+  );
+  const [notes, setNotes]           = useState(scanPrefill?.notes ?? "");
   const [sketch, setSketch]         = useState<string | null>(null);
-  const [refImages, setRefImages]   = useState<string[]>([]);
+  const [refImages, setRefImages]   = useState<string[]>(scan?.scanImageUrl ? [scan.scanImageUrl] : []);
 
   // Step 3 — pricing
-  const [lineItems, setLineItems]   = useState<OrderLineItem[]>(() => defaultLineItems(DRESS_TYPES[0]));
-  const [delivery, setDelivery]     = useState("");
-  const [advance, setAdvance]       = useState("");
+  const [lineItems, setLineItems]   = useState<OrderLineItem[]>(
+    () => (scanPrefill?.lineItems.length ? scanPrefill.lineItems : defaultLineItems(DRESS_TYPES[0]))
+  );
+  const [delivery, setDelivery]     = useState(scanPrefill?.delivery ?? "");
+  const [advance, setAdvance]       = useState(scanPrefill?.advance ?? "");
 
   const fabricCost = matSource === "shop" && fabric ? fabric.price * parseFloat(metres || "0") : 0;
   // Amount is the per-piece price, so every line contributes qty × amount —
@@ -135,14 +173,15 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
   // server-rendered HTML would never contain the banner and hydration would
   // mismatch whenever a draft exists.
   useEffect(() => {
+    if (scan) return; // scan verification must not offer (or clobber) a manual draft
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDraft(readDraft());
-  }, []);
+  }, [scan]);
 
   // Mirror the in-progress order to localStorage, debounced so typing doesn't
   // thrash. If the images push past the storage quota, save everything else.
   useEffect(() => {
-    if (!dress || placedOrder) return;
+    if (!dress || placedOrder || scan) return;
     const timer = setTimeout(() => {
       const data: OrderDraft = {
         step, dress, name, phone, matSource,
@@ -163,7 +202,7 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
       }
     }, DRAFT_SAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [dress, step, name, phone, matSource, fabric, metres, custFabric, materialImages, meas, notes, sketch, refImages, lineItems, delivery, advance, placedOrder]);
+  }, [dress, step, name, phone, matSource, fabric, metres, custFabric, materialImages, meas, notes, sketch, refImages, lineItems, delivery, advance, placedOrder, scan]);
 
   function resumeDraft() {
     if (!draft) return;
@@ -194,6 +233,14 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
 
   function handleDressChange(d: string) {
     setDress(d);
+    // For a scan whose book type wasn't auto-detected, picking the type here
+    // rebuilds measurements/items from the extraction rather than blank.
+    if (scan) {
+      setMeas(measurementsForDress(scan.extraction, d));
+      const { lineItems: scanned } = lineItemsForDress(scan.extraction, d);
+      setLineItems(scanned);
+      return;
+    }
     setMeas(emptyMeasurementsForDress(d));
     setLineItems(defaultLineItems(d));
   }
@@ -220,8 +267,16 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
     try {
       const photos = new FormData();
       if (sketch) photos.append("sketch", dataUrlToFile(sketch, "sketch.png"));
-      refImages.forEach((img, i) => photos.append("reference", dataUrlToFile(img, `reference-${i + 1}.jpg`)));
+      // References can include the scanned slip (a signed http URL, fetched
+      // back to a File) alongside freshly captured data URLs.
+      const referenceFiles = await Promise.all(
+        refImages.map((img, i) => galleryEntryToFile(img, `reference-${i + 1}.jpg`))
+      );
+      referenceFiles.forEach((file) => photos.append("reference", file));
       materialImages.forEach((img, i) => photos.append("material", dataUrlToFile(img, `material-${i + 1}.jpg`)));
+      // Tells createOrder to relax its ≥1-material-photo rule — scanned
+      // book orders may not have the fabric on hand at scan time.
+      if (scan) photos.append("scanOrder", "1");
 
       const created = await createOrder(
         {
@@ -244,6 +299,15 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
         photos
       );
       clearDraft();
+      if (scan) {
+        // The order exists either way — a failed status update just leaves
+        // the draft in the list, where confirming it again is harmless.
+        try {
+          await confirmDraft(scan.draftId, created.id);
+        } catch {
+          // best-effort
+        }
+      }
       setPlacedOrder({ id: created.id, publicToken: created.publicToken });
     } catch {
       setError("Couldn't place the order. Check your connection and try again — nothing was lost.");
@@ -267,14 +331,85 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
     window.open(buildWhatsAppShareUrl(phone, message), "_blank");
   }
 
+  // Shown on every screen while verifying a scan, so any field can be
+  // cross-checked against the original handwriting without leaving the flow.
+  const scanPanel = scan && (
+    <div className="space-y-3">
+      {scan.scanImageUrl && (
+        <details className="rounded-2xl border border-[#E5E0D5] bg-white overflow-hidden">
+          <summary className="px-4 py-3 text-sm font-semibold text-[#0F0F0F] cursor-pointer select-none">
+            📷 View scanned slip
+          </summary>
+          <a href={scan.scanImageUrl} target="_blank" rel="noreferrer">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={scan.scanImageUrl} alt="Scanned order slip" className="w-full border-t border-[#F0EDE6]" />
+          </a>
+        </details>
+      )}
+      {scan.warnings.length > 0 && (
+        <details className="rounded-2xl border border-[#F4C978] bg-[#FEF7EA] overflow-hidden">
+          <summary className="px-4 py-3 text-sm font-semibold text-[#B45309] cursor-pointer select-none">
+            <span className="inline-flex items-center gap-1.5">
+              <AlertTriangle size={14} /> {scan.warnings.length} thing{scan.warnings.length > 1 ? "s" : ""} to verify
+            </span>
+          </summary>
+          <ul className="px-4 pb-3 text-xs text-[#B45309] space-y-1.5 list-disc list-inside">
+            {scan.warnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+
   // Order type gates everything else — customer details, measurements and
   // pricing only appear once Blouse or Salwar is chosen, since that choice
   // also picks the order's id series (S2131.. / B2401..).
   if (!dress) {
     return (
       <div className="screen">
-        <TopBar title="New Order" subtitle="Choose order type" onBack={() => router.back()} />
+        <TopBar
+          title={scan ? "Verify Scanned Order" : "New Order"}
+          subtitle="Choose order type"
+          onBack={() => router.back()}
+        />
         <div className="scroll-area px-4 pt-6 space-y-4">
+          {scanPanel}
+          {scan && (
+            <p className="text-xs text-[#B45309]">
+              The book type couldn&apos;t be detected from the slip — choose it below and the scanned
+              measurements will be filled in.
+            </p>
+          )}
+          {FEATURE_SCAN_ORDERS && !scan && (
+            <div className="rounded-2xl border-2 border-dashed border-[#C9A84C] bg-white p-4">
+              <button
+                type="button"
+                onClick={() => router.push("/admin/orders/scan")}
+                className="w-full flex items-center gap-3 text-left active:scale-[0.98] transition-transform"
+              >
+                <span className="w-11 h-11 rounded-xl bg-[#FBF6E8] flex items-center justify-center">
+                  <Camera size={20} className="text-[#C9A84C]" />
+                </span>
+                <span>
+                  <span className="block text-[15px] font-semibold text-[#0F0F0F]">Scan order slip</span>
+                  <span className="block text-xs text-[#6B6B6B] mt-0.5">
+                    Photograph the book page — details are read automatically
+                  </span>
+                </span>
+              </button>
+              {pendingDraftCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => router.push("/admin/drafts")}
+                  className="mt-3 w-full py-2 rounded-xl bg-[#FBF6E8] text-xs font-semibold text-[#7A6020] active:scale-[0.98] transition-transform"
+                >
+                  {pendingDraftCount} scanned draft{pendingDraftCount > 1 ? "s" : ""} waiting for verification →
+                </button>
+              )}
+            </div>
+          )}
           {draft && (
             <div className="rounded-2xl border border-[#EDD98A] bg-[#FBF6E8] p-4">
               <p className="text-sm font-semibold text-[#7A6020]">
@@ -325,7 +460,7 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
   return (
     <div className="screen">
       <TopBar
-        title={`New Order · Step ${step}/${STEPS.length}`}
+        title={`${scan ? "Verify Scan" : "New Order"} · Step ${step}/${STEPS.length}`}
         subtitle={STEPS[step - 1]}
         onBack={() => (step > 1 ? setStep(step - 1) : setDress(null))}
       />
@@ -341,6 +476,7 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
       </div>
 
       <div className="scroll-area px-4 pt-5 space-y-5">
+        {scanPanel}
 
         {/* ── STEP 1: Details ─────────────────────────────── */}
         {step === 1 && (
@@ -371,7 +507,7 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
             <div>
               <p className="section-label">Material source</p>
               <div className="flex rounded-xl border border-[#E5E0D5] overflow-hidden bg-white">
-                {(["shop", "customer"] as const).map((s) => (
+                {(["customer", "shop"] as const).map((s) => (
                   <button key={s} type="button" onClick={() => setMatSource(s)}
                     className={`flex-1 py-3 text-sm font-medium transition-all ${matSource === s ? "bg-[#0F0F0F] text-white" : "text-[#6B6B6B]"}`}>
                     {s === "shop" ? "From shop" : "Customer brings"}
@@ -428,7 +564,15 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
               <p className="section-label">Material photos</p>
               <MaterialImageUpload value={materialImages} onChange={setMaterialImages} />
               {materialImages.length === 0 && (
-                <p className="text-xs text-red-600 mt-1.5">Take at least one photo of the material to continue.</p>
+                // Scanned book orders often have no fabric on hand yet, so
+                // the photo is optional there; manual orders still require it.
+                scan ? (
+                  <p className="text-xs text-[#9A9A9A] mt-1.5">
+                    Optional for scanned orders — add a fabric photo if handy.
+                  </p>
+                ) : (
+                  <p className="text-xs text-red-600 mt-1.5">Take at least one photo of the material to continue.</p>
+                )
               )}
             </div>
 
@@ -438,7 +582,7 @@ export default function NewOrderWizard({ fabrics: initialFabrics }: { fabrics: F
                 !name.trim() ||
                 !isValidIndianMobile(phone) ||
                 (matSource === "shop" && !fabric) ||
-                materialImages.length === 0
+                (!scan && materialImages.length === 0)
               }
               className="btn-primary disabled:opacity-40"
             >

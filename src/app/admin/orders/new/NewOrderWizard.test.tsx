@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import NewOrderWizard, { DRAFT_KEY, MAX_PHOTO_PAYLOAD_BYTES } from "./NewOrderWizard";
+import NewOrderWizard, { DRAFT_KEY, MAX_PHOTO_PAYLOAD_BYTES, type ScanSource } from "./NewOrderWizard";
 import { createOrder } from "@/app/actions/orders";
+import { confirmDraft } from "@/app/actions/drafts";
 import { createFabric } from "@/app/actions/fabrics";
 import { compressImageToDataUrl } from "@/lib/image";
 import { mockRouter } from "../../../../../vitest.setup";
@@ -10,6 +11,10 @@ import type { Fabric } from "@/lib/db/types";
 
 vi.mock("@/app/actions/orders", () => ({
   createOrder: vi.fn(),
+}));
+
+vi.mock("@/app/actions/drafts", () => ({
+  confirmDraft: vi.fn(),
 }));
 
 vi.mock("@/app/actions/fabrics", () => ({
@@ -26,6 +31,11 @@ vi.mock("@/lib/image", () => ({
   // the wizard sends to createOrder.
   dataUrlToFile: vi.fn(
     (dataUrl: string, filename: string) => new File(["decoded"], filename, { type: "image/jpeg" })
+  ),
+  // Signed-URL gallery entries (the scanned slip) come back as Files
+  // without hitting the network.
+  galleryEntryToFile: vi.fn(
+    async (src: string, filename: string) => new File(["fetched"], filename, { type: "image/jpeg" })
   ),
 }));
 
@@ -212,25 +222,44 @@ describe("NewOrderWizard", () => {
     render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
 
-    const fabricSection = screen.getByText("Select fabric");
-    const photosSection = screen.getByText("Material photos");
-    expect(
-      fabricSection.compareDocumentPosition(photosSection) & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
-
-    // Same ordering when the customer brings their own fabric
-    await user.click(screen.getByText("Customer brings"));
+    // Default customer mode: its details input comes before the photos.
     const custFabricSection = screen.getByText("Customer fabric details");
     expect(
       custFabricSection.compareDocumentPosition(screen.getByText("Material photos")) &
         Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
+
+    // Same ordering with the shop fabric picker
+    await user.click(screen.getByText("From shop"));
+    const fabricSection = screen.getByText("Select fabric");
+    expect(
+      fabricSection.compareDocumentPosition(screen.getByText("Material photos")) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 
-  it("shows the shop fabric picker by default and computes fabric cost", async () => {
+  it("defaults to customer-supplied fabric, listed before From shop in the toggle", async () => {
     const user = userEvent.setup();
     render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
+
+    // Customer mode is the default — its input shows without any clicks.
+    expect(screen.getByText("Customer fabric details")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("e.g. Blue silk, floral print")).toBeInTheDocument();
+    expect(screen.queryByText("Select fabric")).not.toBeInTheDocument();
+
+    // "Customer brings" renders first (left), "From shop" second.
+    expect(
+      screen.getByText("Customer brings").compareDocumentPosition(screen.getByText("From shop")) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it("switches to the shop fabric picker and computes fabric cost", async () => {
+    const user = userEvent.setup();
+    render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+    await chooseOrderType(user);
+    await user.click(screen.getByText("From shop"));
     expect(screen.getByText("Select fabric")).toBeInTheDocument();
     await user.click(screen.getByText("Silk"));
     expect(screen.getByText(/Fabric cost:/)).toHaveTextContent("₹700"); // 350 * 2m default
@@ -240,6 +269,7 @@ describe("NewOrderWizard", () => {
     const user = userEvent.setup();
     render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
+    await user.click(screen.getByText("From shop"));
     const metresInput = screen.getByPlaceholderText("Metres required");
     await user.clear(metresInput);
     await user.type(metresInput, "3");
@@ -256,10 +286,12 @@ describe("NewOrderWizard", () => {
     expect(notesInput).toHaveValue("Special request");
   });
 
-  it("switches to customer-supplied fabric details", async () => {
+  it("switches back to customer-supplied fabric details after visiting the shop picker", async () => {
     const user = userEvent.setup();
     render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
+    await user.click(screen.getByText("From shop"));
+    expect(screen.queryByText("Customer fabric details")).not.toBeInTheDocument();
     await user.click(screen.getByText("Customer brings"));
     expect(screen.getByText("Customer fabric details")).toBeInTheDocument();
     expect(screen.queryByText("Select fabric")).not.toBeInTheDocument();
@@ -294,6 +326,7 @@ describe("NewOrderWizard", () => {
     const user = userEvent.setup();
     const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
+    await user.click(screen.getByText("From shop")); // customer is the default now
     await fillStep1AndAdvance(user, container);
     await user.click(screen.getByText("Next: Pricing →"));
 
@@ -341,6 +374,7 @@ describe("NewOrderWizard", () => {
     expect(photos).toBeInstanceOf(FormData);
     expect(photos.getAll("material")).toHaveLength(1);
     expect(photos.getAll("material")[0]).toBeInstanceOf(File);
+    expect(photos.get("scanOrder")).toBeNull(); // manual orders never carry the scan flag
 
     expect(screen.getByText("Order placed successfully!")).toBeInTheDocument();
     expect(screen.getByText("B2401", { exact: false })).toBeInTheDocument();
@@ -427,7 +461,7 @@ describe("NewOrderWizard", () => {
     const user = userEvent.setup();
     const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
-    await user.click(screen.getByText("Customer brings"));
+    // Customer mode is already the default — no toggle click needed.
     await user.type(screen.getByPlaceholderText("e.g. Blue silk, floral print"), "Blue silk");
     await fillStep1AndAdvance(user, container);
     await user.click(screen.getByText("Next: Pricing →"));
@@ -442,8 +476,7 @@ describe("NewOrderWizard", () => {
     const user = userEvent.setup();
     const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
-    await user.click(screen.getByText("Customer brings"));
-    await fillStep1AndAdvance(user, container);
+    await fillStep1AndAdvance(user, container); // default customer mode, no fabric text
     await user.click(screen.getByText("Next: Pricing →"));
     await fillDeliveryDate(user);
     await user.click(screen.getByText("✓ Confirm & Place Order"));
@@ -538,6 +571,7 @@ describe("NewOrderWizard", () => {
       const user = userEvent.setup();
       render(<NewOrderWizard fabrics={[]} />);
       await chooseOrderType(user);
+      await user.click(screen.getByText("From shop")); // customer is the default now
 
       await user.type(screen.getByPlaceholderText("Full name *"), "Test Customer");
       await user.type(screen.getByPlaceholderText("Phone / WhatsApp *"), "9999999999");
@@ -551,7 +585,7 @@ describe("NewOrderWizard", () => {
       const { container } = render(<NewOrderWizard fabrics={[]} />);
       await chooseOrderType(user);
 
-      await user.click(screen.getByText("Customer brings"));
+      // Customer mode is already the default — no toggle click needed.
       await user.type(screen.getByPlaceholderText("Full name *"), "Test Customer");
       await user.type(screen.getByPlaceholderText("Phone / WhatsApp *"), "9999999999");
       await takeMaterialPhoto(container);
@@ -564,6 +598,7 @@ describe("NewOrderWizard", () => {
       const user = userEvent.setup();
       render(<NewOrderWizard fabrics={TEST_FABRICS} />);
       await chooseOrderType(user);
+      await user.click(screen.getByText("From shop"));
 
       await user.click(screen.getByText("+ Add fabric"));
       expect(screen.getByText("Manage fabrics")).toBeInTheDocument();
@@ -584,9 +619,172 @@ describe("NewOrderWizard", () => {
       const user = userEvent.setup();
       render(<NewOrderWizard fabrics={TEST_FABRICS} />);
       await chooseOrderType(user);
+      await user.click(screen.getByText("From shop"));
 
       await user.click(screen.getByText("Manage"));
       expect(screen.getByText("Manage fabrics")).toBeInTheDocument();
+    });
+  });
+
+  describe("scan entry point", () => {
+    it("offers the slip scanner from the order-type screen", async () => {
+      const user = userEvent.setup();
+      render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+
+      await user.click(screen.getByText("Scan order slip"));
+      expect(mockRouter.push).toHaveBeenCalledWith("/admin/orders/scan");
+    });
+
+    it("shows the pending-drafts shortcut only when drafts are waiting", async () => {
+      const user = userEvent.setup();
+      const { unmount } = render(<NewOrderWizard fabrics={TEST_FABRICS} pendingDraftCount={0} />);
+      expect(screen.queryByText(/waiting for verification/)).not.toBeInTheDocument();
+      unmount();
+
+      render(<NewOrderWizard fabrics={TEST_FABRICS} pendingDraftCount={3} />);
+      await user.click(screen.getByText(/3 scanned drafts waiting for verification/));
+      expect(mockRouter.push).toHaveBeenCalledWith("/admin/drafts");
+    });
+  });
+
+  describe("scan verification (prefilled from a draft)", () => {
+    function scanSource(overrides: Partial<ScanSource["extraction"]> = {}): ScanSource {
+      return {
+        draftId: "d1",
+        scanImageUrl: "https://signed/scan.jpg",
+        warnings: ["Verify measurements: Bust."],
+        extraction: {
+          bookType: "Blouse",
+          bookTypeConfidence: "high",
+          billNo: "2392",
+          date: "25/6",
+          dueDate: "30/6/2026",
+          customerName: "Vaishnavi",
+          customerNameConfidence: "high",
+          phone: "9876543210",
+          phoneConfidence: "high",
+          measurements: [
+            { key: "length", value: "14", confidence: "high" },
+            { key: "bust", value: "36", note: "loose", confidence: "low" },
+          ],
+          lineItems: [{ particulars: "Blouse", qty: 2, amount: 400, confidence: "high" }],
+          advance: "200",
+          advanceConfidence: "high",
+          writtenTotal: "800",
+          writtenTotalConfidence: "high",
+          extraNotes: ["L.B: ✓", "princess cut blouse"],
+          ...overrides,
+        },
+      };
+    }
+
+    beforeEach(() => {
+      vi.mocked(confirmDraft).mockReset();
+      vi.mocked(confirmDraft).mockResolvedValue(undefined);
+    });
+
+    it("skips the gate and prefills every step from the extraction", async () => {
+      render(<NewOrderWizard fabrics={TEST_FABRICS} scan={scanSource()} />);
+
+      // Straight into step 1 — the slip's printed header picked the type.
+      expect(screen.getByText("Verify Scan · Step 1/3")).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("Full name *")).toHaveValue("Vaishnavi");
+      expect(screen.getByPlaceholderText("Phone / WhatsApp *")).toHaveValue("9876543210");
+      expect(screen.getByText("View scanned slip", { exact: false })).toBeInTheDocument();
+      expect(screen.getByText("Verify measurements: Bust.")).toBeInTheDocument();
+
+      // Material photo is optional for scanned orders — the fabric usually
+      // isn't on hand at scan time — so step 1 is already passable.
+      expect(screen.getByText("Next: Measurements →")).toBeEnabled();
+      expect(
+        screen.getByText("Optional for scanned orders — add a fabric photo if handy.")
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("Take at least one photo of the material to continue.")
+      ).not.toBeInTheDocument();
+    });
+
+    it("carries measurements, notes, items, advance and delivery into the steps", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} scan={scanSource()} />);
+      await takeMaterialPhoto(container);
+      await user.click(screen.getByText("Next: Measurements →"));
+
+      expect(screen.getByDisplayValue("14")).toBeInTheDocument(); // length
+      // Only the style writing rides into notes — no scan header, and the
+      // bookkeeping "L.B: ✓" tick is filtered out.
+      expect(screen.getByDisplayValue("princess cut blouse")).toBeInTheDocument();
+
+      await user.click(screen.getByText("Next: Pricing →"));
+      expect(screen.getByLabelText("Blouse quantity")).toHaveValue(2);
+      expect(screen.getByLabelText("Blouse price")).toHaveValue(400);
+      expect(screen.getByDisplayValue("200")).toBeInTheDocument(); // advance
+      expect(screen.getByDisplayValue("2026-06-30")).toBeInTheDocument(); // delivery
+    });
+
+    it("asks for the order type when detection failed, then fills from the extraction", async () => {
+      const user = userEvent.setup();
+      render(<NewOrderWizard fabrics={TEST_FABRICS} scan={scanSource({ bookType: "unknown" })} />);
+
+      expect(screen.getByText(/couldn't be detected from the slip/)).toBeInTheDocument();
+      await chooseOrderType(user, "Blouse");
+
+      expect(screen.getByPlaceholderText("Full name *")).toHaveValue("Vaishnavi");
+      // Measurements were rebuilt from the extraction, not blanked.
+      await takeMaterialPhoto(document.body);
+      await user.click(screen.getByText("Next: Measurements →"));
+      expect(screen.getByDisplayValue("14")).toBeInTheDocument();
+    });
+
+    it("does not offer or overwrite the manual localStorage draft", async () => {
+      window.localStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ dress: "Salwar", name: "Manual Customer", step: 1 })
+      );
+      render(<NewOrderWizard fabrics={TEST_FABRICS} scan={scanSource()} />);
+
+      await waitFor(() => {
+        expect(screen.queryByText(/Unfinished Salwar order/)).not.toBeInTheDocument();
+      });
+      expect(JSON.parse(window.localStorage.getItem(DRAFT_KEY)!).name).toBe("Manual Customer");
+    });
+
+    it("submits without a material photo, flagged scanOrder, with the slip as a reference photo, then confirms the draft", async () => {
+      const user = userEvent.setup();
+      render(<NewOrderWizard fabrics={TEST_FABRICS} scan={scanSource()} />);
+      // No material photo taken — optional in scan mode.
+      await user.click(screen.getByText("Next: Measurements →"));
+      await user.click(screen.getByText("Next: Pricing →"));
+      await user.click(screen.getByText("✓ Confirm & Place Order"));
+
+      expect(await screen.findByText("Order placed successfully!")).toBeInTheDocument();
+
+      const [input, photos] = vi.mocked(createOrder).mock.calls[0];
+      expect(input.customer).toBe("Vaishnavi");
+      expect(input.phone).toBe("9876543210");
+      expect(input.advance).toBe(200);
+      // Customer fabric is the default now — no shop fabric cost, items only.
+      expect(input.amount).toBe(800); // 2 × 400
+      expect(input.material).toBe("Customer fabric (customer)");
+      expect((photos as FormData).getAll("material")).toHaveLength(0);
+      expect((photos as FormData).get("scanOrder")).toBe("1");
+      const references = (photos as FormData).getAll("reference");
+      expect(references).toHaveLength(1);
+      expect(references[0]).toBeInstanceOf(File);
+
+      expect(confirmDraft).toHaveBeenCalledWith("d1", "B2401");
+    });
+
+    it("still shows success when marking the draft confirmed fails", async () => {
+      vi.mocked(confirmDraft).mockRejectedValue(new Error("offline"));
+      const user = userEvent.setup();
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} scan={scanSource()} />);
+      await takeMaterialPhoto(container);
+      await user.click(screen.getByText("Next: Measurements →"));
+      await user.click(screen.getByText("Next: Pricing →"));
+      await user.click(screen.getByText("✓ Confirm & Place Order"));
+
+      expect(await screen.findByText("Order placed successfully!")).toBeInTheDocument();
     });
   });
 });

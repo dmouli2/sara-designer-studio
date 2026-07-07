@@ -89,7 +89,10 @@ export async function createOrder(
   }
   const referenceFiles = filesFrom(photos, "reference", MAX_REFERENCE_IMAGES);
   const materialFiles = filesFrom(photos, "material", MAX_MATERIAL_IMAGES);
-  if (materialFiles.length === 0) {
+  // Scanned book orders (scanOrder="1") have no fabric on hand at scan time,
+  // so the photo is optional there — cards fall back to a no-photo
+  // placeholder. Manual orders still require at least one.
+  if (materialFiles.length === 0 && photos.get("scanOrder") !== "1") {
     throw new Error("At least one material photo is required.");
   }
 

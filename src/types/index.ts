@@ -112,6 +112,65 @@ export interface AssignedStaff {
   name: string;
 }
 
+// ── Scan-to-draft-order (order slip OCR) ────────────────────────────────
+// A photographed book spread is read by a vision model into a SlipExtraction,
+// stored on a draft order (src/lib/db — draft_orders table) until the admin
+// verifies it. Drafts never consume an order id; only confirming one runs
+// the normal createOrder path.
+
+export type ScanBookType = "Blouse" | "Salwar" | "unknown";
+
+// Two levels only — the model is instructed to mark anything it isn't sure
+// of as "low" (and leave the value empty rather than guess), so the review
+// UI has an unambiguous "check this against the photo" signal.
+export type ExtractionConfidence = "high" | "low";
+
+// One measurement box from the slip. `key` uses the app's own measurement
+// field keys — blouse: "length".."piko"; salwar: "top.length".."top.bn",
+// "pant.height".."pant.yoke", "shawl". `value` holds digits only (the
+// numbers-only rule); every other pen mark near the box lands in `note`.
+export interface ExtractedField {
+  key: string;
+  value: string;
+  note?: string;
+  confidence: ExtractionConfidence;
+}
+
+export interface ExtractedLineItem {
+  particulars: string;
+  qty: number;
+  amount: number; // per-piece price, matching OrderLineItem.amount
+  note?: string;
+  confidence: ExtractionConfidence;
+}
+
+export interface SlipExtraction {
+  bookType: ScanBookType;
+  bookTypeConfidence: ExtractionConfidence;
+  billNo: string;
+  date: string;    // as written in the book, e.g. "25/6"
+  dueDate: string; // as written in the book
+  customerName: string;
+  customerNameConfidence: ExtractionConfidence;
+  phone: string; // digits only
+  phoneConfidence: ExtractionConfidence;
+  measurements: ExtractedField[];
+  lineItems: ExtractedLineItem[];
+  advance: string; // digits, "" when the box is blank
+  advanceConfidence: ExtractionConfidence;
+  writtenTotal: string; // the handwritten Total — compared, never trusted
+  writtenTotalConfidence: ExtractionConfidence;
+  // Pen writing with no matching app field: Given/L.B/O.B boxes, Reminder
+  // Date, notes in the sketch area, … — surfaced into the order notes.
+  extraNotes: string[];
+  // Set by the extractor when the photo can't be processed at all — the
+  // drafts action turns these into user-facing errors before any draft is
+  // created. Absent/"" means the image was usable.
+  imageProblem?: "not_a_slip" | "unreadable";
+}
+
+export type DraftOrderStatus = "draft" | "confirmed" | "discarded";
+
 export interface Order {
   id: string;
   customer: string;

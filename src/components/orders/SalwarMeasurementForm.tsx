@@ -4,20 +4,9 @@ import { useState } from "react";
 import MeasurementFieldRow from "./MeasurementFieldRow";
 import type { SalwarMeasurements } from "@/types";
 
-export function emptySalwar(): SalwarMeasurements {
-  return {
-    type: "salwar",
-    top: {
-      length: "", shoulder: "",
-      hs: "", sl: "", tlcs: "", ah: "", bust: "", ub: "",
-      waist: "", hip: "", fnNr: "", bn: "",
-    },
-    pant: {
-      height: "", hip: "", waist: "", kl: "", tl: "", fullLength: "", yoke: "",
-    },
-    shawl: "",
-  };
-}
+// Template lives in src/lib/measurements.ts (shared with the scan
+// normalizer); re-exported here so existing imports keep working.
+export { emptySalwar } from "@/lib/measurements";
 
 // Labels match the physical order form exactly (see MeasurementGrid.tsx).
 // O.Shalwar / L.Shalwar were dropped from the form — old orders that carry

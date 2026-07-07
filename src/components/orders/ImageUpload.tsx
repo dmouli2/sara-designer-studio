@@ -16,6 +16,11 @@ interface Props {
   // instead of the gallery picker — used by MaterialImageUpload, omitted for
   // ReferenceImageUpload where either source is equally likely.
   capture?: "environment" | "user";
+  // Compression overrides (defaults live in compressImageToDataUrl). The
+  // order-slip scanner raises these — handwriting OCR needs far more pixels
+  // than a fabric thumbnail.
+  maxDimension?: number;
+  quality?: number;
 }
 
 // Shared compress-and-slot-fill behind ReferenceImageUpload and
@@ -31,6 +36,8 @@ export default function ImageUpload({
   addLabel,
   addIcon: AddIcon,
   capture,
+  maxDimension,
+  quality,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [compressing, setCompressing] = useState(false);
@@ -46,7 +53,7 @@ export default function ImageUpload({
     try {
       const compressed = await Promise.all(
         files.map((file) =>
-          compressImageToDataUrl(file).catch(
+          compressImageToDataUrl(file, maxDimension, quality).catch(
             () =>
               new Promise<string>((resolve) => {
                 const reader = new FileReader();

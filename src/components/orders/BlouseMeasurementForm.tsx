@@ -3,15 +3,9 @@
 import MeasurementFieldRow from "./MeasurementFieldRow";
 import type { BlouseMeasurements } from "@/types";
 
-export function emptyBlouse(): BlouseMeasurements {
-  return {
-    type: "blouse",
-    length: "", shoulder: "", hs: "", sl: "",
-    mlos: "", tlos: "", ahs: "", bust: "",
-    ub: "", waist: "", fnNr: "", bn: "",
-    dart: "", dbd: "", p: "", sareeFall: "", piko: "",
-  };
-}
+// Template lives in src/lib/measurements.ts (shared with the scan
+// normalizer); re-exported here so existing imports keep working.
+export { emptyBlouse } from "@/lib/measurements";
 
 type BlouseFieldKey = Exclude<keyof BlouseMeasurements, "type" | "fieldNotes">;
 
