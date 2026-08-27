@@ -34,6 +34,11 @@ STEP 2 — EXTRACT, using the matching field list below. For every measurement b
 - ANY other pen writing in or next to the box (words, arrows, symbols, Tamil text) goes into "note" verbatim — never into "value".
 - Omit boxes that are completely blank (no value, no note).
 
+UB vs BUST — these two rows are adjacent and are the pair most often mixed up, because the pen strokes sit low and straddle the rule between them:
+- UB (Under Bust) is printed DIRECTLY ABOVE Bust (on the salwar slip the lower row is labelled just "B").
+- UB is measured under the bust, so its number is ALWAYS SMALLER than Bust — 40 / 42.5, never 42.5 / 40.
+- After reading both, check that ub < bust. If it isn't, you have attached the numbers to the wrong rows: swap them back onto the correct rows, and mark both "low". Only leave ub > bust if the slip genuinely, unmistakably says so.
+
 BLOUSE measurement keys (printed label → key), in printed order:
 Length→length, Shoulder→shoulder, HS→hs, S.Length→sl, MLOS→mlos, TLOS→tlos, AHS→ahs, UB→ub, Bust→bust, Waist→waist, FN/NR→fnNr, BN→bn, Dart→dart, DBD→dbd, P→p, Saree Fall→sareeFall, Piko→piko
 

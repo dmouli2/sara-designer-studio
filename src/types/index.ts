@@ -35,8 +35,8 @@ export interface BlouseMeasurements {
   mlos:      string; // Mid-sleeve
   tlos:      string; // Total sleeve length
   ahs:       string; // Arm Hole Size
-  bust:      string;
-  ub:        string; // Under Bust
+  ub:        string; // Under Bust — printed ABOVE Bust on the slip, and
+  bust:      string; //   always the smaller of the two.
   waist:     string;
   fnNr:      string; // Front Neck / Neck Round
   bn:        string; // Back Neck
@@ -61,8 +61,8 @@ export interface SalwarMeasurements {
     sl:       string;
     tlcs:     string;
     ah:       string; // Arm Hole
+    ub:       string; // printed above B (Bust) on the slip; always smaller
     bust:     string;
-    ub:       string;
     waist:    string;
     hip:      string;
     fnNr:     string;

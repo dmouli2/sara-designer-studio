@@ -7,6 +7,7 @@ import { getImageStorage } from "@/lib/storage";
 import { getSlipExtractor } from "@/lib/extraction";
 import { normalizeExtraction } from "@/lib/extraction/normalize";
 import { assertScanFeatureEnabled } from "@/lib/features";
+import { UserFacingError, userMessageFor } from "@/lib/errors";
 
 // Scan-to-draft-order actions. Admin-only, and every one of them refuses
 // when the FEATURE_SCAN_ORDERS kill switch is off. Drafts never touch the
@@ -31,49 +32,68 @@ export interface DraftWithScanUrl extends DraftOrder {
   scanImageUrl: string | null;
 }
 
-export async function createDraftFromScan(photos: FormData): Promise<{ id: string }> {
+// Why a result object instead of throwing: Next.js replaces the message of
+// any error thrown out of a Server Action with an opaque digest in production
+// builds, so every carefully worded reason below ("retake it with better
+// light", "the free scanning quota is busy") reached the admin as a generic
+// "An error occurred in the Server Components render". The reason has to
+// travel back as data. userMessageFor keeps internal failures out of it.
+export type CreateDraftResult = { ok: true; id: string } | { ok: false; message: string };
+
+export async function createDraftFromScan(photos: FormData): Promise<CreateDraftResult> {
   await requireRole(["admin"]);
   assertScanFeatureEnabled();
 
-  const scan = photos.get("scan");
-  if (!(scan instanceof File)) {
-    throw new Error("No scan photo received — capture the order slip and try again.");
-  }
-  const scanDataUrl = await fileToDataUrl(scan);
-
-  // Read the slip first: extraction has no side effects, so a model failure
-  // leaves nothing to clean up and the admin can retry with the same photo.
-  const extraction = await getSlipExtractor().extract(scanDataUrl);
-  if (extraction.imageProblem === "not_a_slip") {
-    throw new Error("This doesn't look like an order-book slip — photograph the full book page and try again.");
-  }
-  if (extraction.imageProblem === "unreadable") {
-    throw new Error("The photo is too blurry or dark to read — retake it with better light and the page flat.");
-  }
-  const { prefill, warnings } = normalizeExtraction(extraction);
-
-  // The id is minted here (not by Postgres) so the storage path can embed
-  // it before the row exists: upload first, insert second, and a failed
-  // insert cleans up its orphaned photo.
-  const draftId = crypto.randomUUID();
-  const scanImagePath = scanPathFor(draftId);
-  await getImageStorage().upload(scanImagePath, scanDataUrl);
   try {
-    await getDb().drafts.create({
-      id: draftId,
-      dress: prefill.dress ?? "",
-      scanImagePath,
-      extraction,
-      warnings,
-    });
-  } catch (err) {
-    await getImageStorage().delete(scanImagePath).catch(() => {});
-    throw err;
-  }
+    const scan = photos.get("scan");
+    if (!(scan instanceof File)) {
+      throw new UserFacingError("No scan photo received — capture the order slip and try again.");
+    }
+    const scanDataUrl = await fileToDataUrl(scan);
 
-  revalidatePath("/admin/drafts");
-  refresh();
-  return { id: draftId };
+    // Read the slip first: extraction has no side effects, so a model failure
+    // leaves nothing to clean up and the admin can retry with the same photo.
+    const extraction = await getSlipExtractor().extract(scanDataUrl);
+    if (extraction.imageProblem === "not_a_slip") {
+      throw new UserFacingError(
+        "This doesn't look like an order-book slip — photograph the full book page and try again."
+      );
+    }
+    if (extraction.imageProblem === "unreadable") {
+      throw new UserFacingError(
+        "The photo is too blurry or dark to read — retake it with better light and the page flat."
+      );
+    }
+    const { prefill, warnings } = normalizeExtraction(extraction);
+
+    // The id is minted here (not by Postgres) so the storage path can embed
+    // it before the row exists: upload first, insert second, and a failed
+    // insert cleans up its orphaned photo.
+    const draftId = crypto.randomUUID();
+    const scanImagePath = scanPathFor(draftId);
+    await getImageStorage().upload(scanImagePath, scanDataUrl);
+    try {
+      await getDb().drafts.create({
+        id: draftId,
+        dress: prefill.dress ?? "",
+        scanImagePath,
+        extraction,
+        warnings,
+      });
+    } catch (err) {
+      await getImageStorage().delete(scanImagePath).catch(() => {});
+      throw err;
+    }
+
+    revalidatePath("/admin/drafts");
+    refresh();
+    return { ok: true, id: draftId };
+  } catch (err) {
+    return {
+      ok: false,
+      message: userMessageFor(err, "Couldn't read the slip — check your connection and try again."),
+    };
+  }
 }
 
 export async function getDrafts(): Promise<DraftOrder[]> {

@@ -1,4 +1,5 @@
 import type { SlipExtraction } from "@/types";
+import { UserFacingError } from "@/lib/errors";
 import type { SlipExtractor } from "../types";
 import { SLIP_EXTRACTION_PROMPT, SLIP_RESPONSE_SCHEMA } from "../prompts";
 
@@ -83,12 +84,12 @@ export function createGeminiSlipExtractor(options?: { retryDelayMs?: number }): 
   async function callGemini(imageDataUrl: string): Promise<Response> {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      throw new Error("GEMINI_API_KEY is not configured — add it to .env.local (free key from aistudio.google.com).");
+      throw new UserFacingError("GEMINI_API_KEY is not configured — add it to .env.local (free key from aistudio.google.com).");
     }
     const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
 
     const match = imageDataUrl.match(/^data:([^;]+);base64,(.+)$/);
-    if (!match) throw new Error("Invalid scan image data URL");
+    if (!match) throw new UserFacingError("Invalid scan image data URL");
     const [, mimeType, data] = match;
 
     return fetch(endpointFor(model), {
@@ -131,15 +132,15 @@ export function createGeminiSlipExtractor(options?: { retryDelayMs?: number }): 
         attempt++;
       }
       if (res.status === 429) {
-        throw new Error("The free scanning quota is busy right now — wait a minute and try again.");
+        throw new UserFacingError("The free scanning quota is busy right now — wait a minute and try again.");
       }
       if (res.status >= 500) {
-        throw new Error(
+        throw new UserFacingError(
           "Google's free AI service is busy right now — your photo is kept, try Read slip again in a minute."
         );
       }
       if (!res.ok) {
-        throw new Error(`Slip reading failed (HTTP ${res.status}). Try again.`);
+        throw new UserFacingError(`Slip reading failed (HTTP ${res.status}). Try again.`);
       }
 
       const payload = (await res.json()) as {
@@ -147,12 +148,12 @@ export function createGeminiSlipExtractor(options?: { retryDelayMs?: number }): 
       };
       const text = payload.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) {
-        throw new Error("The scan could not be read — retake the photo with the full page in frame.");
+        throw new UserFacingError("The scan could not be read — retake the photo with the full page in frame.");
       }
       try {
         return coerceExtraction(JSON.parse(text));
       } catch {
-        throw new Error("The scan could not be read — retake the photo with the full page in frame.");
+        throw new UserFacingError("The scan could not be read — retake the photo with the full page in frame.");
       }
     },
   };

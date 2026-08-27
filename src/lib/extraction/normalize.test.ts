@@ -6,6 +6,7 @@ import {
   measurementsForDress,
   normalizeExtraction,
   parseBookDate,
+  ubBustWarning,
 } from "./normalize";
 
 function extraction(overrides: Partial<SlipExtraction> = {}): SlipExtraction {
@@ -200,6 +201,65 @@ describe("parseBookDate", () => {
   });
 });
 
+describe("ubBustWarning", () => {
+  function blouseWith(ub: string, bust: string) {
+    return measurementsForDress(
+      extraction({
+        measurements: [
+          { key: "ub", value: ub, confidence: "high" },
+          { key: "bust", value: bust, confidence: "high" },
+        ],
+      }),
+      "Blouse"
+    );
+  }
+
+  it("flags a blouse whose UB reads larger than its Bust", () => {
+    // Exactly the B2502 case: 40 / 42.5 written across the rule between the
+    // two rows and read onto the wrong ones.
+    const warning = ubBustWarning(blouseWith("42.5", "40"));
+    expect(warning).toContain("UB (42.5) is larger than Bust (40)");
+  });
+
+  it("says nothing when UB is smaller than Bust", () => {
+    expect(ubBustWarning(blouseWith("31", "33"))).toBeNull();
+  });
+
+  it("says nothing when they are equal", () => {
+    expect(ubBustWarning(blouseWith("34", "34"))).toBeNull();
+  });
+
+  it("says nothing when either value is blank or non-numeric", () => {
+    expect(ubBustWarning(blouseWith("", "33"))).toBeNull();
+    expect(ubBustWarning(blouseWith("42", ""))).toBeNull();
+    expect(ubBustWarning(blouseWith("loose", "33"))).toBeNull();
+  });
+
+  it("flags the same swap in a salwar top section", () => {
+    const meas = measurementsForDress(
+      extraction({
+        bookType: "Salwar",
+        measurements: [
+          { key: "top.ub", value: "38", confidence: "high" },
+          { key: "top.bust", value: "36", confidence: "high" },
+        ],
+      }),
+      "Salwar"
+    );
+    expect(ubBustWarning(meas)).toContain("UB (38) is larger than Bust (36)");
+  });
+
+  it("says nothing for a null or generic measurement set", () => {
+    expect(ubBustWarning(null)).toBeNull();
+    expect(
+      ubBustWarning({
+        type: "generic",
+        bust: "40", waist: "", hip: "", length: "", shoulder: "", sleeve: "", neckDepth: "", armRound: "",
+      })
+    ).toBeNull();
+  });
+});
+
 describe("normalizeExtraction", () => {
   const now = new Date("2026-07-06T10:00:00.000Z");
 
@@ -223,6 +283,24 @@ describe("normalizeExtraction", () => {
     expect(result.prefill.meas?.type).toBe("blouse");
     expect(result.itemsTotal).toBe(400);
     expect(result.writtenTotal).toBe(400);
+  });
+
+  it("adds the UB/Bust swap warning to a scan that reads UB larger than Bust", () => {
+    const result = normalizeExtraction(
+      extraction({
+        measurements: [
+          { key: "ub", value: "42.5", confidence: "high" },
+          { key: "bust", value: "40", confidence: "high" },
+        ],
+        lineItems: [{ particulars: "Blouse", qty: 1, amount: 400, confidence: "high" }],
+      }),
+      now
+    );
+    expect(result.warnings).toContain(
+      "UB (42.5) is larger than Bust (40) — these two rows sit next to each other on the slip and are easy to read the wrong way round. Check the photo."
+    );
+    // Flagged, never silently corrected — the admin has the photo.
+    expect(result.prefill.meas).toMatchObject({ ub: "42.5", bust: "40" });
   });
 
   it("flags an unknown book type and returns no measurements", () => {

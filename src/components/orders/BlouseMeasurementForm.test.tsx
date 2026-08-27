@@ -13,6 +13,19 @@ describe("emptyBlouse", () => {
 });
 
 describe("BlouseMeasurementForm", () => {
+  // The printed blouse slip runs …AHS, UB, Bust, Waist… — UB above Bust.
+  // Having them the other way round in the app made every value look
+  // swapped against the book when the two were read side by side.
+  it("orders the rows exactly as the printed slip does, with UB above Bust", () => {
+    render(<BlouseMeasurementForm value={emptyBlouse()} onChange={() => {}} />);
+    const labels = screen.getAllByRole("spinbutton").map((input) => input.getAttribute("aria-label"));
+    expect(labels).toEqual([
+      "Length", "Shoulder", "HS", "S.L", "MLOS", "TLOS", "AHS",
+      "UB", "Bust", "Waist", "FN / NR", "BN",
+      "Dart", "DBD", "P", "Saree Fall", "Piko",
+    ]);
+  });
+
   it("renders the L.B column header (no O.B) and field labels matching the physical order form", () => {
     render(<BlouseMeasurementForm value={emptyBlouse()} onChange={() => {}} />);
     expect(screen.getByText("L.B")).toBeInTheDocument();

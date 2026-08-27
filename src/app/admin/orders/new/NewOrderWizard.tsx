@@ -101,10 +101,12 @@ function defaultLineItems(dress: string): OrderLineItem[] {
 export default function NewOrderWizard({
   fabrics: initialFabrics,
   scan,
+  staleDraftOrderId = null,
   pendingDraftCount = 0,
 }: {
   fabrics: Fabric[];
   scan?: ScanSource;
+  staleDraftOrderId?: string | null;
   pendingDraftCount?: number;
 }) {
   const router = useRouter();
@@ -177,6 +179,23 @@ export default function NewOrderWizard({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDraft(readDraft());
   }, [scan]);
+
+  // ?draft={id} pointing at a draft that already became an order: normally a
+  // stale link (a bookmark, or the back button after placing it), so show the
+  // real order instead of a blank wizard.
+  //
+  // The `!placedOrder` guard is the whole point of doing this here rather
+  // than with a redirect() in page.tsx: confirmDraft — called by handleSubmit
+  // right after the order is created — revalidates, and Next re-renders THIS
+  // route as part of the action response. At that moment the draft is already
+  // confirmed, so a server redirect would fire and throw the admin off the
+  // success modal before they could tap "Share on WhatsApp". While this
+  // wizard owns a freshly placed order, the link isn't stale — it's ours.
+  useEffect(() => {
+    if (staleDraftOrderId && !placedOrder) {
+      router.replace(`/admin/orders/${staleDraftOrderId}`);
+    }
+  }, [staleDraftOrderId, placedOrder, router]);
 
   // Mirror the in-progress order to localStorage, debounced so typing doesn't
   // thrash. If the images push past the storage quota, save everything else.

@@ -33,13 +33,21 @@ export default function ScanCapture() {
     try {
       const photos = new FormData();
       photos.append("scan", dataUrlToFile(image, "scan-1.jpg"));
-      const { id } = await createDraftFromScan(photos);
+      const result = await createDraftFromScan(photos);
+      if (!result.ok) {
+        // The photo is kept so the admin can retry without re-shooting.
+        setError(result.message);
+        setReading(false);
+        return;
+      }
       // Straight into the prefilled wizard — corrections and placing the
       // order happen there; there is no intermediate review page.
-      router.push(`/admin/orders/new?draft=${id}`);
-    } catch (err) {
-      // The photo is kept so the admin can retry without re-shooting.
-      setError(err instanceof Error ? err.message : "Couldn't read the slip. Try again.");
+      router.push(`/admin/orders/new?draft=${result.id}`);
+    } catch {
+      // Only transport-level failures reach here — createDraftFromScan
+      // reports every failure it can explain in its result (see the
+      // CreateDraftResult comment in src/app/actions/drafts.ts).
+      setError("Couldn't reach the server — check your connection and try again.");
       setReading(false);
     }
   }

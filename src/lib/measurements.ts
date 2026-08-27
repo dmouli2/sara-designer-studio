@@ -9,8 +9,8 @@ export function emptyBlouse(): BlouseMeasurements {
   return {
     type: "blouse",
     length: "", shoulder: "", hs: "", sl: "",
-    mlos: "", tlos: "", ahs: "", bust: "",
-    ub: "", waist: "", fnNr: "", bn: "",
+    mlos: "", tlos: "", ahs: "", ub: "",
+    bust: "", waist: "", fnNr: "", bn: "",
     dart: "", dbd: "", p: "", sareeFall: "", piko: "",
   };
 }
@@ -20,7 +20,7 @@ export function emptySalwar(): SalwarMeasurements {
     type: "salwar",
     top: {
       length: "", shoulder: "",
-      hs: "", sl: "", tlcs: "", ah: "", bust: "", ub: "",
+      hs: "", sl: "", tlcs: "", ah: "", ub: "", bust: "",
       waist: "", hip: "", fnNr: "", bn: "",
     },
     pant: {

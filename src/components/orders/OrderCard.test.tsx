@@ -13,7 +13,9 @@ const baseOrder: Order = {
   status: "cutting",
   amount: 4200,
   advance: 1000,
-  due: "2026-07-10",
+  // Far future so the shared fixture is never incidentally "overdue" — the
+  // overdue tests below set their own past date.
+  due: "2099-07-10",
   master: null,
   tailor: null,
   measurements: {
@@ -34,8 +36,32 @@ describe("OrderCard", () => {
   it("renders order id, customer, dress and due date", () => {
     render(<OrderCard order={baseOrder} />);
     expect(screen.getByText(baseOrder.id)).toBeInTheDocument();
-    expect(screen.getByText(`· ${baseOrder.customer}`)).toBeInTheDocument();
+    // Customer sits on its own line, not glued to the id with a separator —
+    // that pairing wrapped mid-name on a phone and pushed the id out of line.
+    expect(screen.getByText(baseOrder.customer)).toBeInTheDocument();
     expect(screen.getByText(`${baseOrder.dress} · ${baseOrder.material}`)).toBeInTheDocument();
+  });
+
+  it("truncates the id, customer and material lines rather than wrapping them", () => {
+    const order: Order = {
+      ...baseOrder,
+      customer: "Shanmuga Priya Balasubramaniam",
+      material: "Kanchipuram silk with zari border (customer)",
+    };
+    render(<OrderCard order={order} />);
+    expect(screen.getByText(order.id)).toHaveClass("truncate");
+    expect(screen.getByText(order.customer)).toHaveClass("truncate");
+    expect(screen.getByText(`${order.dress} · ${order.material}`)).toHaveClass("truncate");
+  });
+
+  it("keeps a two-word status label on one line next to the id", () => {
+    const order: Order = { ...baseOrder, status: "cutting_done" };
+    render(<OrderCard order={order} />);
+    const badge = screen.getByText("Cutting Done");
+    // shrink-0 + whitespace-nowrap come from the .badge-* classes in
+    // globals.css; the row itself must not force the badge to wrap.
+    expect(badge).toHaveClass("badge-cutting_done");
+    expect(badge.parentElement).toHaveClass("justify-between");
   });
 
   it("shows the assigned master when present", () => {
@@ -137,14 +163,15 @@ describe("OrderCard", () => {
     expect(screen.getByText(/^Due /)).toBeInTheDocument();
   });
 
-  it("shows the main material photo stretched to the full card height when present", () => {
+  it("shows the main material photo as a fixed square thumbnail", () => {
     const order: Order = { ...baseOrder, mainMaterialImageUrl: "https://signed.example/material-1.jpg" };
     render(<OrderCard order={order} />);
     const img = screen.getByAltText("Material");
     expect(img).toHaveAttribute("src", "https://signed.example/material-1.jpg");
-    // Stretches with the card's flex row instead of a fixed square height
-    expect(img.parentElement).toHaveClass("self-stretch");
-    expect(img.parentElement).not.toHaveClass("h-14");
+    // A fixed square, not self-stretch: stretching let the photo grow to the
+    // full card height and swallow the layout on a phone.
+    expect(img.parentElement).toHaveClass("w-16", "h-16", "shrink-0");
+    expect(img.parentElement).not.toHaveClass("self-stretch");
   });
 
   it("shows no thumbnail when there is no main material photo", () => {

@@ -775,6 +775,42 @@ describe("NewOrderWizard", () => {
       expect(confirmDraft).toHaveBeenCalledWith("d1", "B2401");
     });
 
+    // Regression: confirmDraft revalidates, so Next re-renders /admin/orders/new
+    // as part of the action response — and by then the draft is confirmed. When
+    // page.tsx answered that with redirect(), the admin was thrown onto the
+    // order detail page a moment after the success modal appeared, before they
+    // could tap "Share on WhatsApp".
+    it("stays on the success modal when the re-render reports the draft as confirmed", async () => {
+      const user = userEvent.setup();
+      const { rerender } = render(<NewOrderWizard fabrics={TEST_FABRICS} scan={scanSource()} />);
+      await user.click(screen.getByText("Next: Measurements →"));
+      await user.click(screen.getByText("Next: Pricing →"));
+      await user.click(screen.getByText("✓ Confirm & Place Order"));
+      expect(await screen.findByText("Order placed successfully!")).toBeInTheDocument();
+
+      // What the revalidation re-render hands back: the draft is no longer
+      // pending, it now points at the order this wizard just placed.
+      rerender(<NewOrderWizard fabrics={TEST_FABRICS} staleDraftOrderId="B2401" />);
+
+      expect(screen.getByText("Order placed successfully!")).toBeInTheDocument();
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+      expect(mockRouter.push).not.toHaveBeenCalled();
+
+      // The Done button still works and is still the only way out.
+      await user.click(screen.getByText("Done"));
+      expect(mockRouter.push).toHaveBeenCalledWith("/admin/orders");
+    });
+
+    it("sends a genuinely stale ?draft= link to the order it already became", () => {
+      render(<NewOrderWizard fabrics={TEST_FABRICS} staleDraftOrderId="B2401" />);
+      expect(mockRouter.replace).toHaveBeenCalledWith("/admin/orders/B2401");
+    });
+
+    it("does not navigate when there is no stale draft", () => {
+      render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      expect(mockRouter.replace).not.toHaveBeenCalled();
+    });
+
     it("still shows success when marking the draft confirmed fails", async () => {
       vi.mocked(confirmDraft).mockRejectedValue(new Error("offline"));
       const user = userEvent.setup();

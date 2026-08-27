@@ -68,15 +68,15 @@
 
   .section-label { @apply text-[12px] font-semibold text-[#9A9A9A] uppercase tracking-widest mb-2; }
 
-  .badge-base         { @apply inline-flex items-center px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide; }
-  .badge-new          { @apply inline-flex items-center px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#FBF6E8] text-[#A8882E]; }
-  .badge-cutting      { @apply inline-flex items-center px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#0F0F0F] text-white; }
-  .badge-cutting_done { @apply inline-flex items-center px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#EDD98A] text-[#7A6020]; }
-  .badge-stitching    { @apply inline-flex items-center px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#F5E9BB] text-[#7A6020]; }
-  .badge-hemming_hook { @apply inline-flex items-center px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#E3EEFB] text-[#2E5C99]; }
-  .badge-ready        { @apply inline-flex items-center px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#D5F0E1] text-[#1B6B3A]; }
-  .badge-delivered    { @apply inline-flex items-center px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#F0EDE6] text-[#6B6B6B]; }
-  .badge-cancelled    { @apply inline-flex items-center px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#FBECEC] text-[#B04A4A]; }
+  .badge-base         { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide; }
+  .badge-new          { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#FBF6E8] text-[#A8882E]; }
+  .badge-cutting      { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#0F0F0F] text-white; }
+  .badge-cutting_done { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#EDD98A] text-[#7A6020]; }
+  .badge-stitching    { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#F5E9BB] text-[#7A6020]; }
+  .badge-hemming_hook { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#E3EEFB] text-[#2E5C99]; }
+  .badge-ready        { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#D5F0E1] text-[#1B6B3A]; }
+  .badge-delivered    { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#F0EDE6] text-[#6B6B6B]; }
+  .badge-cancelled    { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#FBECEC] text-[#B04A4A]; }
 
   .bottom-nav {
     @apply fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] sm:max-w-[600px] md:max-w-[700px] lg:max-w-[820px] z-50

@@ -212,10 +212,12 @@ describe("OrdersBody", () => {
   });
 
   it("excludes cancelled orders from the active count", () => {
+    // Due dates far in the future so the subtitle can't flip to the
+    // "N active · N overdue" variant as real time passes.
     const withCancelled = [
-      order({ id: "C1", status: "new" }),
-      order({ id: "C2", status: "cancelled" }),
-      order({ id: "C3", status: "delivered" }),
+      order({ id: "C1", status: "new", due: "2999-01-01" }),
+      order({ id: "C2", status: "cancelled", due: "2999-01-01" }),
+      order({ id: "C3", status: "delivered", due: "2999-01-01" }),
     ];
     render(<OrdersBody initialOrders={withCancelled} />);
     expect(screen.getByText("1 active orders")).toBeInTheDocument();

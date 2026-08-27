@@ -52,7 +52,7 @@ describe("ScanCapture", () => {
   });
 
   it("sends the photo as a multipart scan file and opens the prefilled wizard", async () => {
-    vi.mocked(createDraftFromScan).mockResolvedValue({ id: "d1" });
+    vi.mocked(createDraftFromScan).mockResolvedValue({ ok: true, id: "d1" });
     const user = userEvent.setup();
     const { container } = render(<ScanCapture />);
     await captureScan(container);
@@ -64,10 +64,11 @@ describe("ScanCapture", () => {
     expect(photos.get("scan")).toBeInstanceOf(File);
   });
 
-  it("keeps the photo and shows the error when reading fails", async () => {
-    vi.mocked(createDraftFromScan).mockRejectedValue(
-      new Error("The free scanning quota is busy right now — wait a minute and try again.")
-    );
+  it("keeps the photo and shows the reason the server reported when reading fails", async () => {
+    vi.mocked(createDraftFromScan).mockResolvedValue({
+      ok: false,
+      message: "The free scanning quota is busy right now — wait a minute and try again.",
+    });
     const user = userEvent.setup();
     const { container } = render(<ScanCapture />);
     await captureScan(container);
@@ -82,15 +83,19 @@ describe("ScanCapture", () => {
     expect(mockRouter.push).not.toHaveBeenCalled();
   });
 
-  it("falls back to a generic message for non-Error failures", async () => {
-    vi.mocked(createDraftFromScan).mockRejectedValue("boom");
+  it("falls back to a connection message when the action itself can't be reached", async () => {
+    vi.mocked(createDraftFromScan).mockRejectedValue(new TypeError("Failed to fetch"));
     const user = userEvent.setup();
     const { container } = render(<ScanCapture />);
     await captureScan(container);
 
     await user.click(screen.getByText("Read slip"));
 
-    await waitFor(() => expect(screen.getByText("Couldn't read the slip. Try again.")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/Couldn't reach the server/)).toBeInTheDocument()
+    );
+    expect(screen.getByText("Read slip").closest("button")).toBeEnabled();
+    expect(mockRouter.push).not.toHaveBeenCalled();
   });
 
   it("blocks photos over the payload limit before calling the server", async () => {

@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/dal";
 import { getDb } from "@/lib/db";
 import { getImageStorage } from "@/lib/storage";
 import { getSlipExtractor } from "@/lib/extraction";
+import { UserFacingError } from "@/lib/errors";
 import {
   createDraftFromScan,
   getDrafts,
@@ -99,7 +100,7 @@ describe("drafts actions", () => {
       expect(input.extraction).toEqual(extraction);
       expect(input.warnings).toEqual([]);
       expect(upload).toHaveBeenCalledWith(input.scanImagePath, expect.stringContaining("data:image/jpeg;base64,"));
-      expect(result).toEqual({ id: input.id });
+      expect(result).toEqual({ ok: true, id: input.id });
       expect(mockRevalidatePath).toHaveBeenCalledWith("/admin/drafts");
       expect(mockRefresh).toHaveBeenCalled();
     });
@@ -114,38 +115,67 @@ describe("drafts actions", () => {
       expect(input.warnings[0]).toContain("Couldn't detect Blouse vs Salwar");
     });
 
-    it("throws when no scan file was sent", async () => {
-      await expect(createDraftFromScan(new FormData())).rejects.toThrow("No scan photo received");
+    // Every failure comes back as data, never as a throw: Next.js replaces
+    // the message of an error thrown out of a Server Action with an opaque
+    // digest in production, so the admin would only ever see "An error
+    // occurred in the Server Components render".
+    it("reports a missing scan file without throwing", async () => {
+      const result = await createDraftFromScan(new FormData());
+      expect(result).toEqual({ ok: false, message: expect.stringContaining("No scan photo received") });
       expect(extract).not.toHaveBeenCalled();
     });
 
-    it("does not upload anything when extraction fails", async () => {
-      extract.mockRejectedValue(new Error("quota busy"));
-      await expect(createDraftFromScan(scanForm())).rejects.toThrow("quota busy");
+    it("passes a user-facing extraction failure through and uploads nothing", async () => {
+      extract.mockRejectedValue(new UserFacingError("The free scanning quota is busy right now."));
+      const result = await createDraftFromScan(scanForm());
+      expect(result).toEqual({ ok: false, message: "The free scanning quota is busy right now." });
       expect(upload).not.toHaveBeenCalled();
       expect(create).not.toHaveBeenCalled();
     });
 
-    it("rejects with a user-facing error and does not upload/create when the photo isn't a slip", async () => {
+    it("hides the message of an internal failure behind a generic one", async () => {
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+      extract.mockRejectedValue(new Error("supabase: connection string invalid"));
+
+      const result = await createDraftFromScan(scanForm());
+
+      expect(result).toEqual({
+        ok: false,
+        message: "Couldn't read the slip — check your connection and try again.",
+      });
+      // …but it is still logged for us.
+      expect(consoleError).toHaveBeenCalled();
+      consoleError.mockRestore();
+    });
+
+    it("reports a photo that isn't a slip and uploads/creates nothing", async () => {
       extract.mockResolvedValue({ ...extraction, imageProblem: "not_a_slip" });
-      await expect(createDraftFromScan(scanForm())).rejects.toThrow(
-        "doesn't look like an order-book slip"
-      );
+      const result = await createDraftFromScan(scanForm());
+      expect(result).toEqual({
+        ok: false,
+        message: expect.stringContaining("doesn't look like an order-book slip"),
+      });
       expect(upload).not.toHaveBeenCalled();
       expect(create).not.toHaveBeenCalled();
     });
 
-    it("rejects with a user-facing error and does not upload/create when the photo is unreadable", async () => {
+    it("reports an unreadable photo and uploads/creates nothing", async () => {
       extract.mockResolvedValue({ ...extraction, imageProblem: "unreadable" });
-      await expect(createDraftFromScan(scanForm())).rejects.toThrow("too blurry or dark");
+      const result = await createDraftFromScan(scanForm());
+      expect(result).toEqual({ ok: false, message: expect.stringContaining("too blurry or dark") });
       expect(upload).not.toHaveBeenCalled();
       expect(create).not.toHaveBeenCalled();
     });
 
     it("cleans up the uploaded photo when the insert fails", async () => {
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
       create.mockRejectedValue(new Error("insert failed"));
-      await expect(createDraftFromScan(scanForm())).rejects.toThrow("insert failed");
+
+      const result = await createDraftFromScan(scanForm());
+
+      expect(result.ok).toBe(false);
       expect(storageDelete).toHaveBeenCalledWith(upload.mock.calls[0][0]);
+      consoleError.mockRestore();
     });
   });
 

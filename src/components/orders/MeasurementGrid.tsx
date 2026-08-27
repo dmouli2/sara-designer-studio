@@ -31,8 +31,8 @@ export default function MeasurementGrid({ measurements }: { measurements: Garmen
           <Cell label="MLOS"      value={m.mlos}     note={n?.mlos} />
           <Cell label="TLOS"      value={m.tlos}     note={n?.tlos} />
           <Cell label="AHS"       value={m.ahs}      note={n?.ahs} />
-          <Cell label="Bust"      value={m.bust}     note={n?.bust} />
           <Cell label="UB"        value={m.ub}       note={n?.ub} />
+          <Cell label="Bust"      value={m.bust}     note={n?.bust} />
           <Cell label="Waist"     value={m.waist}    note={n?.waist} />
           <Cell label="FN / NR"   value={m.fnNr}     note={n?.fnNr} />
           <Cell label="BN"        value={m.bn}       note={n?.bn} />
@@ -66,8 +66,8 @@ export default function MeasurementGrid({ measurements }: { measurements: Garmen
           <Cell label="S.L"       value={m.top.sl}       note={tn?.sl} />
           <Cell label="TLCS"      value={m.top.tlcs}     note={tn?.tlcs} />
           <Cell label="AH"        value={m.top.ah}       note={tn?.ah} />
-          <Cell label="Bust"      value={m.top.bust}     note={tn?.bust} />
           <Cell label="UB"        value={m.top.ub}       note={tn?.ub} />
+          <Cell label="Bust"      value={m.top.bust}     note={tn?.bust} />
           <Cell label="Waist"     value={m.top.waist}    note={tn?.waist} />
           <Cell label="Hip"       value={m.top.hip}      note={tn?.hip} />
           <Cell label="FN / NR"   value={m.top.fnNr}     note={tn?.fnNr} />

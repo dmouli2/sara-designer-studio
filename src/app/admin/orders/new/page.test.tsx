@@ -4,6 +4,7 @@ import NewOrderPage from "./page";
 import { requireRole } from "@/lib/dal";
 import { getFabrics } from "@/app/actions/fabrics";
 import { getDraft, getDrafts } from "@/app/actions/drafts";
+import { mockRouter } from "../../../../../vitest.setup";
 import type { SlipExtraction } from "@/types";
 
 vi.mock("@/lib/dal", () => ({ requireRole: vi.fn() }));
@@ -92,7 +93,12 @@ describe("NewOrderPage", () => {
     expect(getDrafts).not.toHaveBeenCalled();
   });
 
-  it("redirects a stale link for a confirmed draft to the placed order", async () => {
+  // Deliberately NOT a server-side redirect(): confirmDraft revalidates, Next
+  // re-renders this route as part of the action response, and by then the
+  // draft is confirmed — a redirect here would throw the admin off the
+  // wizard's own success modal. The wizard navigates instead, and only when
+  // it isn't showing a freshly placed order.
+  it("hands a stale link for a confirmed draft to the wizard, which navigates to the order", async () => {
     vi.mocked(getDraft).mockResolvedValue({
       id: "d1",
       dress: "Blouse",
@@ -105,9 +111,9 @@ describe("NewOrderPage", () => {
       createdAt: "2026-07-06T00:00:00.000Z",
     });
 
-    await expect(NewOrderPage(params("d1"))).rejects.toThrow(
-      "NEXT_REDIRECT:/admin/orders/B2401"
-    );
+    render(await NewOrderPage(params("d1")));
+
+    expect(mockRouter.replace).toHaveBeenCalledWith("/admin/orders/B2401");
   });
 
   it("falls back to the manual wizard when the draft is gone", async () => {

@@ -95,6 +95,26 @@ export function measurementsForDress(extraction: SlipExtraction, dress: string):
   return meas;
 }
 
+// UB and Bust are adjacent rows on both books, and handwriting that straddles
+// the rule between them is the single most common way the model attaches the
+// numbers to the wrong rows. UB is measured under the bust, so it is always
+// the smaller number — ub > bust means they are almost certainly swapped.
+// Flagged rather than auto-corrected: the admin has the photo in front of
+// them, and a rare genuine reading must not be silently rewritten.
+export function ubBustWarning(meas: GarmentMeasurements | null): string | null {
+  const pair =
+    meas?.type === "blouse"
+      ? { ub: meas.ub, bust: meas.bust }
+      : meas?.type === "salwar"
+        ? { ub: meas.top.ub, bust: meas.top.bust }
+        : null;
+  if (!pair) return null;
+  const ub = parseFloat(pair.ub);
+  const bust = parseFloat(pair.bust);
+  if (!Number.isFinite(ub) || !Number.isFinite(bust) || ub <= bust) return null;
+  return `UB (${pair.ub}) is larger than Bust (${pair.bust}) — these two rows sit next to each other on the slip and are easy to read the wrong way round. Check the photo.`;
+}
+
 // Fuzzy match of a handwritten/printed particulars label against the app's
 // preset row names — tolerates case, punctuation and one-or-two-letter
 // spelling drift ("Sareefalls Piko" vs "Sareesfalls Piko").
@@ -273,6 +293,10 @@ export function normalizeExtraction(extraction: SlipExtraction, now: Date = new 
     warnings.push(`Verify phone number ${phone} against the photo.`);
   }
 
+  const meas = dress ? measurementsForDress(extraction, dress) : null;
+  const ubBust = ubBustWarning(meas);
+  if (ubBust) warnings.push(ubBust);
+
   const lowMeasurements = extraction.measurements
     .filter((f) => f.confidence === "low" && (f.value || f.note))
     .map((f) => labelForKey(f.key));
@@ -325,7 +349,7 @@ export function normalizeExtraction(extraction: SlipExtraction, now: Date = new 
       dress,
       name,
       phone,
-      meas: dress ? measurementsForDress(extraction, dress) : null,
+      meas,
       notes,
       lineItems,
       advance,

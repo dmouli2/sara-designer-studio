@@ -16,6 +16,17 @@ describe("emptySalwar", () => {
 });
 
 describe("SalwarMeasurementForm", () => {
+  // Same rule as the blouse book: UB is printed above B (Bust) and is always
+  // the smaller number, so the form has to read in that order too.
+  it("orders the top rows as the printed slip does, with UB above Bust", () => {
+    render(<SalwarMeasurementForm value={emptySalwar()} onChange={() => {}} />);
+    const labels = screen.getAllByRole("spinbutton").map((input) => input.getAttribute("aria-label"));
+    expect(labels).toEqual([
+      "Length", "Shoulder", "HS", "S.L", "TLCS", "AH",
+      "UB", "Bust", "Waist", "Hip", "FN / NR", "BN",
+    ]);
+  });
+
   it("shows the top-measurement tab by default, without Height or the dropped O.Shalwar/L.Shalwar", () => {
     render(<SalwarMeasurementForm value={emptySalwar()} onChange={() => {}} />);
     expect(screen.getByText("TLCS")).toBeInTheDocument();

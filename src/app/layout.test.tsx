@@ -15,7 +15,8 @@ describe("RootLayout", () => {
   it("declares an absolute-URL base and the Sara logo as the social link-preview image", () => {
     // WhatsApp only honours absolute og:image URLs — metadataBase makes the
     // relative image path resolve against the production origin.
-    expect(metadata.metadataBase?.origin).toBe("https://sara-designer-studio.vercel.app");
+    // metadataBase is typed `string | URL`; this app sets a URL.
+    expect(new URL(metadata.metadataBase!).origin).toBe("https://sara-designer-studio.vercel.app");
     expect(metadata.openGraph?.images).toEqual([
       { url: "/icon-512.png", width: 512, height: 512, alt: "Sara Designer Studio" },
     ]);
