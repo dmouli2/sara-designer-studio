@@ -62,9 +62,101 @@ const ordersWithStaffAndDates: Order[] = [
   }),
 ];
 
+const mixedBooks: Order[] = [
+  order({ id: "B2505", dress: "Blouse", customer: "Priya",   status: "new",     due: "2999-01-01" }),
+  order({ id: "B2504", dress: "Blouse", customer: "Dharshini", status: "cutting", due: "2999-01-01" }),
+  order({ id: "S2202", dress: "Salwar", customer: "Lavanya", status: "new",     due: "2999-01-01" }),
+  order({ id: "S2201", dress: "Salwar", customer: "Kavya",   status: "ready",   due: "2999-01-01" }),
+];
+
 describe("OrdersBody", () => {
   beforeEach(() => {
     vi.mocked(getOrders).mockReset();
+  });
+
+  describe("Blouse / Salwar tabs", () => {
+    // The shop runs two separate order books (S… / B…), so the list splits
+    // the same way. The tabs compose with the status chips and the search
+    // box rather than replacing them.
+    it("shows every book under All, with a count on each tab", () => {
+      render(<OrdersBody initialOrders={mixedBooks} />);
+
+      expect(screen.getByRole("tab", { name: /All/ })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByRole("tab", { name: /All/ })).toHaveTextContent("4");
+      expect(screen.getByRole("tab", { name: /Blouse/ })).toHaveTextContent("2");
+      expect(screen.getByRole("tab", { name: /Salwar/ })).toHaveTextContent("2");
+      expect(screen.getByText("B2505")).toBeInTheDocument();
+      expect(screen.getByText("S2201")).toBeInTheDocument();
+    });
+
+    it("narrows to one book when its tab is selected", async () => {
+      const user = userEvent.setup();
+      render(<OrdersBody initialOrders={mixedBooks} />);
+
+      await user.click(screen.getByRole("tab", { name: /Salwar/ }));
+
+      expect(screen.getByText("S2202")).toBeInTheDocument();
+      expect(screen.getByText("S2201")).toBeInTheDocument();
+      expect(screen.queryByText("B2505")).not.toBeInTheDocument();
+      expect(screen.queryByText("B2504")).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("tab", { name: /Blouse/ }));
+
+      expect(screen.getByText("B2505")).toBeInTheDocument();
+      expect(screen.queryByText("S2201")).not.toBeInTheDocument();
+    });
+
+    it("composes with the status chips", async () => {
+      const user = userEvent.setup();
+      render(<OrdersBody initialOrders={mixedBooks} />);
+
+      await user.click(screen.getByRole("tab", { name: /Blouse/ }));
+      await user.click(screen.getByRole("button", { name: "New" }));
+
+      expect(screen.getByText("B2505")).toBeInTheDocument();
+      expect(screen.queryByText("B2504")).not.toBeInTheDocument(); // cutting
+      expect(screen.queryByText("S2202")).not.toBeInTheDocument(); // salwar + new
+    });
+
+    // A count that disagrees with the list it opens is worse than no count,
+    // so each tab counts what tapping it would actually show.
+    it("recounts the tabs against the active status filter and search", async () => {
+      const user = userEvent.setup();
+      render(<OrdersBody initialOrders={mixedBooks} />);
+
+      await user.click(screen.getByRole("button", { name: "New" }));
+
+      expect(screen.getByRole("tab", { name: /All/ })).toHaveTextContent("2");
+      expect(screen.getByRole("tab", { name: /Blouse/ })).toHaveTextContent("1");
+      expect(screen.getByRole("tab", { name: /Salwar/ })).toHaveTextContent("1");
+
+      await user.type(screen.getByLabelText("Search orders"), "Lavanya");
+
+      expect(screen.getByRole("tab", { name: /Blouse/ })).toHaveTextContent("0");
+      expect(screen.getByRole("tab", { name: /Salwar/ })).toHaveTextContent("1");
+    });
+
+    it("names the book in the empty state", async () => {
+      const user = userEvent.setup();
+      render(<OrdersBody initialOrders={[order({ id: "B1", dress: "Blouse", due: "2999-01-01" })]} />);
+
+      await user.click(screen.getByRole("tab", { name: /Salwar/ }));
+
+      expect(screen.getByText("No Salwar orders found")).toBeInTheDocument();
+    });
+
+    // An order whose dress is neither (legacy rows) must stay reachable.
+    it("keeps an order of some other dress type visible under All", async () => {
+      const user = userEvent.setup();
+      render(<OrdersBody initialOrders={[order({ id: "X1", dress: "Lehenga", due: "2999-01-01" })]} />);
+
+      expect(screen.getByText("X1")).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: /All/ })).toHaveTextContent("1");
+      expect(screen.getByRole("tab", { name: /Blouse/ })).toHaveTextContent("0");
+
+      await user.click(screen.getByRole("tab", { name: /Blouse/ }));
+      expect(screen.queryByText("X1")).not.toBeInTheDocument();
+    });
   });
 
   it("shows all orders under the All filter", () => {
