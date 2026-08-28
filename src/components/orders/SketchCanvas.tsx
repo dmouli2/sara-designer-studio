@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useLayoutEffect, useState } from "react";
 import { Eraser, Pencil, Undo2, Redo2, Trash2, Maximize2, Minimize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -50,10 +50,24 @@ function ToolButton({
   );
 }
 
+// Pen and eraser widths are given in CSS pixels and multiplied up by the
+// bitmap's pixel scale, so the stroke feels identical whether you are drawing
+// in the small inline box or filling an iPad.
+const PEN_WIDTH_CSS_PX = 2.5;
+const ERASER_WIDTH_CSS_PX = 20;
+
+// Caps the backing bitmap. A phone at 3x DPR would otherwise allocate a
+// bitmap big enough to push the sketch PNG past the order's photo payload
+// budget (MAX_PHOTO_PAYLOAD_BYTES in src/lib/image.ts).
+const MAX_BITMAP_DIMENSION = 1600;
+
 export default function SketchCanvas({ value, onChange }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const boxRef    = useRef<HTMLDivElement>(null);
   const drawing   = useRef(false);
   const lastPos   = useRef<{ x: number; y: number } | null>(null);
+  // Bitmap pixels per CSS pixel — set by the sizing effect below.
+  const pixelScale = useRef(1);
   const [hasStrokes, setHasStrokes] = useState(!!value);
   const [tool, setTool]             = useState<"pen" | "eraser">("pen");
   const [fullscreen, setFullscreen] = useState(false);
@@ -65,13 +79,72 @@ export default function SketchCanvas({ value, onChange }: Props) {
     restoreCanvas(canvasRef.current, value);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The backing bitmap follows the box the canvas is actually displayed in.
+  //
+  // It used to be a fixed 800x480 with the aspect ratio locked to 5:3, which
+  // meant "fullscreen" letterboxed the drawing surface into a band across the
+  // middle of a tall phone — most of the screen was unusable. Matching the
+  // bitmap to the box makes fullscreen genuinely full on any device and any
+  // orientation, and keeps one bitmap pixel square so strokes never stretch.
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    const canvas = canvasRef.current;
+    if (!box || !canvas) return;
+
+    function resize() {
+      const el = boxRef.current;
+      const c = canvasRef.current;
+      if (!el || !c) return;
+      const rect = el.getBoundingClientRect();
+      // jsdom and a display:none parent both report 0 — nothing to size to.
+      if (rect.width < 1 || rect.height < 1) return;
+
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const cap = Math.min(1, MAX_BITMAP_DIMENSION / (Math.max(rect.width, rect.height) * dpr));
+      const scale = dpr * cap;
+      const width = Math.round(rect.width * scale);
+      const height = Math.round(rect.height * scale);
+      if (c.width === width && c.height === height) return;
+
+      // Resizing a canvas clears it, so carry the drawing across.
+      const previous = c.width && c.height ? c.toDataURL("image/png") : null;
+      c.width = width;
+      c.height = height;
+      pixelScale.current = scale;
+      if (previous) restoreCanvas(c, previous);
+    }
+
+    resize();
+    // ResizeObserver catches the fullscreen toggle and rotation; the window
+    // listener is the fallback where it isn't implemented.
+    const observer = typeof ResizeObserver === "function" ? new ResizeObserver(resize) : null;
+    observer?.observe(box);
+    window.addEventListener("resize", resize);
+    window.addEventListener("orientationchange", resize);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("orientationchange", resize);
+    };
+  }, []);
+
+  // Draws a saved sketch scaled to fit inside the current bitmap, centred and
+  // without distortion. Contained rather than stretched because the bitmap's
+  // aspect ratio changes with the box: going fullscreen should give the
+  // drawing more room around it, never squash what is already there.
   function restoreCanvas(canvas: HTMLCanvasElement, dataUrl: string | null) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    ctx.globalCompositeOperation = "source-over";
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (!dataUrl) return;
     const img = new Image();
-    img.onload = () => ctx.drawImage(img, 0, 0);
+    img.onload = () => {
+      const fit = Math.min(canvas.width / img.width, canvas.height / img.height) || 1;
+      const w = img.width * fit;
+      const h = img.height * fit;
+      ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+    };
     img.src = dataUrl;
   }
 
@@ -112,11 +185,11 @@ export default function SketchCanvas({ value, onChange }: Props) {
     ctx.lineTo(pos.x, pos.y);
     if (tool === "eraser") {
       ctx.globalCompositeOperation = "destination-out";
-      ctx.lineWidth = 20;
+      ctx.lineWidth = ERASER_WIDTH_CSS_PX * pixelScale.current;
     } else {
       ctx.globalCompositeOperation = "source-over";
       ctx.strokeStyle = "#1a1a1a";
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = PEN_WIDTH_CSS_PX * pixelScale.current;
     }
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -170,7 +243,13 @@ export default function SketchCanvas({ value, onChange }: Props) {
   // fullscreen toggle (only wrapper classNames change) — swapping between
   // two separate <canvas> elements would remount it and lose the drawing.
   return (
-    <div className={fullscreen ? "fixed inset-0 z-50 bg-[#0F0F0F] flex flex-col" : "space-y-2"}>
+    <div
+      className={
+        fullscreen
+          ? "fixed inset-0 z-50 bg-[#0F0F0F] flex flex-col pb-[env(safe-area-inset-bottom)]"
+          : "space-y-2"
+      }
+    >
       <div className={cn("flex items-center gap-1.5 flex-wrap", fullscreen && "px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3")}>
         <ToolButton dark={fullscreen} active={tool === "pen"} onClick={() => setTool("pen")} label="Pen">
           <Pencil size={16} />
@@ -195,23 +274,27 @@ export default function SketchCanvas({ value, onChange }: Props) {
         </ToolButton>
       </div>
 
+      {/* The canvas fills this box exactly, and the sizing effect above keeps
+          the bitmap the same shape — so fullscreen is the whole screen, not a
+          5:3 band floating in the middle of it. Inline keeps the compact 5:3
+          preview window. */}
       <div
+        ref={boxRef}
         className={
           fullscreen
-            ? "flex-1 flex items-center justify-center p-4 overflow-hidden"
+            ? "flex-1 min-h-0 w-full bg-white overflow-hidden"
             : "relative rounded-2xl border-2 border-dashed border-[#E5E0D5] bg-white overflow-hidden"
         }
+        style={fullscreen ? undefined : { aspectRatio: "5/3" }}
       >
         <canvas
           ref={canvasRef}
           width={800}
           height={480}
           className={cn(
-            "touch-none",
-            tool === "eraser" ? "cursor-cell" : "cursor-crosshair",
-            fullscreen ? "max-w-full max-h-full w-auto h-auto bg-white rounded-xl" : "w-full"
+            "touch-none block w-full h-full",
+            tool === "eraser" ? "cursor-cell" : "cursor-crosshair"
           )}
-          style={fullscreen ? { aspectRatio: "5/3" } : { aspectRatio: "5/3" }}
           onMouseDown={startDraw}
           onMouseMove={draw}
           onMouseUp={stopDraw}
