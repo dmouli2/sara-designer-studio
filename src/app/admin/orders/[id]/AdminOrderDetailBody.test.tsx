@@ -44,8 +44,10 @@ function order(overrides: Partial<Order>): Order {
   };
 }
 
-function renderBody(o: Order) {
-  return render(<AdminOrderDetailBody order={o} masters={MASTERS} tailors={TAILORS} />);
+function renderBody(o: Order, shareToken: string | null = "tok-abc123") {
+  return render(
+    <AdminOrderDetailBody order={o} masters={MASTERS} tailors={TAILORS} shareToken={shareToken} />
+  );
 }
 
 describe("AdminOrderDetailBody", () => {
@@ -424,4 +426,56 @@ describe("AdminOrderDetailBody", () => {
       expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save the change");
     });
   });
+
+  describe("sharing the status with the customer", () => {
+    // Sharing used to be possible only on the success modal right after
+    // placing an order; the admin can now re-send an update at any point.
+    it("opens WhatsApp with the customer's number and a status update", async () => {
+      const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+      const user = userEvent.setup();
+      renderBody(order({ id: "B2505", customer: "Dharshini", phone: "9876543210", status: "stitching" }));
+
+      await user.click(screen.getByText("Share status with customer"));
+
+      expect(openSpy).toHaveBeenCalledTimes(1);
+      const [url, target] = openSpy.mock.calls[0];
+      expect(url).toContain("https://wa.me/919876543210");
+      const text = decodeURIComponent(url as string);
+      expect(text).toContain("update on your order B2505");
+      expect(text).toContain("Status: Stitching in progress");
+      expect(text).toContain("/track/tok-abc123");
+      expect(target).toBe("_blank");
+      openSpy.mockRestore();
+    });
+
+    it("changes nothing about the order — no action is called", async () => {
+      const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+      const user = userEvent.setup();
+      renderBody(order({ status: "cutting" }));
+
+      await user.click(screen.getByText("Share status with customer"));
+
+      expect(updateOrderStatus).not.toHaveBeenCalled();
+      expect(assignMaster).not.toHaveBeenCalled();
+      expect(assignTailor).not.toHaveBeenCalled();
+      openSpy.mockRestore();
+    });
+
+    it("is available all the way through to delivered", () => {
+      renderBody(order({ status: "delivered" }));
+      expect(screen.getByText("Share status with customer")).toBeInTheDocument();
+    });
+
+    it("is hidden for a cancelled order", () => {
+      renderBody(order({ status: "cancelled", cancellationCharge: 500 }));
+      expect(screen.queryByText("Share status with customer")).not.toBeInTheDocument();
+    });
+
+    // Rather than sending a link that would 404 on the customer's phone.
+    it("is hidden when the order has no tracking token", () => {
+      renderBody(order({ status: "ready" }), null);
+      expect(screen.queryByText("Share status with customer")).not.toBeInTheDocument();
+    });
+  });
+
 });

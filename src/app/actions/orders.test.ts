@@ -5,6 +5,7 @@ import { getImageStorage } from "@/lib/storage";
 import {
   getOrders,
   getOrder,
+  getOrderShareToken,
   createOrder,
   updateOrder,
   assignMaster,
@@ -102,6 +103,7 @@ function photosForm(entries?: { sketch?: File; reference?: File[]; material?: Fi
 describe("orders actions", () => {
   const list = vi.fn();
   const findById = vi.fn();
+const findPublicToken = vi.fn();
   const create = vi.fn();
   const update = vi.fn();
   const updateStatus = vi.fn();
@@ -127,7 +129,7 @@ describe("orders actions", () => {
     vi.mocked(requireRole).mockResolvedValue({ staffId: "a1", username: "admin", role: "admin", name: "Admin" });
     vi.mocked(getDb).mockReturnValue({
       staff: {},
-      orders: { list, findById, create, update, updateStatus, delete: deleteFn, nextOrderId },
+      orders: { list, findById, findPublicToken, create, update, updateStatus, delete: deleteFn, nextOrderId },
     } as never);
     vi.mocked(getImageStorage).mockReturnValue({
       upload,
@@ -149,6 +151,21 @@ describe("orders actions", () => {
     const result = await getOrder("SDS-001");
     expect(findById).toHaveBeenCalledWith("SDS-001");
     expect(result).toEqual(order);
+  });
+
+  // Admin-only: the token is a bearer credential for that order's public
+  // tracking page, and master/tailor have no reason to hand it out.
+  it("getOrderShareToken requires admin and returns the tracking token", async () => {
+    findPublicToken.mockResolvedValue("tok-abc123");
+    const result = await getOrderShareToken("SDS-001");
+    expect(requireRole).toHaveBeenCalledWith(["admin"]);
+    expect(findPublicToken).toHaveBeenCalledWith("SDS-001");
+    expect(result).toBe("tok-abc123");
+  });
+
+  it("getOrderShareToken returns null for an order with no token", async () => {
+    findPublicToken.mockResolvedValue(null);
+    expect(await getOrderShareToken("SDS-001")).toBeNull();
   });
 
   it("createOrder requires admin, allocates an id from the dress category's sequence, and creates the order", async () => {

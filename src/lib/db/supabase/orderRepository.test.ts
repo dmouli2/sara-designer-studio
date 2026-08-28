@@ -296,6 +296,26 @@ describe("createSupabaseOrderRepository", () => {
     expect(result?.master).toEqual({ id: "m1", name: "Ramesh K." });
   });
 
+  // The token is deliberately not a field on Order (it would then ride in
+  // every list payload and both role queues), so it has its own narrow read.
+  it("findPublicToken returns just the token for the id", async () => {
+    mockTables({ data: { public_token: "tok-abc123" }, error: null });
+    const repo = createSupabaseOrderRepository();
+    expect(await repo.findPublicToken("SDS-001")).toBe("tok-abc123");
+  });
+
+  it("findPublicToken returns null when the order is gone", async () => {
+    mockTables({ data: null, error: null });
+    const repo = createSupabaseOrderRepository();
+    expect(await repo.findPublicToken("nope")).toBeNull();
+  });
+
+  it("findPublicToken throws the Supabase error message", async () => {
+    mockTables({ data: null, error: { message: "db down" } });
+    const repo = createSupabaseOrderRepository();
+    await expect(repo.findPublicToken("SDS-001")).rejects.toThrow("db down");
+  });
+
   it("findById maps cancellationCharge from the row", async () => {
     mockTables({ data: { ...orderRow, cancellation_charge: 500 }, error: null });
     const repo = createSupabaseOrderRepository();

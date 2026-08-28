@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import AdminOrderDetailPage from "./page";
 import { requireRole } from "@/lib/dal";
-import { getOrder } from "@/app/actions/orders";
+import { getOrder, getOrderShareToken } from "@/app/actions/orders";
 import { listStaff } from "@/app/actions/staff";
 import type { Order } from "@/types";
 
 vi.mock("@/lib/dal", () => ({ requireRole: vi.fn() }));
-vi.mock("@/app/actions/orders", () => ({ getOrder: vi.fn() }));
+vi.mock("@/app/actions/orders", () => ({ getOrder: vi.fn(), getOrderShareToken: vi.fn() }));
 vi.mock("@/app/actions/staff", () => ({ listStaff: vi.fn() }));
 
 const order: Order = {
@@ -38,6 +38,8 @@ describe("AdminOrderDetailPage", () => {
     vi.mocked(requireRole).mockReset();
     vi.mocked(requireRole).mockResolvedValue({ staffId: "a1", username: "admin", role: "admin", name: "Admin" });
     vi.mocked(getOrder).mockReset();
+    vi.mocked(getOrderShareToken).mockReset();
+    vi.mocked(getOrderShareToken).mockResolvedValue("tok-abc");
     vi.mocked(listStaff).mockReset();
     vi.mocked(listStaff).mockResolvedValue([]);
   });
@@ -51,6 +53,14 @@ describe("AdminOrderDetailPage", () => {
     expect(listStaff).toHaveBeenCalledWith({ role: "master", activeOnly: true });
     expect(listStaff).toHaveBeenCalledWith({ role: "tailor", activeOnly: true });
     expect(screen.getByText("Priya Sharma")).toBeInTheDocument();
+  });
+
+  it("fetches the tracking token so the body can share the order status", async () => {
+    vi.mocked(getOrder).mockResolvedValue(order);
+    render(await AdminOrderDetailPage({ params: Promise.resolve({ id: "AD1" }) }));
+
+    expect(getOrderShareToken).toHaveBeenCalledWith("AD1");
+    expect(screen.getByText("Share status with customer")).toBeInTheDocument();
   });
 
   it("shows 'Order not found' for an unknown id", async () => {

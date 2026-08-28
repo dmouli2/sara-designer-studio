@@ -80,9 +80,14 @@ export interface OrderRepository {
   list(filter?: OrderListFilter): Promise<Order[]>;
   findById(id: string): Promise<Order | null>;
   // Only the create response carries the freshly generated public_token —
-  // it's shown to staff once, right after placing the order, to build the
-  // WhatsApp tracking link. No other read path needs it.
+  // it's shown to staff right after placing the order, to build the WhatsApp
+  // tracking link.
   create(input: OrderWriteInput): Promise<Order & { publicToken: string }>;
+  // The tracking token on its own, for re-sharing the link from the admin
+  // detail screen long after placement. Deliberately not a field on Order:
+  // that would carry every customer's token into the orders list and both
+  // role queues, which have no use for it.
+  findPublicToken(id: string): Promise<string | null>;
   update(id: string, patch: OrderUpdateInput): Promise<Order>;
   updateStatus(id: string, status: OrderStatus, extra?: OrderUpdateInput): Promise<Order>;
   delete(id: string): Promise<void>;

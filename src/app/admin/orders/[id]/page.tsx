@@ -1,5 +1,5 @@
 import { requireRole } from "@/lib/dal";
-import { getOrder } from "@/app/actions/orders";
+import { getOrder, getOrderShareToken } from "@/app/actions/orders";
 import { listStaff } from "@/app/actions/staff";
 import AdminOrderDetailBody from "./AdminOrderDetailBody";
 
@@ -7,10 +7,14 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
   await requireRole(["admin"]);
   const { id } = await params;
 
-  const [order, masters, tailors] = await Promise.all([
+  // The tracking token rides along so "Share status" is instant and can't
+  // fail mid-tap; it is never part of Order (see findPublicToken's comment
+  // in src/lib/db/types.ts).
+  const [order, masters, tailors, shareToken] = await Promise.all([
     getOrder(id),
     listStaff({ role: "master", activeOnly: true }),
     listStaff({ role: "tailor", activeOnly: true }),
+    getOrderShareToken(id),
   ]);
 
   if (!order) {
@@ -21,5 +25,7 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
     );
   }
 
-  return <AdminOrderDetailBody order={order} masters={masters} tailors={tailors} />;
+  return (
+    <AdminOrderDetailBody order={order} masters={masters} tailors={tailors} shareToken={shareToken} />
+  );
 }

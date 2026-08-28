@@ -73,6 +73,14 @@ export async function getOrder(id: string): Promise<Order | null> {
   return getDb().orders.findById(id);
 }
 
+// The customer tracking token, for re-sharing the link from the admin detail
+// screen. Admin-only on purpose: it is a bearer credential for that order's
+// public page, and master/tailor have no reason to hand it out.
+export async function getOrderShareToken(id: string): Promise<string | null> {
+  await requireRole(["admin"]);
+  return getDb().orders.findPublicToken(id);
+}
+
 // `photos` carries the images as multipart Files under the fields "sketch"
 // (at most one), "reference" and "material" (repeated) — see the transport
 // note on fileToDataUrl above for why they must not ride inside `input`.

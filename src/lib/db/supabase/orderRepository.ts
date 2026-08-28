@@ -272,6 +272,17 @@ export function createSupabaseOrderRepository(): OrderRepository {
       return { ...order, publicToken: row.public_token };
     },
 
+    // Just the token — no images resolved, no staff embeds, no measurements.
+    async findPublicToken(id: string) {
+      const { data, error } = await getSupabaseClient()
+        .from("orders")
+        .select("public_token")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return (data as { public_token: string } | null)?.public_token ?? null;
+    },
+
     async update(id: string, patch: OrderUpdateInput) {
       const { data, error } = await getSupabaseClient()
         .from("orders")

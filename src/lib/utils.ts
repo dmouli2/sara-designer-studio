@@ -106,6 +106,54 @@ export function buildOrderWhatsAppMessage(details: OrderShareDetails): string {
   ].join("\n");
 }
 
+// Customer-facing wording for each pipeline stage. The internal labels
+// ("Cutting Done", "Hemming & Hook") are workshop shorthand — what goes to a
+// customer's phone should read like an update, not a job-card field.
+export const CUSTOMER_STATUS_LABELS: Record<OrderStatus, string> = {
+  new:          "Order received",
+  cutting:      "Cutting in progress",
+  cutting_done: "Cutting completed",
+  stitching:    "Stitching in progress",
+  hemming_hook: "Hemming & hooks in progress",
+  ready:        "Ready for pickup",
+  delivered:    "Delivered",
+  cancelled:    "Cancelled",
+};
+
+export interface OrderStatusShareDetails {
+  orderId: string;
+  customer: string;
+  dress: string;
+  status: OrderStatus;
+  total: number;
+  advance: number;
+  due: string;
+  trackingUrl: string;
+}
+
+// A short progress update the admin can send at any point in the order's
+// life. Deliberately much shorter than buildOrderWhatsAppMessage: that one
+// is the receipt sent once at placement and carries the full terms, this one
+// is a nudge the customer may receive several times, so it stays to the
+// status, the date, what's owed and the link.
+export function buildOrderStatusWhatsAppMessage(details: OrderStatusShareDetails): string {
+  const balance = details.total - details.advance;
+  const isReady = details.status === "ready";
+  return [
+    isReady
+      ? `Hi ${details.customer}, good news — your order ${details.orderId} (${details.dress}) is ready for pickup at Sara Designer Studio!`
+      : `Hi ${details.customer}, here's an update on your order ${details.orderId} (${details.dress}) at Sara Designer Studio.`,
+    "",
+    `Status: ${CUSTOMER_STATUS_LABELS[details.status]}`,
+    `Delivery date: ${formatDate(details.due)}`,
+    balance > 0 ? `Balance due: ${formatCurrency(balance)}` : "Fully paid — thank you!",
+    "",
+    `Track your order here: ${details.trackingUrl}`,
+    "",
+    "Thank you for choosing us!",
+  ].join("\n");
+}
+
 // wa.me link the staff member taps "Send" on — not an automated API send.
 export function buildWhatsAppShareUrl(phone: string, message: string): string {
   const digits = toIndianMobileDigits(phone);

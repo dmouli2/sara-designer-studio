@@ -9,7 +9,9 @@ import {
   isValidIndianMobile,
   toIndianMobileDigits,
   buildOrderWhatsAppMessage,
+  buildOrderStatusWhatsAppMessage,
   buildWhatsAppShareUrl,
+  CUSTOMER_STATUS_LABELS,
   ORDER_TERMS,
 } from "./utils";
 
@@ -255,6 +257,60 @@ describe("buildOrderWhatsAppMessage", () => {
     expect(ORDER_TERMS).toContain(
       "We kindly request your understanding that once an order has been placed, modifications to it will not be possible."
     );
+  });
+});
+
+describe("buildOrderStatusWhatsAppMessage", () => {
+  const base = {
+    orderId: "B2505",
+    customer: "Dharshini",
+    dress: "Blouse",
+    total: 6000,
+    advance: 2000,
+    due: "2026-09-04",
+    trackingUrl: "https://sara.example/track/tok-1",
+  } as const;
+
+  it("reads as a progress update with status, date, balance and the link", () => {
+    const message = buildOrderStatusWhatsAppMessage({ ...base, status: "stitching" });
+
+    expect(message).toContain("Hi Dharshini, here's an update on your order B2505 (Blouse)");
+    expect(message).toContain("Status: Stitching in progress");
+    expect(message).toContain("Delivery date: 4 Sept 2026");
+    expect(message).toContain("Balance due: ₹4,000");
+    expect(message).toContain("https://sara.example/track/tok-1");
+  });
+
+  it("leads with the pickup news when the order is ready", () => {
+    const message = buildOrderStatusWhatsAppMessage({ ...base, status: "ready" });
+    expect(message).toContain("good news — your order B2505 (Blouse) is ready for pickup");
+    expect(message).toContain("Status: Ready for pickup");
+  });
+
+  it("says fully paid instead of a balance when nothing is owed", () => {
+    const message = buildOrderStatusWhatsAppMessage({ ...base, advance: 6000, status: "ready" });
+    expect(message).toContain("Fully paid");
+    expect(message).not.toContain("Balance due");
+  });
+
+  it("treats an overpayment as fully paid rather than a negative balance", () => {
+    const message = buildOrderStatusWhatsAppMessage({ ...base, advance: 7000, status: "ready" });
+    expect(message).toContain("Fully paid");
+    expect(message).not.toMatch(/₹-|-₹/); // never a negative balance
+  });
+
+  // It is sent repeatedly, unlike the placement receipt — the terms would
+  // make it unreadable on a phone.
+  it("stays short: no order terms, unlike the placement message", () => {
+    const message = buildOrderStatusWhatsAppMessage({ ...base, status: "cutting" });
+    expect(message).not.toContain("No bargaining");
+    expect(message.split("\n").length).toBeLessThan(12);
+  });
+
+  it("uses customer wording for every status, never the workshop shorthand", () => {
+    expect(CUSTOMER_STATUS_LABELS.cutting_done).toBe("Cutting completed");
+    expect(CUSTOMER_STATUS_LABELS.hemming_hook).toBe("Hemming & hooks in progress");
+    expect(Object.values(CUSTOMER_STATUS_LABELS)).not.toContain("Cutting Done");
   });
 });
 

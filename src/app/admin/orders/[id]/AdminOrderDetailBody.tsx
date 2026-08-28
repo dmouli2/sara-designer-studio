@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Ban, Pencil } from "lucide-react";
+import { Trash2, Ban, Pencil, MessageCircle } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/orders/StatusBadge";
 import MeasurementGrid from "@/components/orders/MeasurementGrid";
@@ -13,7 +13,12 @@ import ConfirmDialog from "@/components/layout/ConfirmDialog";
 import Toast from "@/components/layout/Toast";
 import CancelOrderDialog from "@/components/orders/CancelOrderDialog";
 import { assignMaster, assignTailor, updateOrderStatus, cancelOrder, deleteOrder } from "@/app/actions/orders";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import {
+  formatCurrency,
+  formatDate,
+  buildOrderStatusWhatsAppMessage,
+  buildWhatsAppShareUrl,
+} from "@/lib/utils";
 import type { Order, OrderStatus } from "@/types";
 import type { StaffListItem } from "@/app/actions/staff";
 
@@ -33,9 +38,18 @@ interface Props {
   order: Order;
   masters: StaffListItem[];
   tailors: StaffListItem[];
+  // The order's customer-tracking token, supplied by the page. Null only for
+  // rows predating public tokens — the share button hides rather than
+  // sending a broken link.
+  shareToken?: string | null;
 }
 
-export default function AdminOrderDetailBody({ order: initialOrder, masters, tailors }: Props) {
+export default function AdminOrderDetailBody({
+  order: initialOrder,
+  masters,
+  tailors,
+  shareToken = null,
+}: Props) {
   const router = useRouter();
 
   const [order, setOrder] = useState(initialOrder);
@@ -50,6 +64,9 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
   const [error, setError] = useState<string | null>(null);
 
   const isCancelled = order.status === "cancelled";
+  // Re-shareable at any point in the order's life, not just at placement.
+  // Hidden for a cancelled order, where a progress update makes no sense.
+  const canShareStatus = !isCancelled && !!shareToken;
   // Delivered/cancelled orders are final records — no more edits.
   const canEdit = !isCancelled && order.status !== "delivered";
   const balance = order.amount - order.advance;
@@ -127,6 +144,24 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
     }
   }
 
+  // Opens WhatsApp with the message prefilled — the admin still taps Send.
+  // Nothing is stored and no order state changes, so this is safe to use as
+  // many times as the customer asks.
+  function handleShareStatus() {
+    if (!shareToken) return;
+    const message = buildOrderStatusWhatsAppMessage({
+      orderId: order.id,
+      customer: order.customer,
+      dress: order.dress,
+      status: order.status,
+      total: order.amount,
+      advance: order.advance,
+      due: order.due,
+      trackingUrl: `${window.location.origin}/track/${shareToken}`,
+    });
+    window.open(buildWhatsAppShareUrl(order.phone, message), "_blank");
+  }
+
   async function handleDelete() {
     setDeleting(true);
     try {
@@ -159,6 +194,17 @@ export default function AdminOrderDetailBody({ order: initialOrder, masters, tai
           <StatusBadge status={order.status} />
           <span className="text-[13px] text-[#9A9A9A]">Due {formatDate(order.due)}</span>
         </div>
+
+        {canShareStatus && (
+          <button
+            type="button"
+            onClick={handleShareStatus}
+            className="w-full flex items-center justify-center gap-2 py-3 text-[14px] font-semibold text-[#1B6B3A] border border-[#BFE3CE] bg-[#F4FBF7] rounded-xl active:scale-[0.98] transition-all"
+          >
+            <MessageCircle size={16} />
+            Share status with customer
+          </button>
+        )}
 
         {/* Order info */}
         <div className="card">
