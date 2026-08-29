@@ -27,6 +27,9 @@ const order: Order = {
   status: "new",
   amount: 4200, // 400 fabric + Blouse 1×3800
   advance: 1000,
+  advanceMethod: null,
+  finalPayment: 0,
+  finalPaymentMethod: null,
   due: "2026-07-10",
   master: null,
   tailor: null,

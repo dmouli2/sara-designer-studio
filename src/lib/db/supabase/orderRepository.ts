@@ -7,7 +7,14 @@ import type {
   OrderListFilter,
   OrderImageCleanupCandidate,
 } from "../types";
-import type { Order, OrderStatus, GarmentMeasurements, SalwarMeasurements, OrderLineItem } from "@/types";
+import type {
+  Order,
+  OrderStatus,
+  GarmentMeasurements,
+  SalwarMeasurements,
+  OrderLineItem,
+  PaymentMethod,
+} from "@/types";
 
 interface EmbeddedStaff {
   id: string;
@@ -23,6 +30,9 @@ interface OrderRow {
   status: OrderStatus;
   amount: number;
   advance: number;
+  advance_method: PaymentMethod | null;
+  final_payment: number | null;
+  final_payment_method: PaymentMethod | null;
   due: string;
   // Assigned staff arrive embedded in the same query (PostgREST join through
   // the master_id/tailor_id FKs) — no follow-up staff lookup.
@@ -47,7 +57,7 @@ const STAFF_EMBEDS =
 // the wire. material_image_urls is the one exception: it's just short
 // Storage paths (cheap), needed to resolve each row's single main-photo
 // thumbnail for the order card (see list() below).
-const LIST_COLUMNS = `id, customer, phone, dress, material, status, amount, advance, due, measurements, line_items, notes, cancellation_charge, created_at, material_image_urls, ${STAFF_EMBEDS}`;
+const LIST_COLUMNS = `id, customer, phone, dress, material, status, amount, advance, advance_method, final_payment, final_payment_method, due, measurements, line_items, notes, cancellation_charge, created_at, material_image_urls, ${STAFF_EMBEDS}`;
 
 const DETAIL_COLUMNS = `*, ${STAFF_EMBEDS}`;
 
@@ -120,6 +130,9 @@ function toOrder(row: OrderRow): Order {
     status: row.status,
     amount: row.amount,
     advance: row.advance,
+    advanceMethod: row.advance_method ?? null,
+    finalPayment: row.final_payment ?? 0,
+    finalPaymentMethod: row.final_payment_method ?? null,
     due: row.due,
     master: row.master ?? null,
     tailor: row.tailor ?? null,
@@ -177,6 +190,9 @@ function toInsertRow(input: OrderWriteInput) {
     status: input.status,
     amount: input.amount,
     advance: input.advance,
+    advance_method: input.advanceMethod,
+    final_payment: input.finalPayment,
+    final_payment_method: input.finalPaymentMethod,
     due: input.due,
     master_id: input.masterId ?? null,
     tailor_id: input.tailorId ?? null,
@@ -199,6 +215,9 @@ function toUpdateRow(patch: OrderUpdateInput): Record<string, unknown> {
   if (patch.status !== undefined) row.status = patch.status;
   if (patch.amount !== undefined) row.amount = patch.amount;
   if (patch.advance !== undefined) row.advance = patch.advance;
+  if (patch.advanceMethod !== undefined) row.advance_method = patch.advanceMethod;
+  if (patch.finalPayment !== undefined) row.final_payment = patch.finalPayment;
+  if (patch.finalPaymentMethod !== undefined) row.final_payment_method = patch.finalPaymentMethod;
   if (patch.due !== undefined) row.due = patch.due;
   if (patch.masterId !== undefined) row.master_id = patch.masterId;
   if (patch.tailorId !== undefined) row.tailor_id = patch.tailorId;

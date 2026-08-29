@@ -11,7 +11,9 @@ import {
   type Order,
   type OrderLineItem,
   type OrderStatus,
+  type PaymentMethod,
 } from "@/types";
+import { orderBalance } from "@/lib/utils";
 
 const ALL_ROLES = ["admin", "master", "tailor"] as const;
 
@@ -139,6 +141,7 @@ export interface OrderEditInput {
   material?: string;
   amount?: number;
   advance?: number;
+  advanceMethod?: PaymentMethod | null;
   due?: string;
   measurements?: GarmentMeasurements;
   lineItems?: OrderLineItem[];
@@ -146,7 +149,7 @@ export interface OrderEditInput {
 }
 
 const EDITABLE_FIELDS = [
-  "customer", "phone", "material", "amount", "advance", "due",
+  "customer", "phone", "material", "amount", "advance", "advanceMethod", "due",
   "measurements", "lineItems", "notes",
 ] as const;
 
@@ -250,7 +253,39 @@ export async function assignTailor(id: string, tailorId: string | null): Promise
 
 export async function updateOrderStatus(id: string, status: OrderStatus): Promise<Order> {
   await requireRole([...ALL_ROLES]);
+  // Delivering has to collect the balance, so it can only go through
+  // deliverOrder below. Refusing here means no caller — master, tailor, or a
+  // future screen — can hand an order over without recording the payment.
+  if (status === "delivered") {
+    throw new Error("Use deliverOrder to mark an order delivered — it must record the payment.");
+  }
   const updated = await getDb().orders.updateStatus(id, status);
+  revalidateOrderPaths(id);
+  refresh();
+  return updated;
+}
+
+// Hands the order over and settles it in one step. The balance is computed
+// server-side from the stored order rather than taken from the client, so the
+// amount recorded is always exactly what was owed.
+export async function deliverOrder(id: string, method: PaymentMethod): Promise<Order> {
+  await requireRole(["admin"]);
+  if (method !== "cash" && method !== "upi") {
+    throw new Error("Choose how the payment was made.");
+  }
+  const order = await getDb().orders.findById(id);
+  if (!order) throw new Error("Order not found.");
+  if (order.status === "cancelled") {
+    throw new Error("A cancelled order can't be delivered.");
+  }
+
+  const balance = orderBalance(order);
+  const updated = await getDb().orders.updateStatus(id, "delivered", {
+    finalPayment: order.finalPayment + balance,
+    // Nothing was collected, so there is no method to record — an order paid
+    // in full up front shouldn't claim its balance arrived as cash.
+    ...(balance > 0 ? { finalPaymentMethod: method } : {}),
+  });
   revalidateOrderPaths(id);
   refresh();
   return updated;

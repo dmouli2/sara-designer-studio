@@ -26,6 +26,9 @@ function order(overrides: Partial<Order>): Order {
     status: "new",
     amount: 1000,
     advance: 300,
+    advanceMethod: null,
+    finalPayment: 0,
+    finalPaymentMethod: null,
     due: "2026-07-20",
     master: null,
     tailor: null,
@@ -181,7 +184,31 @@ describe("computePaymentsSummary", () => {
       order({ status: "ready", amount: 2000, advance: 2000 }),
       order({ status: "cancelled", amount: 5000, advance: 1000 }),
     ];
-    expect(computePaymentsSummary(orders)).toEqual({ advanceCollected: 2300, balanceDue: 700 });
+    expect(computePaymentsSummary(orders)).toEqual({
+      advanceCollected: 2300,
+      collectedOnDelivery: 0,
+      balanceDue: 700,
+    });
+  });
+
+  // The bug this whole payment split exists to fix: a delivered order was
+  // counted as still owing its full balance forever, because nothing ever
+  // recorded the money handed over at the counter.
+  it("stops counting a delivered order as outstanding once its balance is collected", () => {
+    const orders = [
+      order({ status: "delivered", amount: 3000, advance: 500, finalPayment: 2500, finalPaymentMethod: "cash" }),
+      order({ status: "new", amount: 1000, advance: 0 }),
+    ];
+    expect(computePaymentsSummary(orders)).toEqual({
+      advanceCollected: 500,
+      collectedOnDelivery: 2500,
+      balanceDue: 1000, // only the undelivered order
+    });
+  });
+
+  it("counts the delivery payment in the report summary's pending balance too", () => {
+    const settled = order({ status: "delivered", amount: 3000, advance: 0, finalPayment: 3000 });
+    expect(computeSummary([settled]).pendingBalance).toBe(0);
   });
 });
 

@@ -1,5 +1,5 @@
 import { STATUS_LABELS } from "@/components/orders/StatusBadge";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, orderBalance } from "@/lib/utils";
 import type { Order, OrderStatus } from "@/types";
 
 // Recharts' Tooltip `formatter` passes its numeric series value through the
@@ -74,7 +74,7 @@ export function computeSummary(orders: Order[]): ReportSummary {
     ready: orders.filter((o) => o.status === "ready").length,
     delivered: orders.filter((o) => o.status === "delivered").length,
     totalRevenue: nonCancelled.reduce((sum, o) => sum + o.amount, 0),
-    pendingBalance: nonCancelled.reduce((sum, o) => sum + Math.max(o.amount - o.advance, 0), 0),
+    pendingBalance: nonCancelled.reduce((sum, o) => sum + orderBalance(o), 0),
   };
 }
 
@@ -125,7 +125,12 @@ export function computeStatusBreakdown(orders: Order[]): StatusCount[] {
 }
 
 export interface PaymentsSummary {
+  // Money in, split by when it arrived. Before delivery payments existed,
+  // balanceDue counted every delivered order as still owing, because nothing
+  // ever reduced it — the shop's outstanding figure was overstated by the
+  // whole of its delivered history.
   advanceCollected: number;
+  collectedOnDelivery: number;
   balanceDue: number;
 }
 
@@ -133,7 +138,8 @@ export function computePaymentsSummary(orders: Order[]): PaymentsSummary {
   const nonCancelled = orders.filter((o) => o.status !== "cancelled");
   return {
     advanceCollected: nonCancelled.reduce((sum, o) => sum + o.advance, 0),
-    balanceDue: nonCancelled.reduce((sum, o) => sum + Math.max(o.amount - o.advance, 0), 0),
+    collectedOnDelivery: nonCancelled.reduce((sum, o) => sum + o.finalPayment, 0),
+    balanceDue: nonCancelled.reduce((sum, o) => sum + orderBalance(o), 0),
   };
 }
 

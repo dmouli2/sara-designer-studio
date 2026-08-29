@@ -12,14 +12,24 @@ import MaterialImageGallery from "@/components/orders/MaterialImageGallery";
 import ConfirmDialog from "@/components/layout/ConfirmDialog";
 import Toast from "@/components/layout/Toast";
 import CancelOrderDialog from "@/components/orders/CancelOrderDialog";
-import { assignMaster, assignTailor, updateOrderStatus, cancelOrder, deleteOrder } from "@/app/actions/orders";
+import DeliverOrderDialog from "@/components/orders/DeliverOrderDialog";
+import {
+  assignMaster,
+  assignTailor,
+  updateOrderStatus,
+  deliverOrder,
+  cancelOrder,
+  deleteOrder,
+} from "@/app/actions/orders";
 import {
   formatCurrency,
   formatDate,
+  orderBalance,
+  PAYMENT_METHOD_LABELS,
   buildOrderStatusWhatsAppMessage,
   buildWhatsAppShareUrl,
 } from "@/lib/utils";
-import type { Order, OrderStatus } from "@/types";
+import type { Order, OrderStatus, PaymentMethod } from "@/types";
 import type { StaffListItem } from "@/app/actions/staff";
 
 // Admin can move an order to any of these directly — cancellation is
@@ -60,6 +70,8 @@ export default function AdminOrderDetailBody({
   const [deleting, setDeleting] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [deliverOpen, setDeliverOpen] = useState(false);
+  const [delivering, setDelivering] = useState(false);
   const [releasingToReady, setReleasingToReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,7 +81,7 @@ export default function AdminOrderDetailBody({
   const canShareStatus = !isCancelled && !!shareToken;
   // Delivered/cancelled orders are final records — no more edits.
   const canEdit = !isCancelled && order.status !== "delivered";
-  const balance = order.amount - order.advance;
+  const balance = orderBalance(order);
   const showTailorAssign = ["cutting", "cutting_done", "stitching", "hemming_hook", "ready", "delivered"].includes(
     order.status
   );
@@ -120,6 +132,12 @@ export default function AdminOrderDetailBody({
   }
 
   async function handleStatusChange(status: OrderStatus) {
+    // Delivering has to collect the balance first — the dialog does it, and
+    // deliverOrder is the only action that can set this status.
+    if (status === "delivered") {
+      setDeliverOpen(true);
+      return;
+    }
     setChangingStatus(true);
     try {
       const updated = await updateOrderStatus(order.id, status);
@@ -144,6 +162,19 @@ export default function AdminOrderDetailBody({
     }
   }
 
+  async function handleDeliver(method: PaymentMethod) {
+    setDelivering(true);
+    try {
+      const updated = await deliverOrder(order.id, method);
+      setOrder(updated);
+      setDeliverOpen(false);
+    } catch {
+      setError(SAVE_ERROR);
+    } finally {
+      setDelivering(false);
+    }
+  }
+
   // Opens WhatsApp with the message prefilled — the admin still taps Send.
   // Nothing is stored and no order state changes, so this is safe to use as
   // many times as the customer asks.
@@ -154,8 +185,7 @@ export default function AdminOrderDetailBody({
       customer: order.customer,
       dress: order.dress,
       status: order.status,
-      total: order.amount,
-      advance: order.advance,
+      balance,
       due: order.due,
       trackingUrl: `${window.location.origin}/track/${shareToken}`,
     });
@@ -333,8 +363,23 @@ export default function AdminOrderDetailBody({
                 </div>
               )}
               <div className="space-y-2">
-                <Row label="Order total"  value={formatCurrency(order.amount)} />
-                <Row label="Advance paid" value={formatCurrency(order.advance)} />
+                <Row label="Order total" value={formatCurrency(order.amount)} />
+                <Row
+                  label="Advance paid"
+                  value={`${formatCurrency(order.advance)}${
+                    order.advanceMethod ? ` · ${PAYMENT_METHOD_LABELS[order.advanceMethod]}` : ""
+                  }`}
+                />
+                {order.finalPayment > 0 && (
+                  <Row
+                    label="Collected on delivery"
+                    value={`${formatCurrency(order.finalPayment)}${
+                      order.finalPaymentMethod
+                        ? ` · ${PAYMENT_METHOD_LABELS[order.finalPaymentMethod]}`
+                        : " · method not recorded"
+                    }`}
+                  />
+                )}
                 <div className="flex justify-between pt-2 border-t border-[#F0EDE6] mt-1">
                   <span className="text-[15px] font-semibold">Balance due</span>
                   <span className={`text-[15px] font-bold ${balance > 0 ? "text-[#C9A84C]" : "text-[#1B6B3A]"}`}>
@@ -423,6 +468,16 @@ export default function AdminOrderDetailBody({
         pending={deleting}
         onConfirm={handleDelete}
         onCancel={() => setDeleteOpen(false)}
+      />
+
+      <DeliverOrderDialog
+        key={deliverOpen ? "deliver-open" : "deliver-closed"}
+        open={deliverOpen}
+        orderId={order.id}
+        balance={balance}
+        pending={delivering}
+        onConfirm={handleDeliver}
+        onCancel={() => setDeliverOpen(false)}
       />
 
       <CancelOrderDialog

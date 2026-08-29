@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { formatCurrency, formatDate, isOrderOverdue } from "@/lib/utils";
+import { formatCurrency, formatDate, isOrderOverdue, orderBalance } from "@/lib/utils";
 import StatusBadge from "./StatusBadge";
 import type { Order } from "@/types";
 
@@ -29,7 +29,7 @@ interface OrderCardProps {
 // line and the id never gets squeezed by it.
 export default function OrderCard({ order, onClick, className, showPrice = true }: OrderCardProps) {
   const isCancelled = order.status === "cancelled";
-  const balance = order.amount - order.advance;
+  const balance = orderBalance(order);
   const isNew = order.status === "new";
   const overdue = isOrderOverdue(order.due, order.status);
 

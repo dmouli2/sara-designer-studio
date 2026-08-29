@@ -13,7 +13,7 @@ import { LINE_ITEM_PRESETS, lineItemCategoryForDress } from "@/lib/mock";
 import { formatCurrency, isValidIndianMobile } from "@/lib/utils";
 import { galleryEntryToFile, MAX_PHOTO_PAYLOAD_BYTES } from "@/lib/image";
 import { updateOrder, type OrderEditInput } from "@/app/actions/orders";
-import type { GarmentMeasurements, Order, OrderLineItem } from "@/types";
+import type { GarmentMeasurements, Order, OrderLineItem, PaymentMethod } from "@/types";
 
 // The stored order only carries the items that were actually ordered —
 // overlay them on the dress-category presets so the admin can also add an
@@ -50,6 +50,10 @@ export default function EditOrderForm({ order }: { order: Order }) {
   const [notes, setNotes]       = useState(order.notes);
   const [due, setDue]           = useState(order.due?.slice(0, 10) ?? "");
   const [advance, setAdvance]   = useState(String(order.advance));
+  // Starts as whatever the order actually has — null for one taken before
+  // methods were captured. Defaulting to "cash" here would silently rewrite
+  // every legacy order's history the first time someone opened this form.
+  const [advanceMethod, setAdvanceMethod] = useState<PaymentMethod | null>(order.advanceMethod);
   const [lineItems, setLineItems] = useState<OrderLineItem[]>(() => initialLineItems(order));
   // Line-item edits move the total by their delta; the admin can still type
   // a total directly (the fabric portion isn't itemized on a stored order).
@@ -91,6 +95,10 @@ export default function EditOrderForm({ order }: { order: Order }) {
 
     const advanceNum = parseFloat(advance || "0");
     if (advanceNum !== order.advance) patch.advance = advanceNum;
+    // Method only travels when there is an advance to attribute it to; a
+    // zeroed advance clears it rather than leaving a stale "Cash".
+    const nextMethod = advanceNum > 0 ? advanceMethod : null;
+    if (nextMethod !== (order.advanceMethod ?? null)) patch.advanceMethod = nextMethod;
 
     const items = activeItemsOf(lineItems);
     if (JSON.stringify(items) !== JSON.stringify(order.lineItems)) patch.lineItems = items;
@@ -285,6 +293,23 @@ export default function EditOrderForm({ order }: { order: Order }) {
             <div>
               <label className="text-xs text-[#9A9A9A] mb-1 block">Advance collected (₹)</label>
               <input className="input" type="number" value={advance} onChange={(e) => setAdvance(e.target.value)} />
+              {parseFloat(advance || "0") > 0 && (
+                <div className="flex rounded-xl border border-[#E5E0D5] overflow-hidden bg-white mt-2">
+                  {(["cash", "upi"] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      aria-pressed={advanceMethod === m}
+                      onClick={() => setAdvanceMethod(m)}
+                      className={`flex-1 py-2.5 text-sm font-medium transition-all ${
+                        advanceMethod === m ? "bg-[#0F0F0F] text-white" : "text-[#6B6B6B]"
+                      }`}
+                    >
+                      {m === "cash" ? "Cash" : "UPI"}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <label className="text-xs text-[#9A9A9A] mb-1 block">Delivery date *</label>

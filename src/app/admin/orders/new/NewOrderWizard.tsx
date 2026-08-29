@@ -18,7 +18,7 @@ import { lineItemsForDress, measurementsForDress, normalizeExtraction } from "@/
 import { createOrder } from "@/app/actions/orders";
 import { confirmDraft } from "@/app/actions/drafts";
 import type { Fabric } from "@/lib/db/types";
-import type { GarmentMeasurements, OrderLineItem, SlipExtraction } from "@/types";
+import type { GarmentMeasurements, OrderLineItem, PaymentMethod, SlipExtraction } from "@/types";
 
 // A scanned draft being verified — everything the wizard needs to prefill
 // itself and, on success, mark the draft confirmed. Passed by page.tsx when
@@ -68,6 +68,7 @@ interface OrderDraft {
   lineItems: OrderLineItem[];
   delivery: string;
   advance: string;
+  advanceMethod?: PaymentMethod;
 }
 
 function readDraft(): OrderDraft | null {
@@ -162,13 +163,16 @@ export default function NewOrderWizard({
   );
   const [delivery, setDelivery]     = useState(scanPrefill?.delivery ?? "");
   const [advance, setAdvance]       = useState(scanPrefill?.advance ?? "");
+  // Only meaningful when an advance was actually taken — see advanceMethod below.
+  const [advanceMethod, setAdvanceMethod] = useState<PaymentMethod>("cash");
 
   const fabricCost = matSource === "shop" && fabric ? fabric.price * parseFloat(metres || "0") : 0;
   // Amount is the per-piece price, so every line contributes qty × amount —
   // qty 2 at ₹100 must total ₹200, not ₹100.
   const stitchTotal = lineItems.reduce((s, li) => s + li.qty * li.amount, 0);
   const total   = fabricCost + stitchTotal;
-  const balance = total - parseFloat(advance || "0");
+  const advanceValue = parseFloat(advance || "0") || 0;
+  const balance = total - advanceValue;
 
   // Offer a previously saved draft once, on mount. localStorage is
   // client-only, so this can't move into the useState initializer — the
@@ -205,7 +209,7 @@ export default function NewOrderWizard({
       const data: OrderDraft = {
         step, dress, name, phone, matSource,
         fabricName: fabric?.name ?? "", metres, custFabric, materialImages,
-        meas, notes, sketch, refImages, lineItems, delivery, advance,
+        meas, notes, sketch, refImages, lineItems, delivery, advance, advanceMethod,
       };
       try {
         localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
@@ -221,7 +225,7 @@ export default function NewOrderWizard({
       }
     }, DRAFT_SAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [dress, step, name, phone, matSource, fabric, metres, custFabric, materialImages, meas, notes, sketch, refImages, lineItems, delivery, advance, placedOrder, scan]);
+  }, [dress, step, name, phone, matSource, fabric, metres, custFabric, materialImages, meas, notes, sketch, refImages, lineItems, delivery, advance, advanceMethod, placedOrder, scan]);
 
   function resumeDraft() {
     if (!draft) return;
@@ -242,6 +246,7 @@ export default function NewOrderWizard({
     setLineItems(draft.lineItems);
     setDelivery(draft.delivery);
     setAdvance(draft.advance);
+    setAdvanceMethod(draft.advanceMethod ?? "cash");
     setDraft(null);
   }
 
@@ -307,7 +312,13 @@ export default function NewOrderWizard({
             : `${custFabric || "Customer fabric"} (customer)`,
           status: "new",
           amount: total,
-          advance: parseFloat(advance || "0"),
+          advance: advanceValue,
+          // No advance means no method to record — don't claim money arrived
+          // as cash when none arrived at all.
+          advanceMethod: advanceValue > 0 ? advanceMethod : null,
+          // Filled in at delivery, by deliverOrder.
+          finalPayment: 0,
+          finalPaymentMethod: null,
           due: delivery,
           masterId: null,
           tailorId: null,
@@ -692,6 +703,27 @@ export default function NewOrderWizard({
                   <label className="text-xs text-[#9A9A9A] mb-1 block">Advance collected (₹)</label>
                   <input className="input" type="number" value={advance} onChange={(e) => setAdvance(e.target.value)} />
                 </div>
+                {/* Only asked once money has actually changed hands. */}
+                {advanceValue > 0 && (
+                  <div>
+                    <label className="text-xs text-[#9A9A9A] mb-1 block">How was the advance paid?</label>
+                    <div className="flex rounded-xl border border-[#E5E0D5] overflow-hidden bg-white">
+                      {(["cash", "upi"] as const).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          aria-pressed={advanceMethod === m}
+                          onClick={() => setAdvanceMethod(m)}
+                          className={`flex-1 py-3 text-sm font-medium transition-all ${
+                            advanceMethod === m ? "bg-[#0F0F0F] text-white" : "text-[#6B6B6B]"
+                          }`}
+                        >
+                          {m === "cash" ? "Cash" : "UPI"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label className="text-xs text-[#9A9A9A] mb-1 block">Delivery date *</label>
                   <input className="input" type="date" value={delivery} onChange={(e) => setDelivery(e.target.value)} />

@@ -171,6 +171,11 @@ export interface SlipExtraction {
 
 export type DraftOrderStatus = "draft" | "confirmed" | "discarded";
 
+// The shop takes money two ways at the counter. Kept deliberately small: a
+// list that mirrors what actually happens is more useful than one that covers
+// every payment rail in existence.
+export type PaymentMethod = "cash" | "upi";
+
 export interface Order {
   id: string;
   customer: string;
@@ -179,7 +184,13 @@ export interface Order {
   material: string;
   status: OrderStatus;
   amount: number;        // total (fabric cost + Σ lineItems qty × amount)
-  advance: number;
+  // Money received, in two entries. Balance is amount - advance - finalPayment
+  // — always via orderBalance() in src/lib/utils.ts, never inline.
+  advance: number;                       // taken at placement
+  advanceMethod: PaymentMethod | null;   // null for a zero advance, or an order
+                                         // taken before methods were captured
+  finalPayment: number;                  // balance collected at delivery; 0 until then
+  finalPaymentMethod: PaymentMethod | null; // null where it was never recorded
   due: string;
   master: AssignedStaff | null;
   tailor: AssignedStaff | null;

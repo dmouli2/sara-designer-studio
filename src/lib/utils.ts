@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import type { OrderStatus } from "@/types";
+import type { Order, OrderStatus, PaymentMethod } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -106,6 +106,23 @@ export function buildOrderWhatsAppMessage(details: OrderShareDetails): string {
   ].join("\n");
 }
 
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  cash: "Cash",
+  upi: "UPI",
+};
+
+// The single definition of what an order still owes. Money arrives twice — the
+// advance at placement and the balance collected at delivery — and forgetting
+// the second term is what left every delivered order showing a balance on its
+// card and counted as outstanding in Reports. Never subtract these inline.
+//
+// Clamped at zero: an overpayment is not a negative debt.
+export function orderBalance(
+  order: Pick<Order, "amount" | "advance" | "finalPayment">
+): number {
+  return Math.max(order.amount - order.advance - order.finalPayment, 0);
+}
+
 // Customer-facing wording for each pipeline stage. The internal labels
 // ("Cutting Done", "Hemming & Hook") are workshop shorthand — what goes to a
 // customer's phone should read like an update, not a job-card field.
@@ -125,8 +142,10 @@ export interface OrderStatusShareDetails {
   customer: string;
   dress: string;
   status: OrderStatus;
-  total: number;
-  advance: number;
+  // Already computed by the caller with orderBalance() — passing total and
+  // advance would invite this builder to subtract them itself and miss the
+  // payment collected at delivery.
+  balance: number;
   due: string;
   trackingUrl: string;
 }
@@ -137,7 +156,7 @@ export interface OrderStatusShareDetails {
 // is a nudge the customer may receive several times, so it stays to the
 // status, the date, what's owed and the link.
 export function buildOrderStatusWhatsAppMessage(details: OrderStatusShareDetails): string {
-  const balance = details.total - details.advance;
+  const { balance } = details;
   const isReady = details.status === "ready";
   return [
     isReady

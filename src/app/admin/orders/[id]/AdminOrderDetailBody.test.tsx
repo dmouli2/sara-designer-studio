@@ -2,7 +2,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import AdminOrderDetailBody from "./AdminOrderDetailBody";
-import { assignMaster, assignTailor, updateOrderStatus, cancelOrder, deleteOrder } from "@/app/actions/orders";
+import {
+  assignMaster,
+  assignTailor,
+  updateOrderStatus,
+  deliverOrder,
+  cancelOrder,
+  deleteOrder,
+} from "@/app/actions/orders";
 import { mockRouter } from "../../../../../vitest.setup";
 import type { Order } from "@/types";
 import type { StaffListItem } from "@/app/actions/staff";
@@ -11,6 +18,7 @@ vi.mock("@/app/actions/orders", () => ({
   assignMaster: vi.fn(),
   assignTailor: vi.fn(),
   updateOrderStatus: vi.fn(),
+  deliverOrder: vi.fn(),
   cancelOrder: vi.fn(),
   deleteOrder: vi.fn(),
 }));
@@ -28,6 +36,9 @@ function order(overrides: Partial<Order>): Order {
     status: "new",
     amount: 4200,
     advance: 1000,
+    advanceMethod: null,
+    finalPayment: 0,
+    finalPaymentMethod: null,
     due: "2026-07-10",
     master: null,
     tailor: null,
@@ -62,6 +73,8 @@ describe("AdminOrderDetailBody", () => {
     vi.mocked(cancelOrder).mockResolvedValue(order({ status: "cancelled", cancellationCharge: 500 }));
     vi.mocked(deleteOrder).mockReset();
     vi.mocked(deleteOrder).mockResolvedValue(undefined);
+    vi.mocked(deliverOrder).mockReset();
+    vi.mocked(deliverOrder).mockResolvedValue(order({ status: "delivered" }));
   });
 
   it("shows order details, progress and payment summary", () => {
@@ -475,6 +488,92 @@ describe("AdminOrderDetailBody", () => {
     it("is hidden when the order has no tracking token", () => {
       renderBody(order({ status: "ready" }), null);
       expect(screen.queryByText("Share status with customer")).not.toBeInTheDocument();
+    });
+  });
+
+
+  describe("collecting payment on delivery", () => {
+    function statusSelect() {
+      return screen.getByText(/^Order status/).parentElement!.querySelector("select")!;
+    }
+
+    // Handing the order over is also when the balance arrives, so choosing
+    // "Delivered" opens the payment dialog instead of saving straight away.
+    it("opens the payment dialog instead of delivering immediately", async () => {
+      const user = userEvent.setup();
+      renderBody(order({ status: "ready", amount: 4200, advance: 1000 }));
+
+      await user.selectOptions(statusSelect(), "delivered");
+
+      expect(screen.getByText("Deliver order AD1")).toBeInTheDocument();
+      // Scoped to the dialog — the page's Payment card shows the same figure.
+      expect(screen.getByText("Balance to collect").parentElement).toHaveTextContent("₹3,200");
+      expect(updateOrderStatus).not.toHaveBeenCalled();
+      expect(deliverOrder).not.toHaveBeenCalled();
+    });
+
+    it("delivers with the chosen method once confirmed", async () => {
+      vi.mocked(deliverOrder).mockResolvedValue(
+        order({ status: "delivered", amount: 4200, advance: 1000, finalPayment: 3200, finalPaymentMethod: "upi" })
+      );
+      const user = userEvent.setup();
+      renderBody(order({ status: "ready", amount: 4200, advance: 1000 }));
+
+      await user.selectOptions(statusSelect(), "delivered");
+      await user.click(screen.getByText("UPI"));
+      await user.click(screen.getByText("Collect & deliver"));
+
+      expect(deliverOrder).toHaveBeenCalledWith("AD1", "upi");
+      expect(await screen.findByText("Collected on delivery")).toBeInTheDocument();
+    });
+
+    it("backing out of the dialog leaves the order untouched", async () => {
+      const user = userEvent.setup();
+      renderBody(order({ status: "ready" }));
+
+      await user.selectOptions(statusSelect(), "delivered");
+      await user.click(screen.getByText("Not yet"));
+
+      expect(screen.queryByText("Deliver order AD1")).not.toBeInTheDocument();
+      expect(deliverOrder).not.toHaveBeenCalled();
+    });
+
+    it("surfaces a failure and keeps the dialog open", async () => {
+      vi.mocked(deliverOrder).mockRejectedValue(new Error("offline"));
+      const user = userEvent.setup();
+      renderBody(order({ status: "ready", amount: 4200, advance: 1000 }));
+
+      await user.selectOptions(statusSelect(), "delivered");
+      await user.click(screen.getByText("Cash"));
+      await user.click(screen.getByText("Collect & deliver"));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save the change");
+      expect(screen.getByText("Deliver order AD1")).toBeInTheDocument();
+    });
+
+    it("shows both payments with their methods on a settled order", () => {
+      renderBody(
+        order({
+          status: "delivered",
+          amount: 4200,
+          advance: 1000,
+          advanceMethod: "cash",
+          finalPayment: 3200,
+          finalPaymentMethod: "upi",
+        })
+      );
+      expect(screen.getByText("₹1,000 · Cash")).toBeInTheDocument();
+      expect(screen.getByText("₹3,200 · UPI")).toBeInTheDocument();
+    });
+
+    // The 11 orders delivered before this feature existed were settled by the
+    // migration, but their method is genuinely unknown — say so rather than
+    // inventing one.
+    it("says the method wasn't recorded for an order settled by the backfill", () => {
+      renderBody(
+        order({ status: "delivered", amount: 1000, advance: 0, finalPayment: 1000, finalPaymentMethod: null })
+      );
+      expect(screen.getByText("₹1,000 · method not recorded")).toBeInTheDocument();
     });
   });
 

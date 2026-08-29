@@ -359,6 +359,11 @@ describe("NewOrderWizard", () => {
     // Cotton fabric 120 × 2m + Blouse 1×1500 + Lining Blouse 2×100.
     expect(submitted.amount).toBe(240 + 1500 + 200);
     expect(submitted.advance).toBe(500);
+    // Cash is the default and the picker sits right under the field.
+    expect(submitted.advanceMethod).toBe("cash");
+    // Delivery money is only ever recorded by deliverOrder.
+    expect(submitted.finalPayment).toBe(0);
+    expect(submitted.finalPaymentMethod).toBeNull();
     expect(submitted.masterId).toBeNull();
     expect(submitted.tailorId).toBeNull();
     expect(submitted.lineItems).toEqual([
@@ -823,4 +828,55 @@ describe("NewOrderWizard", () => {
       expect(await screen.findByText("Order placed successfully!")).toBeInTheDocument();
     });
   });
+
+  describe("advance payment method", () => {
+    it("only asks how the advance was paid once an advance is entered", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await chooseOrderType(user);
+      await fillStep1AndAdvance(user, container);
+      await user.click(screen.getByText("Next: Pricing →"));
+
+      expect(screen.queryByText("How was the advance paid?")).not.toBeInTheDocument();
+
+      const advanceInput = screen.getByText("Advance collected (₹)").parentElement!.querySelector("input")!;
+      await user.type(advanceInput, "500");
+
+      expect(screen.getByText("How was the advance paid?")).toBeInTheDocument();
+    });
+
+    it("records UPI when chosen", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await chooseOrderType(user);
+      await fillStep1AndAdvance(user, container);
+      await user.click(screen.getByText("Next: Pricing →"));
+      await user.type(
+        screen.getByText("Advance collected (₹)").parentElement!.querySelector("input")!,
+        "500"
+      );
+      await user.click(screen.getByText("UPI"));
+      await fillDeliveryDate(user);
+      await user.click(screen.getByText("✓ Confirm & Place Order"));
+
+      const [submitted] = vi.mocked(createOrder).mock.calls[0];
+      expect(submitted.advanceMethod).toBe("upi");
+    });
+
+    // No money changed hands, so there is no method to attribute.
+    it("records no method when no advance was taken", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await chooseOrderType(user);
+      await fillStep1AndAdvance(user, container);
+      await user.click(screen.getByText("Next: Pricing →"));
+      await fillDeliveryDate(user);
+      await user.click(screen.getByText("✓ Confirm & Place Order"));
+
+      const [submitted] = vi.mocked(createOrder).mock.calls[0];
+      expect(submitted.advance).toBe(0);
+      expect(submitted.advanceMethod).toBeNull();
+    });
+  });
+
 });

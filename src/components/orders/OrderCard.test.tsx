@@ -13,6 +13,9 @@ const baseOrder: Order = {
   status: "cutting",
   amount: 4200,
   advance: 1000,
+  advanceMethod: null,
+  finalPayment: 0,
+  finalPaymentMethod: null,
   // Far future so the shared fixture is never incidentally "overdue" — the
   // overdue tests below set their own past date.
   due: "2099-07-10",
@@ -114,6 +117,28 @@ describe("OrderCard", () => {
     render(<OrderCard order={order} />);
     expect(screen.getByText("₹1,800")).toBeInTheDocument();
     expect(screen.queryByText(/^Bal/)).not.toBeInTheDocument();
+  });
+
+  // Delivered orders used to keep showing a balance forever, because nothing
+  // recorded the money collected at hand-over.
+  it("stops showing a balance once the delivery payment settles the order", () => {
+    const order: Order = {
+      ...baseOrder,
+      status: "delivered",
+      amount: 4200,
+      advance: 1000,
+      finalPayment: 3200,
+      finalPaymentMethod: "cash",
+    };
+    render(<OrderCard order={order} />);
+    expect(screen.getByText("₹4,200")).toBeInTheDocument();
+    expect(screen.queryByText(/^Bal/)).not.toBeInTheDocument();
+  });
+
+  it("still shows what is left when only part of the balance came in", () => {
+    const order: Order = { ...baseOrder, amount: 4200, advance: 1000, finalPayment: 1200 };
+    render(<OrderCard order={order} />);
+    expect(screen.getByText("Bal ₹2,000")).toBeInTheDocument();
   });
 
   it("strikes through the original amount and shows the cancellation charge for a cancelled order", () => {

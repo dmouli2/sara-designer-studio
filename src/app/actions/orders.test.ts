@@ -6,6 +6,7 @@ import {
   getOrders,
   getOrder,
   getOrderShareToken,
+  deliverOrder,
   createOrder,
   updateOrder,
   assignMaster,
@@ -46,6 +47,9 @@ const order: Order = {
   status: "new",
   amount: 1000,
   advance: 300,
+  advanceMethod: null,
+  finalPayment: 0,
+  finalPaymentMethod: null,
   due: "2026-07-10",
   master: null,
   tailor: null,
@@ -166,6 +170,66 @@ const findPublicToken = vi.fn();
   it("getOrderShareToken returns null for an order with no token", async () => {
     findPublicToken.mockResolvedValue(null);
     expect(await getOrderShareToken("SDS-001")).toBeNull();
+  });
+
+  // Money and hand-over happen together: no caller can mark an order
+  // delivered without recording how the balance was settled.
+  it("updateOrderStatus refuses to deliver — that must go through deliverOrder", async () => {
+    await expect(updateOrderStatus("SDS-001", "delivered")).rejects.toThrow("Use deliverOrder");
+    expect(updateStatus).not.toHaveBeenCalled();
+  });
+
+  it("deliverOrder settles the outstanding balance and records the method", async () => {
+    findById.mockResolvedValue({ ...order, status: "ready", amount: 3000, advance: 500, finalPayment: 0 });
+    updateStatus.mockResolvedValue(order);
+
+    await deliverOrder("SDS-001", "upi");
+
+    expect(requireRole).toHaveBeenCalledWith(["admin"]);
+    expect(updateStatus).toHaveBeenCalledWith("SDS-001", "delivered", {
+      finalPayment: 2500,
+      finalPaymentMethod: "upi",
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/admin/orders");
+  });
+
+  // The amount comes from the stored order, never the client, so what gets
+  // recorded is always exactly what was owed.
+  it("deliverOrder ignores any client-supplied figure and uses the stored balance", async () => {
+    findById.mockResolvedValue({ ...order, amount: 1200, advance: 200, finalPayment: 0 });
+    updateStatus.mockResolvedValue(order);
+
+    await deliverOrder("SDS-001", "cash");
+
+    expect(updateStatus).toHaveBeenCalledWith("SDS-001", "delivered", {
+      finalPayment: 1000,
+      finalPaymentMethod: "cash",
+    });
+  });
+
+  it("deliverOrder records no method when there was nothing left to collect", async () => {
+    findById.mockResolvedValue({ ...order, amount: 1000, advance: 1000, finalPayment: 0 });
+    updateStatus.mockResolvedValue(order);
+
+    await deliverOrder("SDS-001", "cash");
+
+    expect(updateStatus).toHaveBeenCalledWith("SDS-001", "delivered", { finalPayment: 0 });
+  });
+
+  it("deliverOrder rejects an unknown payment method", async () => {
+    await expect(deliverOrder("SDS-001", "cheque" as never)).rejects.toThrow("how the payment was made");
+    expect(updateStatus).not.toHaveBeenCalled();
+  });
+
+  it("deliverOrder refuses a missing order", async () => {
+    findById.mockResolvedValue(null);
+    await expect(deliverOrder("nope", "cash")).rejects.toThrow("Order not found");
+  });
+
+  it("deliverOrder refuses a cancelled order", async () => {
+    findById.mockResolvedValue({ ...order, status: "cancelled" });
+    await expect(deliverOrder("SDS-001", "cash")).rejects.toThrow("cancelled order");
+    expect(updateStatus).not.toHaveBeenCalled();
   });
 
   it("createOrder requires admin, allocates an id from the dress category's sequence, and creates the order", async () => {

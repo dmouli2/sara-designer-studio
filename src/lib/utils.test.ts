@@ -10,6 +10,8 @@ import {
   toIndianMobileDigits,
   buildOrderWhatsAppMessage,
   buildOrderStatusWhatsAppMessage,
+  orderBalance,
+  PAYMENT_METHOD_LABELS,
   buildWhatsAppShareUrl,
   CUSTOMER_STATUS_LABELS,
   ORDER_TERMS,
@@ -260,13 +262,41 @@ describe("buildOrderWhatsAppMessage", () => {
   });
 });
 
+describe("orderBalance", () => {
+  const money = { amount: 5000, advance: 1000, finalPayment: 0 };
+
+  it("subtracts the advance before delivery", () => {
+    expect(orderBalance(money)).toBe(4000);
+  });
+
+  // The bug the delivery payment exists to fix: before finalPayment, a
+  // delivered order's balance never moved and it showed as owing forever.
+  it("reaches zero once the balance is collected at delivery", () => {
+    expect(orderBalance({ ...money, finalPayment: 4000 })).toBe(0);
+  });
+
+  it("counts a partial delivery payment", () => {
+    expect(orderBalance({ ...money, finalPayment: 1500 })).toBe(2500);
+  });
+
+  it("never returns a negative balance for an overpayment", () => {
+    expect(orderBalance({ ...money, finalPayment: 9000 })).toBe(0);
+    expect(orderBalance({ amount: 100, advance: 500, finalPayment: 0 })).toBe(0);
+  });
+});
+
+describe("PAYMENT_METHOD_LABELS", () => {
+  it("labels the two methods the shop takes", () => {
+    expect(PAYMENT_METHOD_LABELS).toEqual({ cash: "Cash", upi: "UPI" });
+  });
+});
+
 describe("buildOrderStatusWhatsAppMessage", () => {
   const base = {
     orderId: "B2505",
     customer: "Dharshini",
     dress: "Blouse",
-    total: 6000,
-    advance: 2000,
+    balance: 4000,
     due: "2026-09-04",
     trackingUrl: "https://sara.example/track/tok-1",
   } as const;
@@ -288,13 +318,13 @@ describe("buildOrderStatusWhatsAppMessage", () => {
   });
 
   it("says fully paid instead of a balance when nothing is owed", () => {
-    const message = buildOrderStatusWhatsAppMessage({ ...base, advance: 6000, status: "ready" });
+    const message = buildOrderStatusWhatsAppMessage({ ...base, balance: 0, status: "ready" });
     expect(message).toContain("Fully paid");
     expect(message).not.toContain("Balance due");
   });
 
   it("treats an overpayment as fully paid rather than a negative balance", () => {
-    const message = buildOrderStatusWhatsAppMessage({ ...base, advance: 7000, status: "ready" });
+    const message = buildOrderStatusWhatsAppMessage({ ...base, balance: 0, status: "ready" });
     expect(message).toContain("Fully paid");
     expect(message).not.toMatch(/₹-|-₹/); // never a negative balance
   });

@@ -3,12 +3,12 @@ import ProgressTracker from "@/components/orders/ProgressTracker";
 import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
 import MaterialImageGallery from "@/components/orders/MaterialImageGallery";
 import TopBar from "@/components/layout/TopBar";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, orderBalance } from "@/lib/utils";
 import type { PublicOrder } from "@/lib/db";
 
 export default function PublicOrderBody({ order }: { order: PublicOrder }) {
   const isCancelled = order.status === "cancelled";
-  const balance = order.amount - order.advance;
+  const balance = orderBalance(order);
   const cancellationCharge = order.cancellationCharge ?? 0;
   const cancelBalance = cancellationCharge - order.advance;
 
