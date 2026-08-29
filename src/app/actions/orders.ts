@@ -17,6 +17,7 @@ import {
   type OrderStatus,
   type PaymentMethod,
   type PaymentSplit,
+  type Role,
 } from "@/types";
 import {
   isSplitPayment,
@@ -79,14 +80,36 @@ async function storePhotos(orderId: string, files: File[], slotPrefix: string): 
   );
 }
 
+// The filter arrives from the caller, so it cannot be trusted to scope the
+// result: a master or tailor calling this with no filter would otherwise get
+// the entire order book — every customer's name, phone, amount and balance.
+// The queue pages narrow correctly, but the action has to enforce it, because
+// the action is what a client can actually reach.
 export async function getOrders(filter?: OrderListFilter): Promise<Order[]> {
-  await requireRole([...ALL_ROLES]);
-  return getDb().orders.list(filter);
+  const user = await requireRole([...ALL_ROLES]);
+  return getDb().orders.list(scopeFilterToRole(filter, user));
 }
 
+function scopeFilterToRole(
+  filter: OrderListFilter | undefined,
+  user: { role: Role; staffId: string }
+): OrderListFilter | undefined {
+  if (user.role === "master") return { ...filter, masterId: user.staffId };
+  if (user.role === "tailor") return { ...filter, tailorId: user.staffId };
+  return filter;
+}
+
+// Same reasoning, one order at a time — and order ids run in a guessable
+// series (B2501, B2502, …), so "they'd have to know the id" is no protection
+// at all. Master and tailor see only what is assigned to them; anything else
+// reads as missing, which is what the role pages already render.
 export async function getOrder(id: string): Promise<Order | null> {
-  await requireRole([...ALL_ROLES]);
-  return getDb().orders.findById(id);
+  const user = await requireRole([...ALL_ROLES]);
+  const order = await getDb().orders.findById(id);
+  if (!order) return null;
+  if (user.role === "master" && order.master?.id !== user.staffId) return null;
+  if (user.role === "tailor" && order.tailor?.id !== user.staffId) return null;
+  return order;
 }
 
 // The customer tracking token, for re-sharing the link from the admin detail
@@ -119,6 +142,19 @@ export async function createOrder(
   await requireRole(["admin"]);
   if (!input.due) {
     throw new Error("Delivery date is required.");
+  }
+  // updateOrder has always checked these; createOrder never did, so a
+  // negative or non-finite total could be written straight into Reports.
+  for (const [field, value] of [
+    ["total", input.amount],
+    ["advance", input.advance],
+  ] as const) {
+    if (!Number.isFinite(value) || value < 0) {
+      throw new Error(`Enter a valid ${field} amount.`);
+    }
+  }
+  if (input.advance > input.amount) {
+    throw new Error("The advance can't be more than the order total.");
   }
   const { pieces: pieceDrafts, advanceSplit, ...orderInput } = input;
   const pieces = buildPieces(pieceDrafts, input.due);
@@ -669,6 +705,12 @@ export async function cancelOrder(id: string, cancellationCharge: number): Promi
 
 export async function deleteOrder(id: string): Promise<void> {
   await requireRole(["admin"]);
+  // The storage paths below are built by interpolating `id`, so it must be an
+  // order the database actually holds — otherwise a crafted id ("../…") would
+  // aim those deletes at objects belonging to something else.
+  const existing = await getDb().orders.findById(id);
+  if (!existing) throw new Error("Order not found.");
+
   await getDb().orders.delete(id);
   // Best-effort: paths are predictable, deleting a non-existent one is a harmless no-op.
   const referenceDeletes = Array.from({ length: MAX_REFERENCE_IMAGES }, (_, i) =>

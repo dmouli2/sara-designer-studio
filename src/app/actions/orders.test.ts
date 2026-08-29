@@ -675,6 +675,7 @@ const findPublicToken = vi.fn();
 
   it("deleteOrder requires admin, permanently deletes the order, and cleans up all its stored images", async () => {
     deleteFn.mockResolvedValue(undefined);
+    findById.mockResolvedValue(order);
     await deleteOrder("SDS-001");
     expect(requireRole).toHaveBeenCalledWith(["admin"]);
     expect(deleteFn).toHaveBeenCalledWith("SDS-001");
@@ -1423,6 +1424,98 @@ const findPublicToken = vi.fn();
       const extra = updateStatus.mock.calls[0][2];
       expect(extra.payments).toBeUndefined();
       expect(extra.finalPaymentMethod).toBeUndefined();
+    });
+  });
+
+
+  // ── Authorization ─────────────────────────────────────────────────────
+  // The queue pages narrow correctly, but a client reaches the action, not
+  // the page — so the action is where scoping has to happen.
+  describe("what each role may read", () => {
+    function asRole(role: "admin" | "master" | "tailor", staffId = "s1") {
+      vi.mocked(requireRole).mockResolvedValue({
+        staffId,
+        username: "u",
+        role,
+        name: "N",
+      } as never);
+    }
+
+    it("gives an admin the filter it asked for", async () => {
+      asRole("admin");
+      list.mockResolvedValue([]);
+      await getOrders({ statuses: ["ready"] });
+      expect(list).toHaveBeenCalledWith({ statuses: ["ready"] });
+    });
+
+    it.each([
+      ["master" as const, "masterId"],
+      ["tailor" as const, "tailorId"],
+    ])("pins a %s to their own assignments however they ask", async (role, key) => {
+      asRole(role, "me");
+      list.mockResolvedValue([]);
+
+      // An unfiltered call would otherwise return the whole order book.
+      await getOrders({});
+      expect(list).toHaveBeenCalledWith({ [key]: "me" });
+
+      // …and one naming someone else cannot override it.
+      await getOrders({ [key]: "someone-else" });
+      expect(list).toHaveBeenLastCalledWith({ [key]: "me" });
+    });
+
+    it("lets an admin open any order", async () => {
+      asRole("admin");
+      findById.mockResolvedValue({ ...order, master: null, tailor: null });
+      await expect(getOrder("SDS-001")).resolves.not.toBeNull();
+    });
+
+    it("hides an order a master or tailor isn't assigned to", async () => {
+      findById.mockResolvedValue({
+        ...order,
+        master: { id: "other", name: "Other" },
+        tailor: { id: "other", name: "Other" },
+      });
+
+      asRole("master", "me");
+      await expect(getOrder("SDS-001")).resolves.toBeNull();
+
+      asRole("tailor", "me");
+      await expect(getOrder("SDS-001")).resolves.toBeNull();
+    });
+
+    it("shows an order they are assigned to", async () => {
+      findById.mockResolvedValue({ ...order, master: { id: "me", name: "Me" }, tailor: null });
+      asRole("master", "me");
+      await expect(getOrder("SDS-001")).resolves.not.toBeNull();
+    });
+
+    it("returns null for a missing order whatever the role", async () => {
+      asRole("tailor", "me");
+      findById.mockResolvedValue(null);
+      await expect(getOrder("nope")).resolves.toBeNull();
+    });
+  });
+
+  describe("money and id validation", () => {
+    it.each([
+      [{ amount: -1 }, "valid total amount"],
+      [{ advance: -5 }, "valid advance amount"],
+      [{ amount: Number.NaN }, "valid total amount"],
+      [{ advance: 5000, amount: 1000 }, "more than the order total"],
+    ])("createOrder refuses %o", async (over, message) => {
+      nextOrderId.mockResolvedValue("B2601");
+      await expect(createOrder({ ...orderInput, ...over }, photosForm())).rejects.toThrow(message);
+      expect(create).not.toHaveBeenCalled();
+    });
+
+    // The storage deletes interpolate the id, so it has to be one the
+    // database knows rather than anything a caller cares to send.
+    it("deleteOrder refuses an id the database doesn't hold", async () => {
+      findById.mockResolvedValue(null);
+      await expect(deleteOrder("../../elsewhere")).rejects.toThrow("Order not found");
+      expect(deleteFn).not.toHaveBeenCalled();
+      expect(storageDelete).not.toHaveBeenCalled();
     });
   });
 

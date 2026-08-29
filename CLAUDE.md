@@ -38,6 +38,8 @@ There is no signup flow — the first admin account is seeded manually via `supa
 - `src/proxy.ts` only decrypts the cookie for a fast, optimistic redirect — it never hits the database.
 - `src/lib/dal.ts` (`verifySession()` / `requireRole(roles)`) does the real authorization: it re-fetches the staff record from `getDb()` on every call and redirects if the account is missing/inactive or lacks the role. Every Server Action must call `requireRole(...)` itself — proxy-level auth is not sufficient.
 
+**A Server Action must scope its own reads, not trust its arguments.** `getOrders`/`getOrder` take a caller-supplied filter or id, and a client reaches the action rather than the page — so `getOrders` pins a master/tailor to their own assignments whatever filter arrives, and `getOrder` returns null for an order they aren't on. The queue pages narrowing correctly is not protection: order ids run in a guessable series (B2501, B2502, …), so "they'd have to know the id" protects nothing.
+
 **Server Actions are the only DB access point for UI code.** `src/app/actions/{auth,orders,staff}.ts` are `"use server"` modules: each exported action calls `requireRole()` first, then `getDb()`. Mutations end with `revalidatePath(...)` (and sometimes `refresh()`) for every route that displays the changed data — see `revalidateOrderPaths()` in `orders.ts` for the pattern.
 
 **Roles and routing:** `Role = "admin" | "master" | "tailor"`. Admin works under `/admin` (orders list/detail/new, staff list/detail/new). Master and tailor each get `/{role}/queue` and `/{role}/orders/[id]`. `roleHome(role)` (duplicated in `src/proxy.ts` and `src/app/actions/auth.ts`) picks the post-login landing route.
