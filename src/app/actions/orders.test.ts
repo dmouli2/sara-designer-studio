@@ -820,15 +820,28 @@ const findPublicToken = vi.fn();
       expect(extra.finalPaymentMethod).toBeUndefined();
     });
 
+    // Only the two states where handing a garment over is meaningless.
     it.each([
       ["cancelled" as const, "cancelled order"],
       ["delivered" as const, "already been handed over"],
-      ["new" as const, "start work"],
     ])("refuses to hand a piece over from %s", async (status, message) => {
       findById.mockResolvedValue(splitOrder({ status }));
       await expect(deliverPiece("SDS-001", "p1")).rejects.toThrow(message);
       expect(updateStatus).not.toHaveBeenCalled();
     });
+
+    // This shop never assigns a master or tailor, so its orders stay at
+    // "new" for their whole life — gating hand-over on workflow progress
+    // made the whole feature unusable there.
+    it.each(["new", "cutting", "cutting_done", "stitching", "hemming_hook", "ready", "partly_delivered"] as const)(
+      "hands a piece over from %s",
+      async (status) => {
+        findById.mockResolvedValue(splitOrder({ status }));
+        updateStatus.mockResolvedValue(order);
+        await expect(deliverPiece("SDS-001", "p1")).resolves.toBeDefined();
+        expect(updateStatus).toHaveBeenCalledWith("SDS-001", "partly_delivered", expect.anything());
+      }
+    );
 
     it("refuses a missing order", async () => {
       findById.mockResolvedValue(null);

@@ -373,11 +373,16 @@ function markPiecesDelivered(pieces: OrderPiece[]): OrderPiece[] {
 
 // Hands ONE garment of a multi-piece order over.
 //
-// Deliberately not gated on the order being "Ready": with staggered dates the
-// first blouse goes out while the third is still being stitched, and making
-// the admin flip a dropdown before they can record what physically left the
-// counter would only teach them to lie to it. Gated on the order not being
-// finished or cancelled, which is what actually matters.
+// Deliberately not gated on how far along the order is. With staggered dates
+// the first blouse goes out while the third is still being stitched, and this
+// shop doesn't use the master/tailor assignment at all — its orders sit at
+// "new" for their whole life. An earlier version refused to hand a piece over
+// from "new", which made the feature unusable here: the admin got a 500 whose
+// message Next.js had already replaced with a digest, so it surfaced as
+// "check your connection".
+//
+// The only states that block are the two where handing a garment over is
+// meaningless: cancelled, and already fully delivered.
 //
 // The last pending piece is the whole order being handed over, so it settles
 // exactly like deliverOrder: the full remaining balance, computed server-side.
@@ -392,7 +397,6 @@ export async function deliverPiece(
   if (!order) throw new Error("Order not found.");
   if (order.status === "cancelled") throw new Error("A cancelled order can't be delivered.");
   if (order.status === "delivered") throw new Error("This order has already been handed over in full.");
-  if (order.status === "new") throw new Error("Assign the order and start work before handing a piece over.");
   if (!order.pieces?.length) throw new Error("This order isn't split into pieces.");
 
   const piece = order.pieces.find((p) => p.id === pieceId);
