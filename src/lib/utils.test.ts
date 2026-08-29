@@ -22,6 +22,7 @@ import {
   openAlteration,
   orderDisplayStatus,
   shopToday,
+  buildMaterialLabel,
 } from "./utils";
 import type { AlterationRecord, OrderPiece } from "@/types";
 
@@ -478,5 +479,27 @@ describe("buildWhatsAppShareUrl", () => {
   it("normalizes a phone number that already has a +91 prefix", () => {
     const url = buildWhatsAppShareUrl("+919876543210", "Hi");
     expect(url).toBe("https://wa.me/919876543210?text=Hi");
+  });
+});
+
+describe("buildMaterialLabel", () => {
+  it("names one source when every garment shares it", () => {
+    expect(buildMaterialLabel(["shop"], "Silk", "")).toBe("Silk (shop)");
+    expect(buildMaterialLabel(["customer", "customer"], "", "Blue cotton")).toBe(
+      "Blue cotton (customer)"
+    );
+  });
+
+  // The whole reason the mixed case exists is "which of my three?", so the
+  // one line the cards show has to say how it splits.
+  it("says how a mixed order splits", () => {
+    expect(buildMaterialLabel(["shop", "shop", "customer"], "Silk", "Blue cotton")).toBe(
+      "2 × Silk (shop) + 1 × Blue cotton (customer)"
+    );
+  });
+
+  it("falls back to generic wording when a fabric wasn't named", () => {
+    expect(buildMaterialLabel(["shop"], "", "")).toBe("Fabric (shop)");
+    expect(buildMaterialLabel(["customer"], "", "")).toBe("Customer fabric (customer)");
   });
 });

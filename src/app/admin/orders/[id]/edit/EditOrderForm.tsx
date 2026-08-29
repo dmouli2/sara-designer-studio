@@ -12,11 +12,11 @@ import MaterialImageUpload from "@/components/orders/MaterialImageUpload";
 import LineItemsEditor from "@/components/orders/LineItemsEditor";
 import PiecesEditor from "@/components/orders/PiecesEditor";
 import { FEATURE_MULTI_PIECE } from "@/lib/features";
-import { LINE_ITEM_PRESETS, lineItemCategoryForDress } from "@/lib/mock";
+import { canDressHavePieces, LINE_ITEM_PRESETS, lineItemCategoryForDress } from "@/lib/mock";
 import { formatCurrency, isValidIndianMobile } from "@/lib/utils";
 import { galleryEntryToFile, MAX_PHOTO_PAYLOAD_BYTES } from "@/lib/image";
 import { updateOrder, type OrderEditInput } from "@/app/actions/orders";
-import type { GarmentMeasurements, Order, OrderLineItem, PaymentMethod } from "@/types";
+import type { GarmentMeasurements, MaterialSource, Order, OrderLineItem, PaymentMethod } from "@/types";
 
 // The stored order only carries the items that were actually ordered —
 // overlay them on the dress-category presets so the admin can also add an
@@ -69,6 +69,15 @@ export default function EditOrderForm({ order }: { order: Order }) {
   // server reconciles it against the stored pieces so a garment already with
   // the customer can never be edited away.
   const [pieceCount, setPieceCount] = useState(order.pieces?.length ?? 1);
+  // Per-garment cloth source. Starts uniform unless the stored pieces already
+  // disagree, so opening the form never invents a mix that wasn't there.
+  const storedSources = (order.pieces ?? []).map((p) => p.materialSource).filter(Boolean);
+  const [uniformMaterial, setUniformMaterial] = useState(
+    storedSources.length === 0 || new Set(storedSources).size <= 1
+  );
+  const [pieceSources, setPieceSources] = useState<MaterialSource[]>(() =>
+    (order.pieces ?? []).map((p) => p.materialSource ?? "customer")
+  );
 
   // Galleries start as the stored photos' signed http URLs; newly captured
   // photos are base64 data URLs. A gallery that still JSON-matches its
@@ -92,14 +101,35 @@ export default function EditOrderForm({ order }: { order: Order }) {
   // point a blank canvas appears for redrawing.
   const keepingStoredSketch = !!sketch && !sketch.startsWith("data:");
 
-  // Same rule as the new-order wizard: several garments to one set of
-  // measurements is the blouse book's case.
-  const canSplitPieces = FEATURE_MULTI_PIECE && order.dress === "Blouse";
+  // Same rule as the new-order wizard.
+  const canSplitPieces = FEATURE_MULTI_PIECE && canDressHavePieces(order.dress);
   const deliveredPieces = (order.pieces ?? []).filter((p) => p.status === "delivered").length;
   // Delivered garments can't be removed, and the last one in the shop has to
   // leave through a hand-over (which collects the balance) — so the floor is
   // one above what's already gone.
   const minPieceCount = deliveredPieces > 0 ? deliveredPieces + 1 : 1;
+
+  function handlePieceSourceChange(index: number, source: MaterialSource) {
+    setPieceSources((prev) =>
+      Array.from({ length: Math.max(prev.length, index + 1, pieceCount) }, (_, i) =>
+        i === index ? source : prev[i] ?? "customer"
+      )
+    );
+  }
+
+  // What the pieces should end up as, given the count and the uniform choice.
+  // Undefined entries leave a stored source alone — see reconcilePieces.
+  const nextPieceSources: (MaterialSource | undefined)[] = uniformMaterial
+    ? Array.from({ length: pieceCount }, () => undefined)
+    : Array.from({ length: pieceCount }, (_, i) => pieceSources[i] ?? "customer");
+
+  // Only meaningful when the count itself hasn't moved — a changed count
+  // already sends the patch, and comparing a 1-long array against a
+  // pieces-less order's empty one would report a change on every open.
+  const sourcesChanged =
+    (order.pieces?.length ?? 0) === pieceCount &&
+    JSON.stringify(nextPieceSources) !==
+      JSON.stringify((order.pieces ?? []).map((p) => p.materialSource));
 
   async function handleSave() {
     if (saving) return;
@@ -119,8 +149,9 @@ export default function EditOrderForm({ order }: { order: Order }) {
     const nextMethod = advanceNum > 0 ? advanceMethod : null;
     if (nextMethod !== (order.advanceMethod ?? null)) patch.advanceMethod = nextMethod;
 
-    if (canSplitPieces && pieceCount !== (order.pieces?.length ?? 1)) {
+    if (canSplitPieces && (pieceCount !== (order.pieces?.length ?? 1) || sourcesChanged)) {
       patch.pieceCount = pieceCount;
+      if (!uniformMaterial) patch.pieceSources = nextPieceSources as MaterialSource[];
     }
 
     const items = activeItemsOf(lineItems);
@@ -317,9 +348,13 @@ export default function EditOrderForm({ order }: { order: Order }) {
             <p className="section-label">Pieces</p>
             <PiecesEditor
               count={pieceCount}
-              orderDue={due}
               labelPrefix={order.dress}
               onChange={setPieceCount}
+              uniform={uniformMaterial}
+              onUniformChange={setUniformMaterial}
+              sources={pieceSources}
+              onSourceChange={handlePieceSourceChange}
+              orderSource={order.material.includes("(shop)") ? "shop" : "customer"}
               minCount={minPieceCount}
               minCountReason={
                 deliveredPieces > 0

@@ -116,4 +116,39 @@ describe("OrderPiecesCard", () => {
     render(<OrderPiecesCard order={{ pieces: null, status: "ready" }} />);
     expect(screen.getByText("0 of 0 delivered")).toBeInTheDocument();
   });
+
+  // The chip only earns its place when the garments actually differ — on a
+  // uniform order the order's material line already says it.
+  describe("mixed material", () => {
+    it("marks each garment when they come from different places", () => {
+      render(
+        <OrderPiecesCard
+          order={order([
+            piece({ id: "p1", label: "Blouse 1", materialSource: "shop" }),
+            piece({ id: "p2", label: "Blouse 2", materialSource: "customer" }),
+          ])}
+        />
+      );
+      expect(screen.getByText("Shop")).toBeInTheDocument();
+      expect(screen.getByText("Customer")).toBeInTheDocument();
+    });
+
+    it("says nothing when every garment matches", () => {
+      render(
+        <OrderPiecesCard
+          order={order([
+            piece({ id: "p1", label: "Blouse 1", materialSource: "shop" }),
+            piece({ id: "p2", label: "Blouse 2", materialSource: "shop" }),
+          ])}
+        />
+      );
+      expect(screen.queryByText("Shop")).not.toBeInTheDocument();
+    });
+
+    it("says nothing for pieces stored before sources were recorded", () => {
+      render(<OrderPiecesCard order={order([piece({ id: "p1" }), piece({ id: "p2" })])} />);
+      expect(screen.queryByText("Shop")).not.toBeInTheDocument();
+      expect(screen.queryByText("Customer")).not.toBeInTheDocument();
+    });
+  });
 });

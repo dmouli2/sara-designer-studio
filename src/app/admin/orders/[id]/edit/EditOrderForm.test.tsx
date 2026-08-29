@@ -319,9 +319,51 @@ describe("EditOrderForm", () => {
       expect(screen.getByText(/1 already handed over/)).toBeInTheDocument();
     });
 
-    it("is not offered on a Salwar order", () => {
+    it("is offered on a Salwar order too", () => {
       renderWith({ dress: "Salwar" });
-      expect(screen.queryByRole("button", { name: "One more piece" })).not.toBeInTheDocument();
+      expect(screen.getByText("How many salwars?")).toBeInTheDocument();
+    });
+
+    // A mixed order is rare, so the per-garment rows stay hidden unless the
+    // stored pieces actually disagree about where the cloth came from.
+    describe("per-garment material source", () => {
+      const twoPieces = [
+        { id: "p1", label: "Blouse 1", due: "2026-07-10", status: "pending" as const, deliveredAt: null },
+        { id: "p2", label: "Blouse 2", due: "2026-07-10", status: "pending" as const, deliveredAt: null },
+      ];
+
+      it("opens uniform for an order whose garments all match", () => {
+        renderWith({ pieces: twoPieces });
+        expect(screen.getByRole("checkbox")).toBeChecked();
+      });
+
+      it("opens un-uniform when the stored garments differ", () => {
+        renderWith({
+          pieces: [
+            { ...twoPieces[0], materialSource: "shop" as const },
+            { ...twoPieces[1], materialSource: "customer" as const },
+          ],
+        });
+        expect(screen.getByRole("checkbox")).not.toBeChecked();
+        expect(screen.getByLabelText("Blouse 1 material shop")).toHaveAttribute("aria-pressed", "true");
+      });
+
+      it("sends the sources once the garments are set apart", async () => {
+        const user = userEvent.setup();
+        renderWith({ pieces: twoPieces });
+
+        await user.click(screen.getByRole("checkbox"));
+        await user.click(screen.getByLabelText("Blouse 1 material shop"));
+        await user.click(saveButton());
+
+        await waitFor(() =>
+          expect(updateOrder).toHaveBeenCalledWith(
+            "B2401",
+            expect.objectContaining({ pieceCount: 2, pieceSources: ["shop", "customer"] }),
+            undefined
+          )
+        );
+      });
     });
   });
 });

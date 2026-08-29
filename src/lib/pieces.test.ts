@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildPieces, reconcilePieces } from "./pieces";
-import { MAX_ORDER_PIECES, type OrderPiece } from "@/types";
+import { MAX_ORDER_PIECES, type MaterialSource, type OrderPiece } from "@/types";
 
 describe("buildPieces", () => {
   // The whole backwards-compatibility guarantee rests on this: anything that
@@ -155,5 +155,51 @@ describe("reconcilePieces", () => {
 
   it("leaves an unchanged count alone", () => {
     expect(reconcilePieces(THREE, 3, "Blouse", "2026-09-01")).toEqual(THREE);
+  });
+});
+
+describe("material source on pieces", () => {
+  it("buildPieces omits the source when the garments all match", () => {
+    const built = buildPieces(
+      [{ label: "Blouse 1", due: "2026-09-01" }, { label: "Blouse 2", due: "2026-09-01" }],
+      "2026-09-01"
+    );
+    expect(built!.every((p) => !("materialSource" in p))).toBe(true);
+  });
+
+  it("buildPieces carries the source through when they differ", () => {
+    const built = buildPieces(
+      [
+        { label: "Blouse 1", due: "2026-09-01", materialSource: "shop" },
+        { label: "Blouse 2", due: "2026-09-01", materialSource: "customer" },
+      ],
+      "2026-09-01"
+    );
+    expect(built!.map((p) => p.materialSource)).toEqual(["shop", "customer"]);
+  });
+
+  it("reconcilePieces applies sources to the settled list", () => {
+    const sources: MaterialSource[] = ["shop", "customer", "shop"];
+    const result = reconcilePieces(null, 3, "Blouse", "2026-09-01", sources)!;
+    expect(result.map((p) => p.materialSource)).toEqual(sources);
+  });
+
+  // An undefined entry means "leave this one as it is", so a caller can never
+  // blank a stored source by sending a short array.
+  it("reconcilePieces leaves a source alone for an undefined entry", () => {
+    const current: OrderPiece[] = [
+      { id: "p1", label: "Blouse 1", due: "2026-09-01", status: "pending", deliveredAt: null, materialSource: "shop" },
+      { id: "p2", label: "Blouse 2", due: "2026-09-01", status: "pending", deliveredAt: null, materialSource: "customer" },
+    ];
+    const result = reconcilePieces(current, 2, "Blouse", "2026-09-01", [undefined, "shop"])!;
+    expect(result.map((p) => p.materialSource)).toEqual(["shop", "shop"]);
+  });
+
+  it("reconcilePieces sets sources on garments it just added", () => {
+    const current: OrderPiece[] = [
+      { id: "p1", label: "Blouse 1", due: "2026-09-01", status: "pending", deliveredAt: null },
+    ];
+    const result = reconcilePieces(current, 2, "Blouse", "2026-09-01", ["customer", "shop"])!;
+    expect(result.map((p) => p.materialSource)).toEqual(["customer", "shop"]);
   });
 });

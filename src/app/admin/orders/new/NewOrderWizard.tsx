@@ -12,15 +12,21 @@ import MaterialImageUpload from "@/components/orders/MaterialImageUpload";
 import FabricManagerSheet from "@/components/orders/FabricManagerSheet";
 import LineItemsEditor from "@/components/orders/LineItemsEditor";
 import PiecesEditor from "@/components/orders/PiecesEditor";
-import { DRESS_TYPES, LINE_ITEM_PRESETS, lineItemCategoryForDress } from "@/lib/mock";
-import { formatCurrency, isValidIndianMobile, buildOrderWhatsAppMessage, buildWhatsAppShareUrl } from "@/lib/utils";
+import { canDressHavePieces, DRESS_TYPES, LINE_ITEM_PRESETS, lineItemCategoryForDress } from "@/lib/mock";
+import {
+  buildMaterialLabel,
+  formatCurrency,
+  isValidIndianMobile,
+  buildOrderWhatsAppMessage,
+  buildWhatsAppShareUrl,
+} from "@/lib/utils";
 import { dataUrlToFile, galleryEntryToFile, MAX_PHOTO_PAYLOAD_BYTES } from "@/lib/image";
 import { FEATURE_MULTI_PIECE, FEATURE_SCAN_ORDERS } from "@/lib/features";
 import { lineItemsForDress, measurementsForDress, normalizeExtraction } from "@/lib/extraction/normalize";
 import { createOrder } from "@/app/actions/orders";
 import { confirmDraft } from "@/app/actions/drafts";
 import type { Fabric } from "@/lib/db/types";
-import type { GarmentMeasurements, OrderLineItem, PaymentMethod, SlipExtraction } from "@/types";
+import type { GarmentMeasurements, MaterialSource, OrderLineItem, PaymentMethod, SlipExtraction } from "@/types";
 
 // A scanned draft being verified — everything the wizard needs to prefill
 // itself and, on success, mark the draft confirmed. Passed by page.tsx when
@@ -74,6 +80,8 @@ interface OrderDraft {
   // Absent on drafts saved before multi-piece existed — resumed as a
   // single-garment order, which is what they were.
   pieceCount?: number;
+  uniformMaterial?: boolean;
+  pieceSources?: MaterialSource[];
 }
 
 function readDraft(): OrderDraft | null {
@@ -157,6 +165,11 @@ export default function NewOrderWizard({
   const [manageOpen, setManageOpen] = useState(false);
   const [metres, setMetres]         = useState("2");
   const [custFabric, setCustFabric] = useState("");
+  // Where each garment's cloth comes from. `uniformMaterial` true (the
+  // default, and nearly every order) means they all follow matSource and
+  // pieceSources is ignored.
+  const [uniformMaterial, setUniformMaterial] = useState(true);
+  const [pieceSources, setPieceSources] = useState<MaterialSource[]>([]);
   const [materialImages, setMaterialImages] = useState<string[]>([]);
 
   // Step 2 — measurements + notes + sketch + images. The scan photo itself
@@ -182,12 +195,25 @@ export default function NewOrderWizard({
   // Only meaningful when an advance was actually taken — see advanceMethod below.
   const [advanceMethod, setAdvanceMethod] = useState<PaymentMethod>("cash");
 
-  // Multiple garments to one set of measurements is the blouse book's case —
-  // a customer bringing one saree for three blouses. Salwar orders stay
-  // single-garment.
-  const canSplitPieces = FEATURE_MULTI_PIECE && dress === "Blouse";
+  // Several garments to one set of measurements — three blouses from one
+  // saree, or two salwar sets to the same measurements.
+  const canSplitPieces = FEATURE_MULTI_PIECE && canDressHavePieces(dress);
 
-  const fabricCost = matSource === "shop" && fabric ? fabric.price * parseFloat(metres || "0") : 0;
+  // What each garment is actually cut from, once the count and the per-piece
+  // overrides are taken into account. A single-garment order is just [source].
+  const effectiveSources: MaterialSource[] =
+    canSplitPieces && pieceCount > 1 && !uniformMaterial
+      ? Array.from({ length: pieceCount }, (_, i) => pieceSources[i] ?? matSource)
+      : Array.from({ length: Math.max(pieceCount, 1) }, () => matSource);
+
+  const anyShopMaterial = effectiveSources.includes("shop");
+  const anyCustomerMaterial = effectiveSources.includes("customer");
+  const shopPieceCount = effectiveSources.filter((s) => s === "shop").length;
+
+  // One fabric and one metres figure covers whatever the shop is supplying —
+  // the metres box is what the admin adjusts when it's cloth for two garments
+  // rather than one.
+  const fabricCost = anyShopMaterial && fabric ? fabric.price * parseFloat(metres || "0") : 0;
   // Amount is the per-piece price, so every line contributes qty × amount —
   // qty 2 at ₹100 must total ₹200, not ₹100.
   const stitchTotal = lineItems.reduce((s, li) => s + li.qty * li.amount, 0);
@@ -231,6 +257,7 @@ export default function NewOrderWizard({
         step, dress, name, phone, matSource,
         fabricName: fabric?.name ?? "", metres, custFabric, materialImages,
         meas, notes, sketch, refImages, lineItems, delivery, advance, advanceMethod, pieceCount,
+        uniformMaterial, pieceSources,
       };
       try {
         localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
@@ -246,7 +273,7 @@ export default function NewOrderWizard({
       }
     }, DRAFT_SAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [dress, step, name, phone, matSource, fabric, metres, custFabric, materialImages, meas, notes, sketch, refImages, lineItems, delivery, advance, advanceMethod, pieceCount, placedOrder, scan]);
+  }, [dress, step, name, phone, matSource, fabric, metres, custFabric, materialImages, meas, notes, sketch, refImages, lineItems, delivery, advance, advanceMethod, pieceCount, uniformMaterial, pieceSources, placedOrder, scan]);
 
   function resumeDraft() {
     if (!draft) return;
@@ -269,6 +296,8 @@ export default function NewOrderWizard({
     setAdvance(draft.advance);
     setAdvanceMethod(draft.advanceMethod ?? "cash");
     setPieceCount(draft.pieceCount ?? 1);
+    setUniformMaterial(draft.uniformMaterial ?? true);
+    setPieceSources(draft.pieceSources ?? []);
     setDraft(null);
   }
 
@@ -277,11 +306,23 @@ export default function NewOrderWizard({
     setDraft(null);
   }
 
+  function handlePieceSourceChange(index: number, source: MaterialSource) {
+    setPieceSources((prev) => {
+      // Fill any gap with the order's default so the array always lines up
+      // with the piece count, whatever order the admin taps them in.
+      const next = Array.from({ length: Math.max(prev.length, index + 1, pieceCount) }, (_, i) =>
+        i === index ? source : prev[i] ?? matSource
+      );
+      return next;
+    });
+  }
+
   function handleDressChange(d: string) {
     setDress(d);
-    // Pieces are a Blouse-book concept; switching away resets the count so a
-    // Salwar order can never be written with a pieces array.
+    // Switching book starts the count over — the garments are different.
     setPieceCount(1);
+    setUniformMaterial(true);
+    setPieceSources([]);
     // For a scan whose book type wasn't auto-detected, picking the type here
     // rebuilds measurements/items from the extraction rather than blank.
     if (scan) {
@@ -334,9 +375,7 @@ export default function NewOrderWizard({
           customer: name,
           phone,
           dress,
-          material: matSource === "shop"
-            ? `${fabric?.name ?? "Fabric"} (shop)`
-            : `${custFabric || "Customer fabric"} (customer)`,
+          material: buildMaterialLabel(effectiveSources, fabric?.name ?? "", custFabric),
           status: "new",
           amount: total,
           advance: advanceValue,
@@ -361,6 +400,9 @@ export default function NewOrderWizard({
                 pieces: Array.from({ length: pieceCount }, (_, i) => ({
                   label: `${dress} ${i + 1}`,
                   due: delivery,
+                  // Only recorded when the garments differ — a uniform order
+                  // is fully described by its material line.
+                  ...(uniformMaterial ? {} : { materialSource: effectiveSources[i] }),
                 })),
               }
             : {}),
@@ -573,8 +615,26 @@ export default function NewOrderWizard({
               </div>
             </div>
 
+            {canSplitPieces && (
+              <div>
+                <p className="section-label">Pieces</p>
+                <PiecesEditor
+                  count={pieceCount}
+                  labelPrefix={dress}
+                  onChange={setPieceCount}
+                  uniform={uniformMaterial}
+                  onUniformChange={setUniformMaterial}
+                  sources={pieceSources}
+                  onSourceChange={handlePieceSourceChange}
+                  orderSource={matSource}
+                />
+              </div>
+            )}
+
             <div>
-              <p className="section-label">Material source</p>
+              <p className="section-label">
+                {uniformMaterial || pieceCount <= 1 ? "Material source" : "Default material source"}
+              </p>
               <div className="flex rounded-xl border border-[#E5E0D5] overflow-hidden bg-white">
                 {(["customer", "shop"] as const).map((s) => (
                   <button key={s} type="button" onClick={() => setMatSource(s)}
@@ -585,10 +645,12 @@ export default function NewOrderWizard({
               </div>
             </div>
 
-            {matSource === "shop" ? (
+            {anyShopMaterial && (
               <div>
                 <div className="flex items-center justify-between">
-                  <p className="section-label">Select fabric</p>
+                  <p className="section-label">
+                    Shop fabric{shopPieceCount < effectiveSources.length ? ` (for ${shopPieceCount} of ${effectiveSources.length})` : ""}
+                  </p>
                   <button
                     type="button"
                     onClick={() => setManageOpen(true)}
@@ -617,14 +679,24 @@ export default function NewOrderWizard({
                 {fabricList.length === 0 && (
                   <p className="text-xs text-red-600 mb-2">Add at least one fabric to continue.</p>
                 )}
-                <input className="input" placeholder="Metres required" type="number" value={metres} onChange={(e) => setMetres(e.target.value)} />
+                <input
+                  className="input"
+                  placeholder={shopPieceCount > 1 ? `Metres for ${shopPieceCount} garments` : "Metres required"}
+                  type="number"
+                  value={metres}
+                  onChange={(e) => setMetres(e.target.value)}
+                />
                 <p className="text-xs text-[#9A9A9A] mt-1.5">
                   Fabric cost: <span className="text-[#C9A84C] font-medium">{formatCurrency(fabricCost)}</span>
                 </p>
               </div>
-            ) : (
+            )}
+
+            {anyCustomerMaterial && (
               <div>
-                <p className="section-label">Customer fabric details</p>
+                <p className="section-label">
+                  Customer fabric details{anyShopMaterial ? ` (for ${effectiveSources.length - shopPieceCount} of ${effectiveSources.length})` : ""}
+                </p>
                 <input className="input" placeholder="e.g. Blue silk, floral print" value={custFabric} onChange={(e) => setCustFabric(e.target.value)} />
               </div>
             )}
@@ -650,7 +722,7 @@ export default function NewOrderWizard({
               disabled={
                 !name.trim() ||
                 !isValidIndianMobile(phone) ||
-                (matSource === "shop" && !fabric) ||
+                (anyShopMaterial && !fabric) ||
                 (!scan && materialImages.length === 0)
               }
               className="btn-primary disabled:opacity-40"
@@ -745,22 +817,12 @@ export default function NewOrderWizard({
               </div>
             </div>
 
-            {canSplitPieces && (
-              <div>
-                <p className="section-label">Pieces</p>
-                <PiecesEditor
-                  count={pieceCount}
-                  orderDue={delivery}
-                  labelPrefix={dress}
-                  onChange={setPieceCount}
-                />
-              </div>
-            )}
+
 
             {/* Summary */}
             <div className="card-gold">
               <p className="text-xs font-semibold text-[#7A6020] mb-3">Order summary</p>
-              {matSource === "shop" && fabric && (
+              {anyShopMaterial && fabric && (
                 <div className="flex justify-between text-xs text-[#A8882E] mb-1.5">
                   <span>Fabric ({fabric.name} × {metres}m)</span>
                   <span>{formatCurrency(fabricCost)}</span>
@@ -769,7 +831,10 @@ export default function NewOrderWizard({
               {canSplitPieces && pieceCount > 1 && (
                 <div className="flex justify-between text-xs text-[#A8882E] mb-1.5">
                   <span>Pieces</span>
-                  <span>{pieceCount} garments, tracked separately</span>
+                  <span>
+                    {pieceCount} garments
+                    {uniformMaterial ? "" : ` · ${shopPieceCount} shop / ${pieceCount - shopPieceCount} customer`}
+                  </span>
                 </div>
               )}
               {lineItems.filter((li) => li.particulars.trim() && li.qty > 0 && li.amount > 0).map((li, i) => (

@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import type { AlterationRecord, Order, OrderPiece, OrderStatus, PaymentMethod } from "@/types";
+import type { AlterationRecord, MaterialSource, Order, OrderPiece, OrderStatus, PaymentMethod } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -249,4 +249,25 @@ export function orderDisplayStatus(
   const open = openAlteration(order);
   if (!open) return order.status;
   return open.completedAt ? "alteration_done" : "in_alteration";
+}
+
+// ── Material ────────────────────────────────────────────────────────────
+// The order's `material` is one free-text line shown on cards, detail pages
+// and the customer's tracking page, so a mixed order has to read as one
+// sentence rather than a structure. Built in one place because the wizard
+// and the edit screen must produce the same wording.
+export function buildMaterialLabel(
+  sources: MaterialSource[],
+  shopFabric: string,
+  customerFabric: string
+): string {
+  const shop = `${shopFabric || "Fabric"} (shop)`;
+  const customer = `${customerFabric || "Customer fabric"} (customer)`;
+  const shopCount = sources.filter((s) => s === "shop").length;
+
+  if (shopCount === 0) return customer;
+  if (shopCount === sources.length) return shop;
+  // Mixed: say how it splits, since "which of my three?" is the whole reason
+  // this case exists.
+  return `${shopCount} × ${shop} + ${sources.length - shopCount} × ${customer}`;
 }

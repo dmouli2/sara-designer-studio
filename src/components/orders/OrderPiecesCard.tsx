@@ -25,6 +25,8 @@ export default function OrderPiecesCard({ order, onDeliver, onChangeDue, busyPie
   const [editing, setEditing] = useState<string | null>(null);
   const pieces = order.pieces ?? [];
   const delivered = pieces.filter((p) => p.status === "delivered").length;
+  // Whether this order's garments actually come from different places.
+  const mixedMaterial = new Set(pieces.map((p) => p.materialSource).filter(Boolean)).size > 1;
   const finished = order.status === "cancelled";
 
   return (
@@ -66,6 +68,21 @@ export default function OrderPiecesCard({ order, onDeliver, onChangeDue, busyPie
                 >
                   {piece.label}
                 </span>
+                {/* Only when the garments differ — on a uniform order the
+                    order's material line already says it, and a chip on every
+                    row would be noise. */}
+                {mixedMaterial && piece.materialSource && (
+                  <span
+                    className={cn(
+                      "shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wide",
+                      piece.materialSource === "shop"
+                        ? "bg-[#FBF6E8] text-[#7A6020]"
+                        : "bg-[#F0EDE6] text-[#6B6B6B]"
+                    )}
+                  >
+                    {piece.materialSource === "shop" ? "Shop" : "Customer"}
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center justify-between gap-2 mt-1.5 pl-8">

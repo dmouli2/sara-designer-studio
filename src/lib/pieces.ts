@@ -1,4 +1,4 @@
-import { MAX_ORDER_PIECES, type OrderPiece } from "@/types";
+import { MAX_ORDER_PIECES, type MaterialSource, type OrderPiece } from "@/types";
 
 // Splitting an order into several garments, on the way in.
 //
@@ -12,6 +12,9 @@ import { MAX_ORDER_PIECES, type OrderPiece } from "@/types";
 export interface OrderPieceDraft {
   label: string;
   due: string;
+  // Only sent when the order's garments don't all come from the same place;
+  // omitted otherwise so a uniform order stores nothing extra.
+  materialSource?: MaterialSource;
 }
 
 // Returns null — "this order is a single garment", the shape every order had
@@ -32,6 +35,7 @@ export function buildPieces(
     due: draft.due || orderDue,
     status: "pending" as const,
     deliveredAt: null,
+    ...(draft.materialSource ? { materialSource: draft.materialSource } : {}),
   }));
 }
 
@@ -56,7 +60,11 @@ export function reconcilePieces(
   current: OrderPiece[] | null,
   count: number,
   labelPrefix: string,
-  orderDue: string
+  orderDue: string,
+  // One entry per garment, in order. Omitted when the edit screen isn't
+  // changing where the cloth came from; a shorter array leaves the rest as
+  // they are, so a caller can never blank a source by accident.
+  sources?: (MaterialSource | undefined)[]
 ): OrderPiece[] | null {
   if (!Number.isInteger(count) || count < 1) {
     throw new Error("Enter a valid number of pieces.");
@@ -76,6 +84,16 @@ export function reconcilePieces(
     );
   }
 
+  // Applied last, to whatever list the count settled on.
+  const withSources = (pieces: OrderPiece[]): OrderPiece[] =>
+    sources
+      ? pieces.map((p, i) => {
+          const next = sources[i];
+          if (next === undefined) return p;
+          return { ...p, materialSource: next };
+        })
+      : pieces;
+
   if (count === 1) return null; // back to a single garment
 
   if (count <= existing.length) {
@@ -86,7 +104,7 @@ export function reconcilePieces(
       if (!removable) throw new Error("Only pieces still in the shop can be removed.");
       kept.splice(removable.i, 1);
     }
-    return kept;
+    return withSources(kept);
   }
 
   // Grow. `p3` -> 3, so the next id is always above every number this order
@@ -110,15 +128,15 @@ export function reconcilePieces(
   // An order that was a single garment has no piece for the garment it
   // already represents — it becomes the first of the new set.
   if (existing.length === 0) {
-    return [
+    return withSources([
       { id: "p1", label: `${labelPrefix} 1`, due: orderDue, status: "pending" as const, deliveredAt: null },
       ...added.slice(0, count - 1).map((p, i) => ({
         ...p,
         id: `p${i + 2}`,
         label: `${labelPrefix} ${i + 2}`,
       })),
-    ];
+    ]);
   }
 
-  return [...existing, ...added];
+  return withSources([...existing, ...added]);
 }

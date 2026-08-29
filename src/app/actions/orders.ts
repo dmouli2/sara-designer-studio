@@ -9,6 +9,7 @@ import {
   MAX_MATERIAL_IMAGES,
   type AlterationRecord,
   type GarmentMeasurements,
+  type MaterialSource,
   type Order,
   type OrderLineItem,
   type OrderPayment,
@@ -172,6 +173,9 @@ export interface OrderEditInput {
   // one. Handled separately from EDITABLE_FIELDS below since it maps to
   // `pieces`, not to a column of its own.
   pieceCount?: number;
+  // Where each garment's cloth came from, in order. Only sent when the
+  // garments differ; omitted leaves the stored sources untouched.
+  pieceSources?: MaterialSource[];
 }
 
 const EDITABLE_FIELDS = [
@@ -217,7 +221,8 @@ export async function updateOrder(id: string, patch: OrderEditInput, photos?: Fo
       current.dress,
       // A new garment follows whatever the order's delivery date now is,
       // including one being changed in this same edit.
-      dbPatch.due ?? current.due
+      dbPatch.due ?? current.due,
+      patch.pieceSources
     );
     // Only write when it actually moves — an unchanged count shouldn't make
     // this a "real" edit or rewrite the stored array.

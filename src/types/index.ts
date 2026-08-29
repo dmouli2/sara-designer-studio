@@ -202,6 +202,12 @@ export type PaymentMethod = "cash" | "upi";
 
 export type OrderPieceStatus = "pending" | "delivered";
 
+// Who supplied the cloth. Historically one choice for the whole order, held
+// in the free-text `Order.material`; now recordable per garment, because a
+// customer bringing cloth for two blouses and buying the third from the shop
+// is a real order the app could not describe.
+export type MaterialSource = "shop" | "customer";
+
 export interface OrderPiece {
   // Stable for the life of the order and never reused, so a payment or an
   // alteration can point at a specific garment even after others are gone.
@@ -215,6 +221,10 @@ export interface OrderPiece {
   // because the shop records the hand-over when it gets a moment, not at the
   // counter. Only the payment ledger keeps a true timestamp.
   deliveredAt: string | null;
+  // Absent means "whatever the order's material says" — true of every piece
+  // written before this was recorded, and of every order whose garments all
+  // come from the same place (which is most of them).
+  materialSource?: MaterialSource;
 }
 
 // A practical ceiling, enforced in the wizard and in createOrder. Well above

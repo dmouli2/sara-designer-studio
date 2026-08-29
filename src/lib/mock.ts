@@ -14,3 +14,11 @@ export function lineItemCategoryForDress(dress: string): "blouse" | "salwar" {
   if (dress === "Salwar") return "salwar";
   return "blouse";
 }
+
+// Both books take orders for several garments cut to one set of measurements
+// — three blouses from one saree, two salwar sets to the same measurements.
+// A helper rather than an inline check so the wizard and the edit screen can
+// never disagree about which orders may be split.
+export function canDressHavePieces(dress: string | null): boolean {
+  return dress === "Blouse" || dress === "Salwar";
+}

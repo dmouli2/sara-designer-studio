@@ -231,7 +231,7 @@ describe("NewOrderWizard", () => {
 
     // Same ordering with the shop fabric picker
     await user.click(screen.getByText("From shop"));
-    const fabricSection = screen.getByText("Select fabric");
+    const fabricSection = screen.getByText("Shop fabric");
     expect(
       fabricSection.compareDocumentPosition(screen.getByText("Material photos")) &
         Node.DOCUMENT_POSITION_FOLLOWING
@@ -246,7 +246,7 @@ describe("NewOrderWizard", () => {
     // Customer mode is the default — its input shows without any clicks.
     expect(screen.getByText("Customer fabric details")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("e.g. Blue silk, floral print")).toBeInTheDocument();
-    expect(screen.queryByText("Select fabric")).not.toBeInTheDocument();
+    expect(screen.queryByText("Shop fabric")).not.toBeInTheDocument();
 
     // "Customer brings" renders first (left), "From shop" second.
     expect(
@@ -260,7 +260,7 @@ describe("NewOrderWizard", () => {
     render(<NewOrderWizard fabrics={TEST_FABRICS} />);
     await chooseOrderType(user);
     await user.click(screen.getByText("From shop"));
-    expect(screen.getByText("Select fabric")).toBeInTheDocument();
+    expect(screen.getByText("Shop fabric")).toBeInTheDocument();
     await user.click(screen.getByText("Silk"));
     expect(screen.getByText(/Fabric cost:/)).toHaveTextContent("₹700"); // 350 * 2m default
   });
@@ -294,7 +294,7 @@ describe("NewOrderWizard", () => {
     expect(screen.queryByText("Customer fabric details")).not.toBeInTheDocument();
     await user.click(screen.getByText("Customer brings"));
     expect(screen.getByText("Customer fabric details")).toBeInTheDocument();
-    expect(screen.queryByText("Select fabric")).not.toBeInTheDocument();
+    expect(screen.queryByText("Shop fabric")).not.toBeInTheDocument();
   });
 
   it("advances to the measurements step and back button goes to step 1 instead of router.back", async () => {
@@ -883,10 +883,16 @@ describe("NewOrderWizard", () => {
   // ── Multi-piece Blouse orders ─────────────────────────────────────────
 
   describe("splitting an order into several garments", () => {
+    // The stepper sits in step 1 now, next to the material inputs it drives.
     async function reachPricing(user: ReturnType<typeof userEvent.setup>, container: HTMLElement) {
-      await chooseOrderType(user);
       await fillStep1AndAdvance(user, container);
       await user.click(screen.getByText("Next: Pricing →"));
+    }
+
+    async function bumpPieces(user: ReturnType<typeof userEvent.setup>, times: number) {
+      for (let i = 0; i < times; i++) {
+        await user.click(screen.getByRole("button", { name: "One more piece" }));
+      }
     }
 
     // One garment is the default, so the overwhelming majority of orders are
@@ -894,9 +900,10 @@ describe("NewOrderWizard", () => {
     it("sends no pieces for a normal single-garment order", async () => {
       const user = userEvent.setup();
       const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await chooseOrderType(user);
+      expect(screen.getByText("How many blouses?")).toBeInTheDocument();
       await reachPricing(user, container);
 
-      expect(screen.getByText("How many blouses?")).toBeInTheDocument();
       await user.type(screen.getByLabelText("Blouse price"), "500");
       await fillDeliveryDate(user);
       await user.click(screen.getByText("✓ Confirm & Place Order"));
@@ -907,19 +914,19 @@ describe("NewOrderWizard", () => {
     it("asks only for a count and gives every garment the order's date", async () => {
       const user = userEvent.setup();
       const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
-      await reachPricing(user, container);
-
-      await user.type(screen.getByLabelText("Blouse price"), "500");
-      await user.type(screen.getByLabelText("Blouse quantity"), "3");
-      await fillDeliveryDate(user, "2026-07-20");
-      await user.click(screen.getByRole("button", { name: "One more piece" }));
-      await user.click(screen.getByRole("button", { name: "One more piece" }));
+      await chooseOrderType(user);
 
       // No per-garment name or date fields — the whole point of the simpler
       // form is that the common case types nothing extra.
+      await bumpPieces(user, 2);
       expect(screen.queryByLabelText("Piece 1 name")).not.toBeInTheDocument();
-      expect(screen.getByText(/Blouse 1–3, all due/)).toBeInTheDocument();
-      expect(screen.getByText("3 garments, tracked separately")).toBeInTheDocument();
+      expect(screen.getByText(/Blouse 1–3 share this order's delivery date/)).toBeInTheDocument();
+
+      await reachPricing(user, container);
+      await user.type(screen.getByLabelText("Blouse price"), "500");
+      await user.type(screen.getByLabelText("Blouse quantity"), "3");
+      await fillDeliveryDate(user, "2026-07-20");
+      expect(screen.getByText("3 garments")).toBeInTheDocument();
 
       await user.click(screen.getByText("✓ Confirm & Place Order"));
 
@@ -933,27 +940,36 @@ describe("NewOrderWizard", () => {
     it("drops back to a single garment when the count returns to one", async () => {
       const user = userEvent.setup();
       const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
-      await reachPricing(user, container);
+      await chooseOrderType(user);
+      await bumpPieces(user, 1);
+      await user.click(screen.getByRole("button", { name: "One less piece" }));
 
+      await reachPricing(user, container);
       await user.type(screen.getByLabelText("Blouse price"), "500");
       await fillDeliveryDate(user);
-      await user.click(screen.getByRole("button", { name: "One more piece" }));
-      await user.click(screen.getByRole("button", { name: "One less piece" }));
       await user.click(screen.getByText("✓ Confirm & Place Order"));
 
       expect(vi.mocked(createOrder).mock.calls[0][0]).not.toHaveProperty("pieces");
     });
 
-    // The blouse book's case only — a Salwar order never even sees the question.
-    it("is not offered on a Salwar order", async () => {
+    // Both books take "several garments, one set of measurements" orders.
+    it("is offered on a Salwar order too", async () => {
       const user = userEvent.setup();
       const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
       await user.click(screen.getByText("Salwar"));
+      expect(screen.getByText("How many salwars?")).toBeInTheDocument();
+
+      await bumpPieces(user, 1);
       await fillStep1AndAdvance(user, container);
       await user.click(screen.getByText("Next: Pricing →"));
+      await user.type(screen.getByLabelText("Salwar price"), "900");
+      await fillDeliveryDate(user, "2026-07-20");
+      await user.click(screen.getByText("✓ Confirm & Place Order"));
 
-      expect(screen.queryByText(/How many/)).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "One more piece" })).not.toBeInTheDocument();
+      expect(vi.mocked(createOrder).mock.calls[0][0].pieces).toEqual([
+        { label: "Salwar 1", due: "2026-07-20" },
+        { label: "Salwar 2", due: "2026-07-20" },
+      ]);
     });
   });
 
