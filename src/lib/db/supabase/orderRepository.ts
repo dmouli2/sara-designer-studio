@@ -8,11 +8,14 @@ import type {
   OrderImageCleanupCandidate,
 } from "../types";
 import type {
+  AlterationRecord,
   Order,
   OrderStatus,
   GarmentMeasurements,
   SalwarMeasurements,
   OrderLineItem,
+  OrderPayment,
+  OrderPiece,
   PaymentMethod,
 } from "@/types";
 
@@ -45,6 +48,11 @@ interface OrderRow {
   reference_image_urls: string[];
   material_image_urls: string[];
   cancellation_charge: number | null;
+  // Added in 0012. Null/absent on every row written before it — see the
+  // defaults applied in toOrder below.
+  pieces: OrderPiece[] | null;
+  alterations: AlterationRecord[] | null;
+  payments: OrderPayment[] | null;
   created_at: string;
   public_token: string;
 }
@@ -57,7 +65,7 @@ const STAFF_EMBEDS =
 // the wire. material_image_urls is the one exception: it's just short
 // Storage paths (cheap), needed to resolve each row's single main-photo
 // thumbnail for the order card (see list() below).
-const LIST_COLUMNS = `id, customer, phone, dress, material, status, amount, advance, advance_method, final_payment, final_payment_method, due, measurements, line_items, notes, cancellation_charge, created_at, material_image_urls, ${STAFF_EMBEDS}`;
+const LIST_COLUMNS = `id, customer, phone, dress, material, status, amount, advance, advance_method, final_payment, final_payment_method, due, measurements, line_items, notes, cancellation_charge, pieces, alterations, payments, created_at, material_image_urls, ${STAFF_EMBEDS}`;
 
 const DETAIL_COLUMNS = `*, ${STAFF_EMBEDS}`;
 
@@ -146,6 +154,12 @@ function toOrder(row: OrderRow): Order {
     // toOrderWithImages and list() below, which both override this.
     mainMaterialImageUrl: null,
     cancellationCharge: row.cancellation_charge,
+    // Null pieces is meaningful (a single-garment order) and is preserved as
+    // null; the two lists default to empty, which is what every pre-0012 row
+    // means. See supabase/migrations/0012_pieces_alterations_payments.sql.
+    pieces: row.pieces ?? null,
+    alterations: row.alterations ?? [],
+    payments: row.payments ?? [],
     createdAt: row.created_at,
   };
 }
@@ -203,6 +217,9 @@ function toInsertRow(input: OrderWriteInput) {
     reference_image_urls: input.referenceImageUrls,
     material_image_urls: input.materialImageUrls,
     cancellation_charge: input.cancellationCharge,
+    pieces: input.pieces,
+    alterations: input.alterations,
+    payments: input.payments,
   };
 }
 
@@ -228,6 +245,9 @@ function toUpdateRow(patch: OrderUpdateInput): Record<string, unknown> {
   if (patch.referenceImageUrls !== undefined) row.reference_image_urls = patch.referenceImageUrls;
   if (patch.materialImageUrls !== undefined) row.material_image_urls = patch.materialImageUrls;
   if (patch.cancellationCharge !== undefined) row.cancellation_charge = patch.cancellationCharge;
+  if (patch.pieces !== undefined) row.pieces = patch.pieces;
+  if (patch.alterations !== undefined) row.alterations = patch.alterations;
+  if (patch.payments !== undefined) row.payments = patch.payments;
   return row;
 }
 

@@ -2,8 +2,9 @@ import StatusBadge from "@/components/orders/StatusBadge";
 import ProgressTracker from "@/components/orders/ProgressTracker";
 import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
 import MaterialImageGallery from "@/components/orders/MaterialImageGallery";
+import OrderPiecesCard from "@/components/orders/OrderPiecesCard";
 import TopBar from "@/components/layout/TopBar";
-import { formatCurrency, formatDate, orderBalance } from "@/lib/utils";
+import { formatCurrency, formatDate, isMultiPiece, orderBalance } from "@/lib/utils";
 import type { PublicOrder } from "@/lib/db";
 
 export default function PublicOrderBody({ order }: { order: PublicOrder }) {
@@ -20,9 +21,13 @@ export default function PublicOrderBody({ order }: { order: PublicOrder }) {
         <ProgressTracker status={order.status} />
 
         <div className="flex items-center gap-3">
-          <StatusBadge status={order.status} />
+          <StatusBadge status={order.status} alterations={order.alterations} />
           <span className="text-[13px] text-[#9A9A9A]">Due {formatDate(order.due)}</span>
         </div>
+
+        {/* On a split order the customer's real question is "which of mine is
+            ready?" — the single order-level status can't answer it. */}
+        {isMultiPiece(order) && <OrderPiecesCard order={order} />}
 
         <div className="card-gold">
           <p className="text-[16px] font-semibold text-[#7A6020]">{order.dress}</p>

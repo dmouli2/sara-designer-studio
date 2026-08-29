@@ -7,13 +7,18 @@ import { getImageStorage } from "@/lib/storage";
 import {
   MAX_REFERENCE_IMAGES,
   MAX_MATERIAL_IMAGES,
+  type AlterationRecord,
   type GarmentMeasurements,
   type Order,
   type OrderLineItem,
+  type OrderPayment,
+  type OrderPiece,
   type OrderStatus,
   type PaymentMethod,
 } from "@/types";
-import { orderBalance } from "@/lib/utils";
+import { openAlteration, orderBalance, shopToday } from "@/lib/utils";
+import { buildPieces, type OrderPieceDraft } from "@/lib/pieces";
+import { assertAlterationsEnabled } from "@/lib/features";
 
 const ALL_ROLES = ["admin", "master", "tailor"] as const;
 
@@ -89,14 +94,23 @@ export async function getOrderShareToken(id: string): Promise<string | null> {
 export async function createOrder(
   input: Omit<
     OrderWriteInput,
-    "id" | "cancellationCharge" | "sketchDataUrl" | "referenceImageUrls" | "materialImageUrls"
-  >,
+    | "id"
+    | "cancellationCharge"
+    | "sketchDataUrl"
+    | "referenceImageUrls"
+    | "materialImageUrls"
+    | "pieces"
+    | "alterations"
+    | "payments"
+  > & { pieces?: OrderPieceDraft[] },
   photos: FormData
 ): Promise<Order & { publicToken: string }> {
   await requireRole(["admin"]);
   if (!input.due) {
     throw new Error("Delivery date is required.");
   }
+  const { pieces: pieceDrafts, ...orderInput } = input;
+  const pieces = buildPieces(pieceDrafts, input.due);
   const referenceFiles = filesFrom(photos, "reference", MAX_REFERENCE_IMAGES);
   const materialFiles = filesFrom(photos, "material", MAX_MATERIAL_IMAGES);
   // Scanned book orders (scanOrder="1") have no fabric on hand at scan time,
@@ -119,12 +133,16 @@ export async function createOrder(
   // cancellationCharge only ever exists once an order is cancelled — see
   // cancelOrder below — never something a new order carries in.
   const created = await getDb().orders.create({
-    ...input,
+    ...orderInput,
     id,
     sketchDataUrl,
     referenceImageUrls,
     materialImageUrls,
     cancellationCharge: null,
+    pieces,
+    // A brand-new order has been through neither.
+    alterations: [],
+    payments: [],
   });
   revalidatePath("/admin/orders");
   refresh();
@@ -259,6 +277,12 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
   if (status === "delivered") {
     throw new Error("Use deliverOrder to mark an order delivered — it must record the payment.");
   }
+  // Same rule, for the same reason: "partly delivered" is a statement about
+  // which garments have physically left the shop, derived from the pieces
+  // themselves. Only deliverPiece may write it.
+  if (status === "partly_delivered") {
+    throw new Error("Use deliverPiece to hand a piece over — it records which piece left.");
+  }
   const updated = await getDb().orders.updateStatus(id, status);
   revalidateOrderPaths(id);
   refresh();
@@ -281,11 +305,209 @@ export async function deliverOrder(id: string, method: PaymentMethod): Promise<O
 
   const balance = orderBalance(order);
   const updated = await getDb().orders.updateStatus(id, "delivered", {
-    finalPayment: order.finalPayment + balance,
-    // Nothing was collected, so there is no method to record — an order paid
-    // in full up front shouldn't claim its balance arrived as cash.
-    ...(balance > 0 ? { finalPaymentMethod: method } : {}),
+    ...collectPayment(order, balance, method, null),
+    // Handing the whole order over hands over everything still in the shop.
+    // A single-garment order has no pieces and this is a no-op.
+    ...(order.pieces ? { pieces: markPiecesDelivered(order.pieces) } : {}),
   });
+  revalidateOrderPaths(id);
+  refresh();
+  return updated;
+}
+
+// ── Multi-piece delivery ────────────────────────────────────────────────
+
+// The patch fragment that records money arriving after placement. Keeps the
+// two-entry model authoritative — finalPayment stays the running total and
+// finalPaymentMethod the latest method — and adds the ledger entry that says
+// which hand-over it came with. A zero collection records nothing at all: an
+// order paid in full up front must not claim its balance arrived as cash.
+function collectPayment(
+  order: Order,
+  amount: number,
+  method: PaymentMethod,
+  pieceId: string | null
+): OrderUpdateInput {
+  if (amount <= 0) return {};
+  const entry: OrderPayment = {
+    id: crypto.randomUUID(),
+    amount,
+    method,
+    at: new Date().toISOString(),
+    pieceId,
+  };
+  return {
+    finalPayment: order.finalPayment + amount,
+    finalPaymentMethod: method,
+    payments: [...order.payments, entry],
+  };
+}
+
+function markPiecesDelivered(pieces: OrderPiece[]): OrderPiece[] {
+  const at = new Date().toISOString();
+  return pieces.map((p) =>
+    p.status === "delivered" ? p : { ...p, status: "delivered" as const, deliveredAt: at }
+  );
+}
+
+// Hands ONE garment of a multi-piece order over.
+//
+// Deliberately not gated on the order being "Ready": with staggered dates the
+// first blouse goes out while the third is still being stitched, and making
+// the admin flip a dropdown before they can record what physically left the
+// counter would only teach them to lie to it. Gated on the order not being
+// finished or cancelled, which is what actually matters.
+//
+// The last pending piece is the whole order being handed over, so it settles
+// exactly like deliverOrder: the full remaining balance, computed server-side.
+// Earlier pieces may collect any part of the balance, or nothing at all.
+export async function deliverPiece(
+  id: string,
+  pieceId: string,
+  collect?: { amount: number; method: PaymentMethod }
+): Promise<Order> {
+  await requireRole(["admin"]);
+  const order = await getDb().orders.findById(id);
+  if (!order) throw new Error("Order not found.");
+  if (order.status === "cancelled") throw new Error("A cancelled order can't be delivered.");
+  if (order.status === "delivered") throw new Error("This order has already been handed over in full.");
+  if (order.status === "new") throw new Error("Assign the order and start work before handing a piece over.");
+  if (!order.pieces?.length) throw new Error("This order isn't split into pieces.");
+
+  const piece = order.pieces.find((p) => p.id === pieceId);
+  if (!piece) throw new Error("That piece isn't part of this order.");
+  if (piece.status === "delivered") throw new Error(`${piece.label} has already been handed over.`);
+
+  const balance = orderBalance(order);
+  const isLast = order.pieces.filter((p) => p.status === "pending").length === 1;
+
+  // The final hand-over settles the order, so the amount isn't the admin's to
+  // choose — it is exactly what's owed, same rule as deliverOrder.
+  let amount = isLast ? balance : (collect?.amount ?? 0);
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new Error("Enter a valid amount to collect.");
+  }
+  amount = Math.min(Math.round(amount * 100) / 100, balance);
+  const method = collect?.method ?? "cash";
+  if (amount > 0 && method !== "cash" && method !== "upi") {
+    throw new Error("Choose how the payment was made.");
+  }
+
+  const at = new Date().toISOString();
+  const pieces = order.pieces.map((p) =>
+    p.id === pieceId ? { ...p, status: "delivered" as const, deliveredAt: at } : p
+  );
+
+  const updated = await getDb().orders.updateStatus(id, isLast ? "delivered" : "partly_delivered", {
+    ...collectPayment(order, amount, method, pieceId),
+    pieces,
+  });
+  revalidateOrderPaths(id);
+  refresh();
+  return updated;
+}
+
+// Delivery dates get pushed — the shop's own terms say so. Only a piece that
+// is still pending can move; a date on a garment already with the customer is
+// history, not a plan.
+export async function updatePieceDue(id: string, pieceId: string, due: string): Promise<Order> {
+  await requireRole(["admin"]);
+  if (!due) throw new Error("Delivery date is required.");
+  const order = await getDb().orders.findById(id);
+  if (!order) throw new Error("Order not found.");
+  if (!order.pieces?.length) throw new Error("This order isn't split into pieces.");
+
+  const piece = order.pieces.find((p) => p.id === pieceId);
+  if (!piece) throw new Error("That piece isn't part of this order.");
+  if (piece.status === "delivered") throw new Error("That piece has already been handed over.");
+
+  const pieces = order.pieces.map((p) => (p.id === pieceId ? { ...p, due } : p));
+  const updated = await getDb().orders.update(id, { pieces });
+  revalidateOrderPaths(id);
+  refresh();
+  return updated;
+}
+
+// ── Alterations ─────────────────────────────────────────────────────────
+//
+// An alteration never touches order.status: the order was delivered and stays
+// delivered, so revenue, the delivered count and every Reports figure are
+// untouched by a garment coming back. What changes is the badge the admin
+// reads, derived from these records by orderDisplayStatus().
+
+export interface StartAlterationInput {
+  reason: string;
+  promisedAt: string;
+  // Which garment came back, on a multi-piece order. Stored as the label so
+  // the record still reads correctly if the piece is later renamed.
+  pieceLabel?: string | null;
+}
+
+export async function startAlteration(id: string, input: StartAlterationInput): Promise<Order> {
+  await requireRole(["admin"]);
+  assertAlterationsEnabled();
+  if (!input.promisedAt) throw new Error("Set the date the alteration is promised for.");
+
+  const order = await getDb().orders.findById(id);
+  if (!order) throw new Error("Order not found.");
+  if (order.status !== "delivered") {
+    throw new Error("Only a delivered order can come back for an alteration.");
+  }
+  if (openAlteration(order)) {
+    throw new Error("This order is already in alteration — finish that one first.");
+  }
+
+  const record: AlterationRecord = {
+    id: crypto.randomUUID(),
+    reason: input.reason.trim(),
+    pieceLabel: input.pieceLabel?.trim() || null,
+    receivedAt: shopToday(),
+    promisedAt: input.promisedAt,
+    completedAt: null,
+    redeliveredAt: null,
+  };
+
+  const updated = await getDb().orders.update(id, { alterations: [...order.alterations, record] });
+  revalidateOrderPaths(id);
+  refresh();
+  return updated;
+}
+
+// Alteration work finished — the garment is back on the shelf waiting for the
+// customer, not yet handed over.
+export async function completeAlteration(id: string): Promise<Order> {
+  await requireRole(["admin"]);
+  const order = await getDb().orders.findById(id);
+  if (!order) throw new Error("Order not found.");
+
+  const open = openAlteration(order);
+  if (!open) throw new Error("This order isn't in alteration.");
+  if (open.completedAt) throw new Error("That alteration is already done.");
+
+  const alterations = order.alterations.map((a) =>
+    a.id === open.id ? { ...a, completedAt: shopToday() } : a
+  );
+  const updated = await getDb().orders.update(id, { alterations });
+  revalidateOrderPaths(id);
+  refresh();
+  return updated;
+}
+
+// Handed back to the customer — closes the record, and the order reads as a
+// plain delivered order again with the episode kept in its history.
+export async function redeliverAlteration(id: string): Promise<Order> {
+  await requireRole(["admin"]);
+  const order = await getDb().orders.findById(id);
+  if (!order) throw new Error("Order not found.");
+
+  const open = openAlteration(order);
+  if (!open) throw new Error("This order isn't in alteration.");
+  if (!open.completedAt) throw new Error("Mark the alteration done before handing it back.");
+
+  const alterations = order.alterations.map((a) =>
+    a.id === open.id ? { ...a, redeliveredAt: shopToday() } : a
+  );
+  const updated = await getDb().orders.update(id, { alterations });
   revalidateOrderPaths(id);
   refresh();
   return updated;

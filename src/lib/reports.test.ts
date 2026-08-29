@@ -40,6 +40,9 @@ function order(overrides: Partial<Order>): Order {
     materialImageUrls: [],
     mainMaterialImageUrl: null,
     cancellationCharge: null,
+    pieces: null,
+    alterations: [],
+    payments: [],
     createdAt: "2026-07-01T00:00:00.000Z",
     ...overrides,
   };

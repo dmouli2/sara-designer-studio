@@ -879,4 +879,126 @@ describe("NewOrderWizard", () => {
     });
   });
 
+
+  // ── Multi-piece Blouse orders ─────────────────────────────────────────
+
+  describe("splitting an order into several garments", () => {
+    async function reachPricing(user: ReturnType<typeof userEvent.setup>, container: HTMLElement) {
+      await chooseOrderType(user);
+      await fillStep1AndAdvance(user, container);
+      await user.click(screen.getByText("Next: Pricing →"));
+    }
+
+    // One garment is the default, so the overwhelming majority of orders are
+    // written exactly as they always were — no pieces at all.
+    it("sends no pieces for a normal single-garment order", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await reachPricing(user, container);
+
+      expect(screen.getByText("How many blouses?")).toBeInTheDocument();
+      await user.type(screen.getByLabelText("Blouse price"), "500");
+      await fillDeliveryDate(user);
+      await user.click(screen.getByText("✓ Confirm & Place Order"));
+
+      expect(vi.mocked(createOrder).mock.calls[0][0]).not.toHaveProperty("pieces");
+    });
+
+    it("asks only for a count and gives every garment the order's date", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await reachPricing(user, container);
+
+      await user.type(screen.getByLabelText("Blouse price"), "500");
+      await user.type(screen.getByLabelText("Blouse quantity"), "3");
+      await fillDeliveryDate(user, "2026-07-20");
+      await user.click(screen.getByRole("button", { name: "One more piece" }));
+      await user.click(screen.getByRole("button", { name: "One more piece" }));
+
+      // No per-garment name or date fields — the whole point of the simpler
+      // form is that the common case types nothing extra.
+      expect(screen.queryByLabelText("Piece 1 name")).not.toBeInTheDocument();
+      expect(screen.getByText(/Blouse 1–3, all due/)).toBeInTheDocument();
+      expect(screen.getByText("3 garments, tracked separately")).toBeInTheDocument();
+
+      await user.click(screen.getByText("✓ Confirm & Place Order"));
+
+      expect(vi.mocked(createOrder).mock.calls[0][0].pieces).toEqual([
+        { label: "Blouse 1", due: "2026-07-20" },
+        { label: "Blouse 2", due: "2026-07-20" },
+        { label: "Blouse 3", due: "2026-07-20" },
+      ]);
+    });
+
+    it("drops back to a single garment when the count returns to one", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await reachPricing(user, container);
+
+      await user.type(screen.getByLabelText("Blouse price"), "500");
+      await fillDeliveryDate(user);
+      await user.click(screen.getByRole("button", { name: "One more piece" }));
+      await user.click(screen.getByRole("button", { name: "One less piece" }));
+      await user.click(screen.getByText("✓ Confirm & Place Order"));
+
+      expect(vi.mocked(createOrder).mock.calls[0][0]).not.toHaveProperty("pieces");
+    });
+
+    // The blouse book's case only — a Salwar order never even sees the question.
+    it("is not offered on a Salwar order", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await user.click(screen.getByText("Salwar"));
+      await fillStep1AndAdvance(user, container);
+      await user.click(screen.getByText("Next: Pricing →"));
+
+      expect(screen.queryByText(/How many/)).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "One more piece" })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("adding an item that isn't a printed row", () => {
+    it("submits the added row and drops one left blank", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await chooseOrderType(user);
+      await fillStep1AndAdvance(user, container);
+      await user.click(screen.getByText("Next: Pricing →"));
+
+      await user.type(screen.getByLabelText("Blouse price"), "500");
+
+      await user.click(screen.getByRole("button", { name: "Add item" }));
+      await user.type(screen.getByLabelText(/name$/), "Kids frock");
+      await user.type(screen.getByLabelText("Kids frock price"), "900");
+
+      // A second added row, left entirely blank, must not reach the server.
+      await user.click(screen.getByRole("button", { name: "Add item" }));
+
+      await fillDeliveryDate(user);
+      await user.click(screen.getByText("✓ Confirm & Place Order"));
+
+      const submitted = vi.mocked(createOrder).mock.calls[0][0];
+      expect(submitted.lineItems).toEqual([
+        { particulars: "Blouse", qty: 1, amount: 500 },
+        { particulars: "Kids frock", qty: 1, amount: 900 },
+      ]);
+      expect(submitted.amount).toBe(1400);
+    });
+
+    it("removes an added row again", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await chooseOrderType(user);
+      await fillStep1AndAdvance(user, container);
+      await user.click(screen.getByText("Next: Pricing →"));
+
+      await user.click(screen.getByRole("button", { name: "Add item" }));
+      await user.type(screen.getByLabelText(/name$/), "Kids frock");
+      expect(screen.getByLabelText("Kids frock price")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Remove Kids frock" }));
+      expect(screen.queryByLabelText("Kids frock price")).not.toBeInTheDocument();
+    });
+  });
+
 });

@@ -14,24 +14,43 @@ import OrderFiltersSheet, {
   hasActiveFilters,
   type OrderFilterValues,
 } from "@/components/orders/OrderFiltersSheet";
-import { cn, isOrderOverdue, matchesOrderSearch } from "@/lib/utils";
+import { cn, isOrderOverdue, matchesOrderSearch, nextDueDate, openAlteration } from "@/lib/utils";
 import { ORDERS_PAGE_SIZE } from "./pageSize";
 import type { AssignedStaff, Order, OrderStatus } from "@/types";
 
-type OrderFilter = OrderStatus | "all" | "overdue";
+// "overdue" and "in_alteration" are derived filters, not statuses — an order
+// in alteration is stored as `delivered`, so it can only be found by looking
+// at its alteration records.
+type OrderFilter = OrderStatus | "all" | "overdue" | "in_alteration";
 
+// The three chips that answer "what still needs me?" lead, ahead of the
+// pipeline stages: something running late, garments a customer hasn't come
+// back for, and something in for alteration. Part Delivered sits with them
+// rather than in its pipeline position — the whole point of splitting an
+// order is being able to find the ones with garments still on the shelf.
 const FILTERS: { id: OrderFilter; label: string }[] = [
-  { id: "all",          label: "All" },
-  { id: "overdue",      label: "Overdue" },
-  { id: "new",          label: "New" },
-  { id: "cutting",      label: "Cutting" },
-  { id: "cutting_done", label: "Cutting Done" },
-  { id: "stitching",    label: "Stitching" },
-  { id: "hemming_hook", label: "Hemming & Hook" },
-  { id: "ready",        label: "Ready" },
-  { id: "delivered",    label: "Delivered" },
-  { id: "cancelled",    label: "Cancelled" },
+  { id: "all",              label: "All" },
+  { id: "overdue",          label: "Overdue" },
+  { id: "partly_delivered", label: "Part Delivered" },
+  { id: "in_alteration",    label: "In Alteration" },
+  { id: "new",              label: "New" },
+  { id: "cutting",          label: "Cutting" },
+  { id: "cutting_done",     label: "Cutting Done" },
+  { id: "stitching",        label: "Stitching" },
+  { id: "hemming_hook",     label: "Hemming & Hook" },
+  { id: "ready",            label: "Ready" },
+  { id: "delivered",        label: "Delivered" },
+  { id: "cancelled",        label: "Cancelled" },
 ];
+
+// One predicate for both the chip row and the header counts, so a count can
+// never disagree with the list it labels.
+export function matchesOrderFilter(order: Order, filter: OrderFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "overdue") return isOrderOverdue(nextDueDate(order), order.status);
+  if (filter === "in_alteration") return openAlteration(order) !== null;
+  return order.status === filter;
+}
 
 // The two order books are run as separate series (S… / B…), so the list
 // splits the same way. "All" stays the default and is the only tab that can
@@ -93,9 +112,7 @@ export default function OrdersBody({ initialOrders }: { initialOrders: Order[] }
   // Everything except the dress tab, so each tab's count is exactly what
   // tapping it will show — not a total that disagrees with the list.
   const matchingOtherFilters = orders
-    .filter((o) =>
-      filter === "all" ? true : filter === "overdue" ? isOrderOverdue(o.due, o.status) : o.status === filter
-    )
+    .filter((o) => matchesOrderFilter(o, filter))
     .filter((o) => !advanced.masterId || o.master?.id === advanced.masterId)
     .filter((o) => !advanced.tailorId || o.tailor?.id === advanced.tailorId)
     .filter((o) => !advanced.due || o.due.slice(0, 10) === advanced.due)
@@ -112,7 +129,7 @@ export default function OrdersBody({ initialOrders }: { initialOrders: Order[] }
   const filtersActive = hasActiveFilters(advanced);
 
   const activeCount = orders.filter((o) => !["delivered", "cancelled"].includes(o.status)).length;
-  const overdueCount = orders.filter((o) => isOrderOverdue(o.due, o.status)).length;
+  const overdueCount = orders.filter((o) => matchesOrderFilter(o, "overdue")).length;
 
   return (
     <div className="screen">

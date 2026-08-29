@@ -11,6 +11,7 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
   stitching: "#F5E9BB",
   hemming_hook: "#2E5C99",
   ready: "#1B6B3A",
+  partly_delivered: "#7FB69A",
   delivered: "#6B6B6B",
   cancelled: "#B04A4A",
 };

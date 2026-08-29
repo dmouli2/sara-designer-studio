@@ -10,10 +10,12 @@ import SketchCanvas from "@/components/orders/SketchCanvas";
 import ReferenceImageUpload from "@/components/orders/ReferenceImageUpload";
 import MaterialImageUpload from "@/components/orders/MaterialImageUpload";
 import FabricManagerSheet from "@/components/orders/FabricManagerSheet";
+import LineItemsEditor from "@/components/orders/LineItemsEditor";
+import PiecesEditor from "@/components/orders/PiecesEditor";
 import { DRESS_TYPES, LINE_ITEM_PRESETS, lineItemCategoryForDress } from "@/lib/mock";
 import { formatCurrency, isValidIndianMobile, buildOrderWhatsAppMessage, buildWhatsAppShareUrl } from "@/lib/utils";
 import { dataUrlToFile, galleryEntryToFile, MAX_PHOTO_PAYLOAD_BYTES } from "@/lib/image";
-import { FEATURE_SCAN_ORDERS } from "@/lib/features";
+import { FEATURE_MULTI_PIECE, FEATURE_SCAN_ORDERS } from "@/lib/features";
 import { lineItemsForDress, measurementsForDress, normalizeExtraction } from "@/lib/extraction/normalize";
 import { createOrder } from "@/app/actions/orders";
 import { confirmDraft } from "@/app/actions/drafts";
@@ -69,6 +71,9 @@ interface OrderDraft {
   delivery: string;
   advance: string;
   advanceMethod?: PaymentMethod;
+  // Absent on drafts saved before multi-piece existed — resumed as a
+  // single-garment order, which is what they were.
+  pieceCount?: number;
 }
 
 function readDraft(): OrderDraft | null {
@@ -88,6 +93,13 @@ function clearDraft() {
   } catch {
     // localStorage unavailable — nothing to clear
   }
+}
+
+// Rows past this index in the items table are ones someone added by hand —
+// see LineItemsEditor. Derived from the dress category so a scan's appended
+// handwritten rows land on the editable side too.
+function presetCountFor(dress: string): number {
+  return LINE_ITEM_PRESETS[lineItemCategoryForDress(dress)].length;
 }
 
 function defaultLineItems(dress: string): OrderLineItem[] {
@@ -162,9 +174,18 @@ export default function NewOrderWizard({
     () => (scanPrefill?.lineItems.length ? scanPrefill.lineItems : defaultLineItems(DRESS_TYPES[0]))
   );
   const [delivery, setDelivery]     = useState(scanPrefill?.delivery ?? "");
+  // How many garments this order is. 1 — the default and almost every order —
+  // stores no pieces at all, which is the shape every order had before this
+  // existed. Only ever raised for Blouse orders (see canSplitPieces below).
+  const [pieceCount, setPieceCount] = useState(1);
   const [advance, setAdvance]       = useState(scanPrefill?.advance ?? "");
   // Only meaningful when an advance was actually taken — see advanceMethod below.
   const [advanceMethod, setAdvanceMethod] = useState<PaymentMethod>("cash");
+
+  // Multiple garments to one set of measurements is the blouse book's case —
+  // a customer bringing one saree for three blouses. Salwar orders stay
+  // single-garment.
+  const canSplitPieces = FEATURE_MULTI_PIECE && dress === "Blouse";
 
   const fabricCost = matSource === "shop" && fabric ? fabric.price * parseFloat(metres || "0") : 0;
   // Amount is the per-piece price, so every line contributes qty × amount —
@@ -209,7 +230,7 @@ export default function NewOrderWizard({
       const data: OrderDraft = {
         step, dress, name, phone, matSource,
         fabricName: fabric?.name ?? "", metres, custFabric, materialImages,
-        meas, notes, sketch, refImages, lineItems, delivery, advance, advanceMethod,
+        meas, notes, sketch, refImages, lineItems, delivery, advance, advanceMethod, pieceCount,
       };
       try {
         localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
@@ -225,7 +246,7 @@ export default function NewOrderWizard({
       }
     }, DRAFT_SAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [dress, step, name, phone, matSource, fabric, metres, custFabric, materialImages, meas, notes, sketch, refImages, lineItems, delivery, advance, advanceMethod, placedOrder, scan]);
+  }, [dress, step, name, phone, matSource, fabric, metres, custFabric, materialImages, meas, notes, sketch, refImages, lineItems, delivery, advance, advanceMethod, pieceCount, placedOrder, scan]);
 
   function resumeDraft() {
     if (!draft) return;
@@ -247,6 +268,7 @@ export default function NewOrderWizard({
     setDelivery(draft.delivery);
     setAdvance(draft.advance);
     setAdvanceMethod(draft.advanceMethod ?? "cash");
+    setPieceCount(draft.pieceCount ?? 1);
     setDraft(null);
   }
 
@@ -257,6 +279,9 @@ export default function NewOrderWizard({
 
   function handleDressChange(d: string) {
     setDress(d);
+    // Pieces are a Blouse-book concept; switching away resets the count so a
+    // Salwar order can never be written with a pieces array.
+    setPieceCount(1);
     // For a scan whose book type wasn't auto-detected, picking the type here
     // rebuilds measurements/items from the extraction rather than blank.
     if (scan) {
@@ -267,10 +292,6 @@ export default function NewOrderWizard({
     }
     setMeas(emptyMeasurementsForDress(d));
     setLineItems(defaultLineItems(d));
-  }
-
-  function setLineItem(i: number, patch: Partial<OrderLineItem>) {
-    setLineItems((prev) => prev.map((li, idx) => idx === i ? { ...li, ...patch } : li));
   }
 
   async function handleSubmit() {
@@ -286,8 +307,14 @@ export default function NewOrderWizard({
 
     setSubmitting(true);
     const activeItems = lineItems
-      .filter((li) => li.qty > 0 && li.amount > 0)
-      .map(({ note, ...li }) => (note?.trim() ? { ...li, note: note.trim() } : li));
+      // A custom row left blank was never filled in — drop it rather than
+      // storing a nameless zero-value line.
+      .filter((li) => li.particulars.trim() && li.qty > 0 && li.amount > 0)
+      .map(({ note, ...li }) => ({
+        ...li,
+        particulars: li.particulars.trim(),
+        ...(note?.trim() ? { note: note.trim() } : {}),
+      }));
     try {
       const photos = new FormData();
       if (sketch) photos.append("sketch", dataUrlToFile(sketch, "sketch.png"));
@@ -325,6 +352,18 @@ export default function NewOrderWizard({
           measurements: meas,
           lineItems: activeItems,
           notes,
+          // Only sent for a genuinely split order; createOrder stores null
+          // for anything shorter, keeping single-garment orders unchanged.
+          // Every garment takes the order's delivery date — a piece that
+          // needs its own is re-dated from the order page.
+          ...(canSplitPieces && pieceCount > 1
+            ? {
+                pieces: Array.from({ length: pieceCount }, (_, i) => ({
+                  label: `${dress} ${i + 1}`,
+                  due: delivery,
+                })),
+              }
+            : {}),
         },
         photos
       );
@@ -659,41 +698,11 @@ export default function NewOrderWizard({
           <>
             <div>
               <p className="section-label">Order items</p>
-              <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden bg-white">
-                {/* Header */}
-                <div className="grid grid-cols-[1fr_44px_64px_1fr] gap-2 bg-[#F9F8F6] border-b border-[#E5E0D5] px-3 py-2">
-                  <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide">Item</span>
-                  <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide text-center">Qty</span>
-                  <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide text-center">Price ₹</span>
-                  <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide">Comments</span>
-                </div>
-                {lineItems.map((li, i) => (
-                  <div key={i} className={`grid grid-cols-[1fr_44px_64px_1fr] items-center px-3 py-2 gap-2 ${i % 2 === 1 ? "bg-[#FDFCFA]" : "bg-white"} ${i > 0 ? "border-t border-[#F0EDE6]" : ""}`}>
-                    <span className="text-xs text-[#0F0F0F]">{li.particulars}</span>
-                    <input
-                      className="w-full text-center text-sm border border-[#E5E0D5] rounded-lg py-1.5 focus:outline-none focus:border-[#C9A84C]"
-                      type="number" min="0" value={li.qty || ""}
-                      placeholder="0"
-                      aria-label={`${li.particulars} quantity`}
-                      onChange={(e) => setLineItem(i, { qty: parseInt(e.target.value) || 0 })}
-                    />
-                    <input
-                      className="w-full text-center text-sm border border-[#E5E0D5] rounded-lg py-1.5 focus:outline-none focus:border-[#C9A84C]"
-                      type="number" min="0" value={li.amount || ""}
-                      placeholder="0"
-                      aria-label={`${li.particulars} price`}
-                      onChange={(e) => setLineItem(i, { amount: parseFloat(e.target.value) || 0 })}
-                    />
-                    <input
-                      className="w-full min-w-0 text-[13px] border border-[#E5E0D5] rounded-lg py-1.5 px-2 focus:outline-none focus:border-[#C9A84C] placeholder:text-[#C4C0B6]"
-                      placeholder="(…)"
-                      aria-label={`${li.particulars} comments`}
-                      value={li.note ?? ""}
-                      onChange={(e) => setLineItem(i, { note: e.target.value })}
-                    />
-                  </div>
-                ))}
-              </div>
+              <LineItemsEditor
+                items={lineItems}
+                presetCount={presetCountFor(dress)}
+                onChange={setLineItems}
+              />
             </div>
 
             <div>
@@ -726,10 +735,27 @@ export default function NewOrderWizard({
                 )}
                 <div>
                   <label className="text-xs text-[#9A9A9A] mb-1 block">Delivery date *</label>
-                  <input className="input" type="date" value={delivery} onChange={(e) => setDelivery(e.target.value)} />
+                  <input
+                    className="input"
+                    type="date"
+                    value={delivery}
+                    onChange={(e) => setDelivery(e.target.value)}
+                  />
                 </div>
               </div>
             </div>
+
+            {canSplitPieces && (
+              <div>
+                <p className="section-label">Pieces</p>
+                <PiecesEditor
+                  count={pieceCount}
+                  orderDue={delivery}
+                  labelPrefix={dress}
+                  onChange={setPieceCount}
+                />
+              </div>
+            )}
 
             {/* Summary */}
             <div className="card-gold">
@@ -740,7 +766,13 @@ export default function NewOrderWizard({
                   <span>{formatCurrency(fabricCost)}</span>
                 </div>
               )}
-              {lineItems.filter((li) => li.qty > 0 && li.amount > 0).map((li, i) => (
+              {canSplitPieces && pieceCount > 1 && (
+                <div className="flex justify-between text-xs text-[#A8882E] mb-1.5">
+                  <span>Pieces</span>
+                  <span>{pieceCount} garments, tracked separately</span>
+                </div>
+              )}
+              {lineItems.filter((li) => li.particulars.trim() && li.qty > 0 && li.amount > 0).map((li, i) => (
                 <div key={i} className="flex justify-between text-xs text-[#A8882E] mb-1.5">
                   <span>{li.particulars} ×{li.qty} @ {formatCurrency(li.amount)}</span>
                   <span>{formatCurrency(li.qty * li.amount)}</span>

@@ -234,3 +234,17 @@ describe("coerceExtraction", () => {
     );
   });
 });
+
+describe("coerceExtraction — the advance box signal", () => {
+  // Absent means "this response predates the field", which normalizeExtraction
+  // has to be able to tell apart from "the model said the box is blank".
+  it("omits the flag when the model didn't answer it", () => {
+    expect(coerceExtraction({})).not.toHaveProperty("advanceBoxFilled");
+    expect(coerceExtraction({ advanceBoxFilled: "yes" })).not.toHaveProperty("advanceBoxFilled");
+  });
+
+  it("carries a real boolean through in both directions", () => {
+    expect(coerceExtraction({ advanceBoxFilled: true }).advanceBoxFilled).toBe(true);
+    expect(coerceExtraction({ advanceBoxFilled: false }).advanceBoxFilled).toBe(false);
+  });
+});

@@ -75,7 +75,12 @@
   .badge-stitching    { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#F5E9BB] text-[#7A6020]; }
   .badge-hemming_hook { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#E3EEFB] text-[#2E5C99]; }
   .badge-ready        { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#D5F0E1] text-[#1B6B3A]; }
+  .badge-partly_delivered { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#E8F5EE] text-[#3E8963]; }
   .badge-delivered    { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#F0EDE6] text-[#6B6B6B]; }
+  /* Alteration states are not pipeline stages — a distinct violet keeps a
+     garment that came back from reading like just another workshop step. */
+  .badge-in_alteration   { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#EFE9FB] text-[#6B4FA8]; }
+  .badge-alteration_done { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#DED2F7] text-[#4E3585]; }
   .badge-cancelled    { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-[#FBECEC] text-[#B04A4A]; }
 
   .bottom-nav {

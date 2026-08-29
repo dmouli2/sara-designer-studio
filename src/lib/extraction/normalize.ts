@@ -324,11 +324,35 @@ export function normalizeExtraction(extraction: SlipExtraction, now: Date = new 
     );
   }
 
-  const advance = /^\d+$/.test(extraction.advance.trim()) ? extraction.advance.trim() : "";
-  if (extraction.advance && !advance) {
+  // The advance is the field a vision model is most prone to inventing — it
+  // reads a number from somewhere else on the slip (the Total, the "Given"
+  // box) and files it here, and an invented advance is money the shop never
+  // took, silently reducing what it collects at delivery.
+  //
+  // So the model has to say twice that there is an advance: a readable number
+  // AND advanceBoxFilled. Disagreement is treated as a blank box, and the
+  // number it claimed is surfaced as a warning rather than typed into the
+  // form. `advanceBoxFilled` is absent on drafts scanned before it existed —
+  // those fall back to trusting the value, which is what they did anyway.
+  const rawAdvance = extraction.advance.trim();
+  const boxFilled = extraction.advanceBoxFilled ?? true;
+  const readable = /^\d+$/.test(rawAdvance);
+  const advance = readable && boxFilled ? rawAdvance : "";
+
+  if (rawAdvance && !readable) {
     warnings.push("The Advance couldn't be read as a number — verify it.");
-  } else if (advance && extraction.advanceConfidence === "low") {
-    warnings.push(`Verify the Advance ₹${advance} against the photo.`);
+  } else if (rawAdvance && !boxFilled) {
+    warnings.push(
+      `An advance of ₹${rawAdvance} was read, but the Advance box looks blank — left empty. Enter it only if the slip really shows one.`
+    );
+  } else if (advance) {
+    // Even a confidently-read advance gets checked: a hallucination arrives
+    // with high confidence, so confidence alone can't be the gate on money.
+    warnings.push(
+      extraction.advanceConfidence === "low"
+        ? `Verify the Advance ₹${advance} against the photo.`
+        : `Confirm the Advance ₹${advance} was actually collected — check it against the photo.`
+    );
   }
   if (advance && writtenTotal !== null && parseInt(advance, 10) > writtenTotal) {
     warnings.push(`Advance ₹${advance} is more than the Total ₹${writtenTotal} — check both.`);

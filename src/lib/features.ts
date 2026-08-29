@@ -15,3 +15,26 @@ export function assertScanFeatureEnabled(): void {
     throw new Error("Order slip scanning is currently disabled.");
   }
 }
+
+// FEATURE_MULTI_PIECE gates splitting one order into several garments with
+// their own delivery dates (the "three blouses, same measurements" case).
+// Turning it off hides the piece stepper in the new-order wizard, so no new
+// order can be split.
+//
+// It deliberately does NOT hide pieces on orders that already have them:
+// those garments are real, some may already be with the customer, and hiding
+// the only screen that can hand the rest over would strand them. Off means
+// "stop creating these", not "pretend they don't exist".
+export const FEATURE_MULTI_PIECE = true;
+
+// FEATURE_ALTERATIONS gates the post-delivery alteration flow. Turning it off
+// hides the "Came back for alteration" button and every alteration action
+// refuses — but, for the same reason as above, an alteration already open
+// stays visible and can still be closed out.
+export const FEATURE_ALTERATIONS = true;
+
+export function assertAlterationsEnabled(): void {
+  if (!FEATURE_ALTERATIONS) {
+    throw new Error("Alteration tracking is currently disabled.");
+  }
+}

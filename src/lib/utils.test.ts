@@ -15,7 +15,132 @@ import {
   buildWhatsAppShareUrl,
   CUSTOMER_STATUS_LABELS,
   ORDER_TERMS,
+  isMultiPiece,
+  pendingPieces,
+  deliveredPieceCount,
+  nextDueDate,
+  openAlteration,
+  orderDisplayStatus,
+  shopToday,
 } from "./utils";
+import type { AlterationRecord, OrderPiece } from "@/types";
+
+function piece(over: Partial<OrderPiece> = {}): OrderPiece {
+  return { id: "p1", label: "Blouse 1", due: "2026-09-01", status: "pending", deliveredAt: null, ...over };
+}
+
+function alteration(over: Partial<AlterationRecord> = {}): AlterationRecord {
+  return {
+    id: "a1",
+    reason: "Sleeve tight",
+    pieceLabel: null,
+    receivedAt: "2026-08-01",
+    promisedAt: "2026-08-08",
+    completedAt: null,
+    redeliveredAt: null,
+    ...over,
+  };
+}
+
+describe("shopToday", () => {
+  // Server code runs in UTC, where an evening in Dharapuram is still
+  // "yesterday" — the whole reason this helper exists.
+  it("dates an IST evening as that IST day, not the UTC one", () => {
+    expect(shopToday(new Date("2026-08-29T20:30:00Z"))).toBe("2026-08-30");
+  });
+
+  it("returns an ISO calendar date", () => {
+    expect(shopToday(new Date("2026-08-29T09:00:00Z"))).toBe("2026-08-29");
+  });
+});
+
+describe("multi-piece helpers", () => {
+  // Null is "this order is one garment", not "no garments" — and a
+  // one-entry array would be a contradiction, so neither counts as split.
+  it("only treats a genuinely split order as multi-piece", () => {
+    expect(isMultiPiece({ pieces: null })).toBe(false);
+    expect(isMultiPiece({ pieces: [piece()] })).toBe(false);
+    expect(isMultiPiece({ pieces: [piece(), piece({ id: "p2" })] })).toBe(true);
+  });
+
+  it("counts what has gone out and what is still here", () => {
+    const order = {
+      pieces: [piece(), piece({ id: "p2", status: "delivered", deliveredAt: "2026-08-20" })],
+    };
+    expect(deliveredPieceCount(order)).toBe(1);
+    expect(pendingPieces(order).map((p) => p.id)).toEqual(["p1"]);
+  });
+
+  it("answers zero and empty for a single-garment order", () => {
+    expect(deliveredPieceCount({ pieces: null })).toBe(0);
+    expect(pendingPieces({ pieces: null })).toEqual([]);
+  });
+
+  describe("nextDueDate", () => {
+    it("falls back to the order's date when there are no pieces", () => {
+      expect(nextDueDate({ due: "2026-09-30", pieces: null })).toBe("2026-09-30");
+    });
+
+    // The order-level date is the LAST garment's, so an earlier piece can be
+    // overdue while it is still weeks away.
+    it("returns the earliest piece still in the shop", () => {
+      expect(
+        nextDueDate({
+          due: "2026-09-30",
+          pieces: [
+            piece({ id: "p1", due: "2026-09-20" }),
+            piece({ id: "p2", due: "2026-09-05" }),
+            piece({ id: "p3", due: "2026-09-01", status: "delivered" }),
+          ],
+        })
+      ).toBe("2026-09-05");
+    });
+
+    it("falls back to the order's date once every piece has gone", () => {
+      expect(
+        nextDueDate({
+          due: "2026-09-30",
+          pieces: [piece({ status: "delivered" })],
+        })
+      ).toBe("2026-09-30");
+    });
+
+    it("ignores a piece with no date of its own", () => {
+      expect(
+        nextDueDate({ due: "2026-09-30", pieces: [piece({ due: "" })] })
+      ).toBe("2026-09-30");
+    });
+  });
+});
+
+describe("openAlteration / orderDisplayStatus", () => {
+  it("finds nothing on an order that never came back", () => {
+    expect(openAlteration({ alterations: [] })).toBeNull();
+    expect(orderDisplayStatus({ status: "delivered", alterations: [] })).toBe("delivered");
+  });
+
+  it("ignores a closed record", () => {
+    expect(openAlteration({ alterations: [alteration({ redeliveredAt: "2026-08-10" })] })).toBeNull();
+  });
+
+  it("reports the record still with us, newest first", () => {
+    const open = alteration({ id: "a2" });
+    expect(
+      openAlteration({ alterations: [alteration({ redeliveredAt: "2026-07-01" }), open] })?.id
+    ).toBe("a2");
+  });
+
+  // The order stays "delivered" in the database throughout — only the badge
+  // changes, which is what keeps revenue and the delivered count intact.
+  it("shows the alteration state in place of the stored status", () => {
+    expect(orderDisplayStatus({ status: "delivered", alterations: [alteration()] })).toBe("in_alteration");
+    expect(
+      orderDisplayStatus({ status: "delivered", alterations: [alteration({ completedAt: "2026-08-05" })] })
+    ).toBe("alteration_done");
+  });
+});
+
+
 
 describe("isOrderOverdue", () => {
   afterEach(() => {

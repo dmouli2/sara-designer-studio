@@ -9,6 +9,7 @@ import MeasurementForm from "@/components/orders/MeasurementForm";
 import SketchCanvas from "@/components/orders/SketchCanvas";
 import ReferenceImageUpload from "@/components/orders/ReferenceImageUpload";
 import MaterialImageUpload from "@/components/orders/MaterialImageUpload";
+import LineItemsEditor from "@/components/orders/LineItemsEditor";
 import { LINE_ITEM_PRESETS, lineItemCategoryForDress } from "@/lib/mock";
 import { formatCurrency, isValidIndianMobile } from "@/lib/utils";
 import { galleryEntryToFile, MAX_PHOTO_PAYLOAD_BYTES } from "@/lib/image";
@@ -33,11 +34,15 @@ function stitchTotalOf(items: OrderLineItem[]): number {
 }
 
 // Same normalization the wizard applies before createOrder: drop untouched
-// preset rows, strip empty notes.
+// preset rows and half-filled custom ones, strip empty notes.
 function activeItemsOf(items: OrderLineItem[]): OrderLineItem[] {
   return items
-    .filter((li) => li.qty > 0 && li.amount > 0)
-    .map(({ note, ...li }) => (note?.trim() ? { ...li, note: note.trim() } : li));
+    .filter((li) => li.particulars.trim() && li.qty > 0 && li.amount > 0)
+    .map(({ note, ...li }) => ({
+      ...li,
+      particulars: li.particulars.trim(),
+      ...(note?.trim() ? { note: note.trim() } : {}),
+    }));
 }
 
 export default function EditOrderForm({ order }: { order: Order }) {
@@ -71,16 +76,15 @@ export default function EditOrderForm({ order }: { order: Order }) {
 
   const computedTotal = order.amount - stitchTotalOf(order.lineItems) + stitchTotalOf(lineItems);
   const total   = totalOverride !== null ? parseFloat(totalOverride || "0") : computedTotal;
-  const balance = total - parseFloat(advance || "0");
+  // finalPayment is not always zero here: a partly delivered order is still
+  // editable and may already have collected part of its balance at a piece
+  // hand-over. Subtracting only the advance would overstate what's owed.
+  const balance = total - parseFloat(advance || "0") - order.finalPayment;
 
   // The existing sketch is a Storage URL we can't draw over (the canvas
   // would taint) — show it read-only until the admin removes it, at which
   // point a blank canvas appears for redrawing.
   const keepingStoredSketch = !!sketch && !sketch.startsWith("data:");
-
-  function setLineItem(i: number, patch: Partial<OrderLineItem>) {
-    setLineItems((prev) => prev.map((li, idx) => (idx === i ? { ...li, ...patch } : li)));
-  }
 
   async function handleSave() {
     if (saving) return;
@@ -239,40 +243,11 @@ export default function EditOrderForm({ order }: { order: Order }) {
 
         <div>
           <p className="section-label">Order items</p>
-          <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden bg-white">
-            <div className="grid grid-cols-[1fr_44px_64px_1fr] gap-2 bg-[#F9F8F6] border-b border-[#E5E0D5] px-3 py-2">
-              <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide">Item</span>
-              <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide text-center">Qty</span>
-              <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide text-center">Price ₹</span>
-              <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide">Comments</span>
-            </div>
-            {lineItems.map((li, i) => (
-              <div key={i} className={`grid grid-cols-[1fr_44px_64px_1fr] items-center px-3 py-2 gap-2 ${i % 2 === 1 ? "bg-[#FDFCFA]" : "bg-white"} ${i > 0 ? "border-t border-[#F0EDE6]" : ""}`}>
-                <span className="text-xs text-[#0F0F0F]">{li.particulars}</span>
-                <input
-                  className="w-full text-center text-sm border border-[#E5E0D5] rounded-lg py-1.5 focus:outline-none focus:border-[#C9A84C]"
-                  type="number" min="0" value={li.qty || ""}
-                  placeholder="0"
-                  aria-label={`${li.particulars} quantity`}
-                  onChange={(e) => setLineItem(i, { qty: parseInt(e.target.value) || 0 })}
-                />
-                <input
-                  className="w-full text-center text-sm border border-[#E5E0D5] rounded-lg py-1.5 focus:outline-none focus:border-[#C9A84C]"
-                  type="number" min="0" value={li.amount || ""}
-                  placeholder="0"
-                  aria-label={`${li.particulars} price`}
-                  onChange={(e) => setLineItem(i, { amount: parseFloat(e.target.value) || 0 })}
-                />
-                <input
-                  className="w-full min-w-0 text-[13px] border border-[#E5E0D5] rounded-lg py-1.5 px-2 focus:outline-none focus:border-[#C9A84C] placeholder:text-[#C4C0B6]"
-                  placeholder="(…)"
-                  aria-label={`${li.particulars} comments`}
-                  value={li.note ?? ""}
-                  onChange={(e) => setLineItem(i, { note: e.target.value })}
-                />
-              </div>
-            ))}
-          </div>
+          <LineItemsEditor
+            items={lineItems}
+            presetCount={LINE_ITEM_PRESETS[lineItemCategoryForDress(order.dress)].length}
+            onChange={setLineItems}
+          />
         </div>
 
         <div>

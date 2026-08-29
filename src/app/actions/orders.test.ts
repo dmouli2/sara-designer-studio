@@ -14,11 +14,47 @@ import {
   updateOrderStatus,
   cancelOrder,
   deleteOrder,
+  deliverPiece,
+  updatePieceDue,
+  startAlteration,
+  completeAlteration,
+  redeliverAlteration,
   type OrderEditInput,
 } from "./orders";
 import { mockRefresh, mockRevalidatePath } from "../../../vitest.setup";
 import { MAX_REFERENCE_IMAGES, MAX_MATERIAL_IMAGES } from "@/types";
-import type { GarmentMeasurements, OrderLineItem, Order } from "@/types";
+import type { AlterationRecord, GarmentMeasurements, OrderLineItem, Order, OrderPiece } from "@/types";
+
+function piece(over: Partial<OrderPiece> = {}): OrderPiece {
+  return { id: "p1", label: "Blouse 1", due: "2026-07-10", status: "pending", deliveredAt: null, ...over };
+}
+
+// A three-blouse order, half paid up front — the shape most of the
+// piece-delivery tests below need.
+function splitOrder(over: Partial<Order> = {}): Order {
+  return {
+    ...order,
+    status: "ready",
+    amount: 3000,
+    advance: 1000,
+    finalPayment: 0,
+    pieces: [piece(), piece({ id: "p2", label: "Blouse 2" }), piece({ id: "p3", label: "Blouse 3" })],
+    ...over,
+  };
+}
+
+function alteration(over: Partial<AlterationRecord> = {}): AlterationRecord {
+  return {
+    id: "a1",
+    reason: "Sleeve tight",
+    pieceLabel: null,
+    receivedAt: "2026-08-01",
+    promisedAt: "2026-08-08",
+    completedAt: null,
+    redeliveredAt: null,
+    ...over,
+  };
+}
 
 vi.mock("@/lib/dal", () => ({ requireRole: vi.fn() }));
 vi.mock("@/lib/db", () => ({ getDb: vi.fn() }));
@@ -61,6 +97,9 @@ const order: Order = {
   materialImageUrls: ["orders/SDS-001/material-1.jpg"],
   mainMaterialImageUrl: null,
   cancellationCharge: null,
+  pieces: null,
+  alterations: [],
+  payments: [],
   createdAt: "2026-06-01T00:00:00.000Z",
 };
 
@@ -76,6 +115,11 @@ const {
   sketchDataUrl: _omittedSketch,
   referenceImageUrls: _omittedRefs,
   materialImageUrls: _omittedMats,
+  // pieces arrive as drafts (label + date) and are built server-side;
+  // alterations/payments are histories the server starts empty.
+  pieces: _omittedPieces,
+  alterations: _omittedAlterations,
+  payments: _omittedPayments,
   ...orderInput
 } = order;
 void _omittedId;
@@ -84,6 +128,9 @@ void _omittedMain;
 void _omittedSketch;
 void _omittedRefs;
 void _omittedMats;
+void _omittedPieces;
+void _omittedAlterations;
+void _omittedPayments;
 
 function photoFile(content: string, name: string, type = "image/jpeg"): File {
   return new File([content], name, { type });
@@ -186,10 +233,16 @@ const findPublicToken = vi.fn();
     await deliverOrder("SDS-001", "upi");
 
     expect(requireRole).toHaveBeenCalledWith(["admin"]);
-    expect(updateStatus).toHaveBeenCalledWith("SDS-001", "delivered", {
-      finalPayment: 2500,
-      finalPaymentMethod: "upi",
-    });
+    expect(updateStatus).toHaveBeenCalledWith(
+      "SDS-001",
+      "delivered",
+      expect.objectContaining({ finalPayment: 2500, finalPaymentMethod: "upi" })
+    );
+    // The collection is also written to the ledger, which is what lets an
+    // order paid across several visits show where its money came from.
+    expect(updateStatus.mock.calls[0][2].payments).toEqual([
+      expect.objectContaining({ amount: 2500, method: "upi", pieceId: null }),
+    ]);
     expect(mockRevalidatePath).toHaveBeenCalledWith("/admin/orders");
   });
 
@@ -201,10 +254,11 @@ const findPublicToken = vi.fn();
 
     await deliverOrder("SDS-001", "cash");
 
-    expect(updateStatus).toHaveBeenCalledWith("SDS-001", "delivered", {
-      finalPayment: 1000,
-      finalPaymentMethod: "cash",
-    });
+    expect(updateStatus).toHaveBeenCalledWith(
+      "SDS-001",
+      "delivered",
+      expect.objectContaining({ finalPayment: 1000, finalPaymentMethod: "cash" })
+    );
   });
 
   it("deliverOrder records no method when there was nothing left to collect", async () => {
@@ -213,7 +267,9 @@ const findPublicToken = vi.fn();
 
     await deliverOrder("SDS-001", "cash");
 
-    expect(updateStatus).toHaveBeenCalledWith("SDS-001", "delivered", { finalPayment: 0 });
+    // Nothing arrived, so nothing is recorded — no ledger entry, and no
+    // method claiming a payment that never happened.
+    expect(updateStatus).toHaveBeenCalledWith("SDS-001", "delivered", {});
   });
 
   it("deliverOrder rejects an unknown payment method", async () => {
@@ -624,4 +680,384 @@ const findPublicToken = vi.fn();
     }
     expect(mockRefresh).toHaveBeenCalled();
   });
+
+  // ── Multi-piece orders ────────────────────────────────────────────────
+
+  describe("createOrder with pieces", () => {
+    it("stores nothing for a single-garment order", async () => {
+      nextOrderId.mockResolvedValue("B2601");
+      create.mockResolvedValue({ ...order, publicToken: "tok" });
+
+      await createOrder(orderInput, photosForm());
+
+      // Null, not an empty array — "this order is one garment", the shape
+      // every order had before pieces existed.
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({ pieces: null, alterations: [], payments: [] })
+      );
+    });
+
+    it("builds ids and delivery state server-side from the wizard's drafts", async () => {
+      nextOrderId.mockResolvedValue("B2601");
+      create.mockResolvedValue({ ...order, publicToken: "tok" });
+
+      await createOrder(
+        {
+          ...orderInput,
+          due: "2026-07-20",
+          pieces: [
+            { label: "Blouse 1", due: "2026-07-10" },
+            { label: "Blouse 2", due: "" },
+          ],
+        },
+        photosForm()
+      );
+
+      expect(create.mock.calls[0][0].pieces).toEqual([
+        { id: "p1", label: "Blouse 1", due: "2026-07-10", status: "pending", deliveredAt: null },
+        { id: "p2", label: "Blouse 2", due: "2026-07-20", status: "pending", deliveredAt: null },
+      ]);
+    });
+  });
+
+  describe("deliverPiece", () => {
+    it("hands one piece over, leaves the order open, and takes no money by default", async () => {
+      findById.mockResolvedValue(splitOrder());
+      updateStatus.mockResolvedValue(order);
+
+      await deliverPiece("SDS-001", "p2");
+
+      expect(requireRole).toHaveBeenCalledWith(["admin"]);
+      const [id, status, extra] = updateStatus.mock.calls[0];
+      expect([id, status]).toEqual(["SDS-001", "partly_delivered"]);
+      expect(extra.pieces[1]).toMatchObject({ id: "p2", status: "delivered" });
+      expect(extra.pieces[1].deliveredAt).toBeTruthy();
+      expect(extra.pieces[0].status).toBe("pending");
+      // No money changed hands, so nothing is recorded.
+      expect(extra.finalPayment).toBeUndefined();
+      expect(extra.payments).toBeUndefined();
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/admin/orders");
+    });
+
+    it("records a part payment against the piece it came with", async () => {
+      findById.mockResolvedValue(splitOrder());
+      updateStatus.mockResolvedValue(order);
+
+      await deliverPiece("SDS-001", "p1", { amount: 800, method: "upi" });
+
+      const extra = updateStatus.mock.calls[0][2];
+      expect(extra.finalPayment).toBe(800);
+      expect(extra.finalPaymentMethod).toBe("upi");
+      expect(extra.payments).toEqual([
+        expect.objectContaining({ amount: 800, method: "upi", pieceId: "p1" }),
+      ]);
+    });
+
+    it("adds to money already collected rather than replacing it", async () => {
+      findById.mockResolvedValue(
+        splitOrder({
+          finalPayment: 500,
+          payments: [{ id: "x", amount: 500, method: "cash", at: "2026-07-01T00:00:00Z", pieceId: "p1" }],
+          pieces: [
+            piece({ status: "delivered" }),
+            piece({ id: "p2", label: "Blouse 2" }),
+            piece({ id: "p3", label: "Blouse 3" }),
+          ],
+        })
+      );
+      updateStatus.mockResolvedValue(order);
+
+      await deliverPiece("SDS-001", "p2", { amount: 300, method: "cash" });
+
+      const extra = updateStatus.mock.calls[0][2];
+      expect(extra.finalPayment).toBe(800);
+      expect(extra.payments).toHaveLength(2);
+    });
+
+    // The last hand-over IS the order being delivered, so it settles on the
+    // same rule as deliverOrder: exactly what's owed, computed server-side.
+    it("settles the full remaining balance on the last piece", async () => {
+      findById.mockResolvedValue(
+        splitOrder({
+          pieces: [
+            piece({ status: "delivered" }),
+            piece({ id: "p2", status: "delivered" }),
+            piece({ id: "p3", label: "Blouse 3" }),
+          ],
+        })
+      );
+      updateStatus.mockResolvedValue(order);
+
+      await deliverPiece("SDS-001", "p3", { amount: 5, method: "cash" });
+
+      const [, status, extra] = updateStatus.mock.calls[0];
+      expect(status).toBe("delivered");
+      expect(extra.finalPayment).toBe(2000); // 3000 - 1000 advance, not the 5 asked for
+    });
+
+    it("never collects more than the order owes", async () => {
+      findById.mockResolvedValue(splitOrder());
+      updateStatus.mockResolvedValue(order);
+
+      await deliverPiece("SDS-001", "p1", { amount: 99999, method: "cash" });
+
+      expect(updateStatus.mock.calls[0][2].finalPayment).toBe(2000);
+    });
+
+    it("records nothing when the last piece goes out on a fully paid order", async () => {
+      findById.mockResolvedValue(
+        splitOrder({
+          advance: 3000,
+          pieces: [piece(), piece({ id: "p2", status: "delivered" }), piece({ id: "p3", status: "delivered" })],
+        })
+      );
+      updateStatus.mockResolvedValue(order);
+
+      await deliverPiece("SDS-001", "p1");
+
+      const extra = updateStatus.mock.calls[0][2];
+      expect(extra.finalPayment).toBeUndefined();
+      expect(extra.finalPaymentMethod).toBeUndefined();
+    });
+
+    it.each([
+      ["cancelled" as const, "cancelled order"],
+      ["delivered" as const, "already been handed over"],
+      ["new" as const, "start work"],
+    ])("refuses to hand a piece over from %s", async (status, message) => {
+      findById.mockResolvedValue(splitOrder({ status }));
+      await expect(deliverPiece("SDS-001", "p1")).rejects.toThrow(message);
+      expect(updateStatus).not.toHaveBeenCalled();
+    });
+
+    it("refuses a missing order", async () => {
+      findById.mockResolvedValue(null);
+      await expect(deliverPiece("nope", "p1")).rejects.toThrow("Order not found");
+    });
+
+    it("refuses an order that isn't split", async () => {
+      findById.mockResolvedValue({ ...order, status: "ready", pieces: null });
+      await expect(deliverPiece("SDS-001", "p1")).rejects.toThrow("isn't split into pieces");
+    });
+
+    it("refuses a piece that isn't on the order", async () => {
+      findById.mockResolvedValue(splitOrder());
+      await expect(deliverPiece("SDS-001", "p9")).rejects.toThrow("isn't part of this order");
+    });
+
+    it("refuses a piece that already went out", async () => {
+      findById.mockResolvedValue(splitOrder({ pieces: [piece({ status: "delivered" }), piece({ id: "p2" })] }));
+      await expect(deliverPiece("SDS-001", "p1")).rejects.toThrow("already been handed over");
+    });
+
+    it("rejects a nonsense amount", async () => {
+      findById.mockResolvedValue(splitOrder());
+      await expect(deliverPiece("SDS-001", "p1", { amount: -5, method: "cash" })).rejects.toThrow(
+        "valid amount"
+      );
+    });
+
+    it("rejects an unknown payment method", async () => {
+      findById.mockResolvedValue(splitOrder());
+      await expect(
+        deliverPiece("SDS-001", "p1", { amount: 100, method: "cheque" as never })
+      ).rejects.toThrow("how the payment was made");
+    });
+  });
+
+  describe("deliverOrder on a split order", () => {
+    it("hands over everything still in the shop", async () => {
+      findById.mockResolvedValue(
+        splitOrder({ pieces: [piece({ status: "delivered", deliveredAt: "x" }), piece({ id: "p2" })] })
+      );
+      updateStatus.mockResolvedValue(order);
+
+      await deliverOrder("SDS-001", "cash");
+
+      const extra = updateStatus.mock.calls[0][2];
+      expect(extra.pieces.every((p: OrderPiece) => p.status === "delivered")).toBe(true);
+      // The one already gone keeps its original hand-over date.
+      expect(extra.pieces[0].deliveredAt).toBe("x");
+    });
+  });
+
+  describe("updatePieceDue", () => {
+    it("moves a pending piece's date", async () => {
+      findById.mockResolvedValue(splitOrder());
+      update.mockResolvedValue(order);
+
+      await updatePieceDue("SDS-001", "p2", "2026-08-01");
+
+      expect(update.mock.calls[0][1].pieces[1].due).toBe("2026-08-01");
+      expect(update.mock.calls[0][1].pieces[0].due).toBe("2026-07-10");
+    });
+
+    it("requires a date", async () => {
+      await expect(updatePieceDue("SDS-001", "p1", "")).rejects.toThrow("Delivery date is required");
+    });
+
+    it("refuses a missing order, an unsplit order, an unknown piece and one already gone", async () => {
+      findById.mockResolvedValue(null);
+      await expect(updatePieceDue("x", "p1", "2026-08-01")).rejects.toThrow("Order not found");
+
+      findById.mockResolvedValue({ ...order, pieces: null });
+      await expect(updatePieceDue("x", "p1", "2026-08-01")).rejects.toThrow("isn't split");
+
+      findById.mockResolvedValue(splitOrder());
+      await expect(updatePieceDue("x", "p9", "2026-08-01")).rejects.toThrow("isn't part of this order");
+
+      findById.mockResolvedValue(splitOrder({ pieces: [piece({ status: "delivered" })] }));
+      await expect(updatePieceDue("x", "p1", "2026-08-01")).rejects.toThrow("already been handed over");
+    });
+  });
+
+  // ── Alterations ───────────────────────────────────────────────────────
+
+  describe("alterations", () => {
+    it("takes a delivered garment back in without touching the order's status", async () => {
+      findById.mockResolvedValue({ ...order, status: "delivered", alterations: [] });
+      update.mockResolvedValue(order);
+
+      await startAlteration("SDS-001", { reason: " Sleeve tight ", promisedAt: "2026-08-08" });
+
+      expect(requireRole).toHaveBeenCalledWith(["admin"]);
+      const patch = update.mock.calls[0][1];
+      // The order stays delivered: revenue and the delivered count must not
+      // move because a garment came back.
+      expect(patch.status).toBeUndefined();
+      expect(patch.alterations).toEqual([
+        expect.objectContaining({
+          reason: "Sleeve tight",
+          promisedAt: "2026-08-08",
+          pieceLabel: null,
+          completedAt: null,
+          redeliveredAt: null,
+        }),
+      ]);
+      expect(patch.alterations[0].receivedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+
+    it("records which garment came back on a split order", async () => {
+      findById.mockResolvedValue({ ...splitOrder({ status: "delivered" }), alterations: [] });
+      update.mockResolvedValue(order);
+
+      await startAlteration("SDS-001", {
+        reason: "",
+        promisedAt: "2026-08-08",
+        pieceLabel: "Blouse 2",
+      });
+
+      expect(update.mock.calls[0][1].alterations[0].pieceLabel).toBe("Blouse 2");
+    });
+
+    it("keeps earlier episodes when a garment comes back again", async () => {
+      findById.mockResolvedValue({
+        ...order,
+        status: "delivered",
+        alterations: [alteration({ redeliveredAt: "2026-07-20", completedAt: "2026-07-18" })],
+      });
+      update.mockResolvedValue(order);
+
+      await startAlteration("SDS-001", { reason: "Hook", promisedAt: "2026-08-08" });
+
+      expect(update.mock.calls[0][1].alterations).toHaveLength(2);
+    });
+
+    it("requires a promised date", async () => {
+      await expect(startAlteration("SDS-001", { reason: "x", promisedAt: "" })).rejects.toThrow(
+        "promised for"
+      );
+    });
+
+    it("refuses a missing order", async () => {
+      findById.mockResolvedValue(null);
+      await expect(startAlteration("x", { reason: "", promisedAt: "2026-08-08" })).rejects.toThrow(
+        "Order not found"
+      );
+    });
+
+    it("refuses an order that was never delivered", async () => {
+      findById.mockResolvedValue({ ...order, status: "ready", alterations: [] });
+      await expect(startAlteration("x", { reason: "", promisedAt: "2026-08-08" })).rejects.toThrow(
+        "Only a delivered order"
+      );
+    });
+
+    it("refuses a second alteration while one is open", async () => {
+      findById.mockResolvedValue({ ...order, status: "delivered", alterations: [alteration()] });
+      await expect(startAlteration("x", { reason: "", promisedAt: "2026-08-08" })).rejects.toThrow(
+        "already in alteration"
+      );
+    });
+
+    it("marks the open alteration done", async () => {
+      findById.mockResolvedValue({ ...order, status: "delivered", alterations: [alteration()] });
+      update.mockResolvedValue(order);
+
+      await completeAlteration("SDS-001");
+
+      expect(update.mock.calls[0][1].alterations[0].completedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+
+    it("leaves closed episodes alone when completing", async () => {
+      findById.mockResolvedValue({
+        ...order,
+        status: "delivered",
+        alterations: [alteration({ id: "old", redeliveredAt: "2026-07-01" }), alteration({ id: "a2" })],
+      });
+      update.mockResolvedValue(order);
+
+      await completeAlteration("SDS-001");
+
+      const [closed, open] = update.mock.calls[0][1].alterations;
+      expect(closed.completedAt).toBeNull();
+      expect(open.completedAt).toBeTruthy();
+    });
+
+    it("closes the record when the garment is handed back", async () => {
+      findById.mockResolvedValue({
+        ...order,
+        status: "delivered",
+        alterations: [alteration({ completedAt: "2026-08-05" })],
+      });
+      update.mockResolvedValue(order);
+
+      await redeliverAlteration("SDS-001");
+
+      expect(update.mock.calls[0][1].alterations[0].redeliveredAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+
+    it("refuses to complete or hand back when nothing is in alteration", async () => {
+      findById.mockResolvedValue({ ...order, alterations: [] });
+      await expect(completeAlteration("x")).rejects.toThrow("isn't in alteration");
+      await expect(redeliverAlteration("x")).rejects.toThrow("isn't in alteration");
+    });
+
+    it("refuses to complete the same alteration twice", async () => {
+      findById.mockResolvedValue({
+        ...order,
+        alterations: [alteration({ completedAt: "2026-08-05" })],
+      });
+      await expect(completeAlteration("x")).rejects.toThrow("already done");
+    });
+
+    it("refuses to hand back work that isn't finished", async () => {
+      findById.mockResolvedValue({ ...order, alterations: [alteration()] });
+      await expect(redeliverAlteration("x")).rejects.toThrow("Mark the alteration done");
+    });
+
+    it("refuses a missing order on the later steps", async () => {
+      findById.mockResolvedValue(null);
+      await expect(completeAlteration("x")).rejects.toThrow("Order not found");
+      await expect(redeliverAlteration("x")).rejects.toThrow("Order not found");
+    });
+  });
+
+  // Same rule as "delivered": it describes what physically left the shop, so
+  // it can only be written by the action that moves a garment.
+  it("updateOrderStatus refuses to set partly_delivered directly", async () => {
+    await expect(updateOrderStatus("SDS-001", "partly_delivered")).rejects.toThrow("deliverPiece");
+    expect(updateStatus).not.toHaveBeenCalled();
+  });
+
 });

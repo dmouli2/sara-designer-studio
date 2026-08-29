@@ -272,7 +272,10 @@ describe("normalizeExtraction", () => {
       }),
       now
     );
-    expect(result.warnings).toEqual([]);
+    // A read advance always has to be confirmed against the photo — a
+    // hallucinated one arrives with high confidence, so confidence alone
+    // can't be the gate on money.
+    expect(result.warnings).toEqual(["Confirm the Advance ₹200 was actually collected — check it against the photo."]);
     expect(result.prefill.dress).toBe("Blouse");
     expect(result.prefill.name).toBe("Vaishnavi");
     expect(result.prefill.phone).toBe("9876543210");
@@ -359,7 +362,7 @@ describe("normalizeExtraction", () => {
   it("normalizes +91-prefixed phones to bare 10 digits", () => {
     const result = normalizeExtraction(extraction({ phone: "+919876543210" }), now);
     expect(result.prefill.phone).toBe("9876543210");
-    expect(result.warnings).toEqual([]);
+    expect(result.warnings).toEqual(["Confirm the Advance ₹200 was actually collected — check it against the photo."]);
   });
 
   it("warns when the written total doesn't match the items total", () => {
@@ -372,6 +375,7 @@ describe("normalizeExtraction", () => {
     );
     expect(result.warnings).toEqual([
       "Written Total ₹400 doesn't match the items total ₹350 — fix the items or the total before placing the order.",
+      "Confirm the Advance ₹200 was actually collected — check it against the photo.",
     ]);
     expect(result.itemsTotal).toBe(350);
   });
@@ -385,7 +389,67 @@ describe("normalizeExtraction", () => {
       }),
       now
     );
-    expect(result.warnings).toEqual(["Advance ₹500 is more than the Total ₹400 — check both."]);
+    expect(result.warnings).toEqual([
+      "Confirm the Advance ₹500 was actually collected — check it against the photo.",
+      "Advance ₹500 is more than the Total ₹400 — check both.",
+    ]);
+  });
+
+  // The bug this closes: a vision model reads a number from elsewhere on the
+  // slip — the Total, the "Given" box — and files it as an advance. That is
+  // money the shop never took, and it silently reduces what gets collected
+  // at delivery. So the model has to say twice that an advance exists.
+  describe("the advance box", () => {
+    it("refuses to prefill an advance the model says it didn't see", () => {
+      const result = normalizeExtraction(
+        extraction({ advance: "500", advanceBoxFilled: false, advanceConfidence: "high" }),
+        now
+      );
+      expect(result.prefill.advance).toBe("");
+      expect(result.warnings).toContain(
+        "An advance of ₹500 was read, but the Advance box looks blank — left empty. Enter it only if the slip really shows one."
+      );
+    });
+
+    it("prefills when both signals agree", () => {
+      const result = normalizeExtraction(
+        extraction({ advance: "500", advanceBoxFilled: true, advanceConfidence: "high" }),
+        now
+      );
+      expect(result.prefill.advance).toBe("500");
+    });
+
+    it("says nothing when the box is blank and no number was read", () => {
+      const result = normalizeExtraction(
+        extraction({ advance: "", advanceBoxFilled: false }),
+        now
+      );
+      expect(result.prefill.advance).toBe("");
+      expect(result.warnings.filter((w) => w.includes("Advance"))).toEqual([]);
+    });
+
+    // Drafts scanned before the field existed keep behaving as they did.
+    it("trusts the value when the signal is absent", () => {
+      const result = normalizeExtraction(extraction({ advance: "250" }), now);
+      expect(result.prefill.advance).toBe("250");
+    });
+
+    it("still reports an unreadable advance as unreadable", () => {
+      const result = normalizeExtraction(
+        extraction({ advance: "2s0", advanceBoxFilled: true }),
+        now
+      );
+      expect(result.prefill.advance).toBe("");
+      expect(result.warnings).toContain("The Advance couldn't be read as a number — verify it.");
+    });
+
+    it("asks for a low-confidence advance to be verified", () => {
+      const result = normalizeExtraction(
+        extraction({ advance: "300", advanceBoxFilled: true, advanceConfidence: "low" }),
+        now
+      );
+      expect(result.warnings).toContain("Verify the Advance ₹300 against the photo.");
+    });
   });
 
   it("keeps only style writing in notes, joined with newlines", () => {

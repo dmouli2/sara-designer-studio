@@ -13,35 +13,54 @@ import ConfirmDialog from "@/components/layout/ConfirmDialog";
 import Toast from "@/components/layout/Toast";
 import CancelOrderDialog from "@/components/orders/CancelOrderDialog";
 import DeliverOrderDialog from "@/components/orders/DeliverOrderDialog";
+import DeliverPieceDialog from "@/components/orders/DeliverPieceDialog";
+import OrderPiecesCard from "@/components/orders/OrderPiecesCard";
+import AlterationPanel from "@/components/orders/AlterationPanel";
+import StartAlterationDialog from "@/components/orders/StartAlterationDialog";
 import {
   assignMaster,
   assignTailor,
   updateOrderStatus,
   deliverOrder,
+  deliverPiece,
+  updatePieceDue,
+  startAlteration,
+  completeAlteration,
+  redeliverAlteration,
   cancelOrder,
   deleteOrder,
+  type StartAlterationInput,
 } from "@/app/actions/orders";
 import {
   formatCurrency,
   formatDate,
+  isMultiPiece,
+  openAlteration,
+  orderDisplayStatus,
   orderBalance,
+  pendingPieces,
   PAYMENT_METHOD_LABELS,
   buildOrderStatusWhatsAppMessage,
   buildWhatsAppShareUrl,
 } from "@/lib/utils";
-import type { Order, OrderStatus, PaymentMethod } from "@/types";
+import type { Order, OrderPiece, OrderStatus, PaymentMethod } from "@/types";
 import type { StaffListItem } from "@/app/actions/staff";
 
 // Admin can move an order to any of these directly — cancellation is
 // handled separately (below) since it also needs a charge amount.
-const STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
-  { value: "new",          label: "New" },
-  { value: "cutting",      label: "Cutting" },
-  { value: "cutting_done", label: "Cutting Done" },
-  { value: "stitching",    label: "Stitching" },
-  { value: "hemming_hook", label: "Hemming & Hook" },
-  { value: "ready",        label: "Ready" },
-  { value: "delivered",    label: "Delivered" },
+// "Delivered" opens the delivery dialog rather than setting the status
+// directly. "Part Delivered" is listed but never selectable — it exists so a
+// partly delivered order's dropdown shows its real state instead of going
+// blank; it is written only by handing an individual piece over.
+const STATUS_OPTIONS: { value: OrderStatus; label: string; selectable?: boolean }[] = [
+  { value: "new",              label: "New" },
+  { value: "cutting",          label: "Cutting" },
+  { value: "cutting_done",     label: "Cutting Done" },
+  { value: "stitching",        label: "Stitching" },
+  { value: "hemming_hook",     label: "Hemming & Hook" },
+  { value: "ready",            label: "Ready" },
+  { value: "partly_delivered", label: "Part Delivered", selectable: false },
+  { value: "delivered",        label: "Delivered" },
 ];
 
 interface Props {
@@ -72,19 +91,25 @@ export default function AdminOrderDetailBody({
   const [cancelling, setCancelling] = useState(false);
   const [deliverOpen, setDeliverOpen] = useState(false);
   const [delivering, setDelivering] = useState(false);
+  const [deliverPieceTarget, setDeliverPieceTarget] = useState<OrderPiece | null>(null);
+  const [busyPieceId, setBusyPieceId] = useState<string | null>(null);
+  const [alterationOpen, setAlterationOpen] = useState(false);
+  const [alterationPending, setAlterationPending] = useState(false);
   const [releasingToReady, setReleasingToReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isCancelled = order.status === "cancelled";
+  const multiPiece = isMultiPiece(order);
   // Re-shareable at any point in the order's life, not just at placement.
   // Hidden for a cancelled order, where a progress update makes no sense.
   const canShareStatus = !isCancelled && !!shareToken;
-  // Delivered/cancelled orders are final records — no more edits.
+  // Delivered/cancelled orders are final records — no more edits. A partly
+  // delivered order is still in progress, so it stays editable.
   const canEdit = !isCancelled && order.status !== "delivered";
   const balance = orderBalance(order);
-  const showTailorAssign = ["cutting", "cutting_done", "stitching", "hemming_hook", "ready", "delivered"].includes(
-    order.status
-  );
+  const showTailorAssign = [
+    "cutting", "cutting_done", "stitching", "hemming_hook", "ready", "partly_delivered", "delivered",
+  ].includes(order.status);
 
   const cancellationCharge = order.cancellationCharge ?? 0;
   const cancelBalance = cancellationCharge - order.advance;
@@ -175,6 +200,50 @@ export default function AdminOrderDetailBody({
     }
   }
 
+  async function handleDeliverPiece(collect?: { amount: number; method: PaymentMethod }) {
+    const piece = deliverPieceTarget;
+    if (!piece) return;
+    setBusyPieceId(piece.id);
+    try {
+      const updated = await deliverPiece(order.id, piece.id, collect);
+      setOrder(updated);
+      setDeliverPieceTarget(null);
+    } catch {
+      setError(SAVE_ERROR);
+    } finally {
+      setBusyPieceId(null);
+    }
+  }
+
+  async function handlePieceDueChange(piece: OrderPiece, due: string) {
+    setBusyPieceId(piece.id);
+    try {
+      setOrder(await updatePieceDue(order.id, piece.id, due));
+    } catch {
+      setError(SAVE_ERROR);
+    } finally {
+      setBusyPieceId(null);
+    }
+  }
+
+  // The three alteration steps share one pending flag: only ever one of them
+  // is on screen at a time.
+  async function runAlterationStep(step: () => Promise<Order>, onDone?: () => void) {
+    setAlterationPending(true);
+    try {
+      setOrder(await step());
+      onDone?.();
+    } catch {
+      setError(SAVE_ERROR);
+    } finally {
+      setAlterationPending(false);
+    }
+  }
+
+  function handleStartAlteration(input: StartAlterationInput) {
+    return runAlterationStep(() => startAlteration(order.id, input), () => setAlterationOpen(false));
+  }
+
   // Opens WhatsApp with the message prefilled — the admin still taps Send.
   // Nothing is stored and no order state changes, so this is safe to use as
   // many times as the customer asks.
@@ -184,7 +253,9 @@ export default function AdminOrderDetailBody({
       orderId: order.id,
       customer: order.customer,
       dress: order.dress,
-      status: order.status,
+      // What the customer should be told, which is not always the stored
+      // status: an order in alteration is stored as delivered.
+      status: orderDisplayStatus(order),
       balance,
       due: order.due,
       trackingUrl: `${window.location.origin}/track/${shareToken}`,
@@ -221,7 +292,7 @@ export default function AdminOrderDetailBody({
 
         {/* Status + date */}
         <div className="flex items-center gap-3">
-          <StatusBadge status={order.status} />
+          <StatusBadge status={order.status} alterations={order.alterations} />
           <span className="text-[13px] text-[#9A9A9A]">Due {formatDate(order.due)}</span>
         </div>
 
@@ -247,6 +318,15 @@ export default function AdminOrderDetailBody({
             {order.notes && <Row label="Notes" value={order.notes} />}
           </div>
         </div>
+
+        {multiPiece && (
+          <OrderPiecesCard
+            order={order}
+            busyPieceId={busyPieceId}
+            onDeliver={isCancelled ? undefined : (piece) => setDeliverPieceTarget(piece)}
+            onChangeDue={isCancelled ? undefined : handlePieceDueChange}
+          />
+        )}
 
         {canEdit && (
           <button
@@ -372,13 +452,33 @@ export default function AdminOrderDetailBody({
                 />
                 {order.finalPayment > 0 && (
                   <Row
-                    label="Collected on delivery"
+                    label={multiPiece ? "Collected since" : "Collected on delivery"}
                     value={`${formatCurrency(order.finalPayment)}${
                       order.finalPaymentMethod
                         ? ` · ${PAYMENT_METHOD_LABELS[order.finalPaymentMethod]}`
                         : " · method not recorded"
                     }`}
                   />
+                )}
+                {/* The ledger only has something to add when money arrived in
+                    more than one instalment — otherwise the row above already
+                    says everything. */}
+                {(order.payments ?? []).length > 1 && (
+                  <div className="pl-3 border-l-2 border-[#F0EDE6] space-y-1 py-0.5">
+                    {order.payments.map((payment) => (
+                      <div key={payment.id} className="flex justify-between text-[12px] text-[#9A9A9A]">
+                        <span className="min-w-0 truncate">
+                          {formatDate(payment.at)}
+                          {payment.pieceId
+                            ? ` · ${order.pieces?.find((p) => p.id === payment.pieceId)?.label ?? "piece"}`
+                            : ""}
+                        </span>
+                        <span className="shrink-0 tabular-nums">
+                          {formatCurrency(payment.amount)} · {PAYMENT_METHOD_LABELS[payment.method]}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 )}
                 <div className="flex justify-between pt-2 border-t border-[#F0EDE6] mt-1">
                   <span className="text-[15px] font-semibold">Balance due</span>
@@ -401,7 +501,11 @@ export default function AdminOrderDetailBody({
               disabled={changingStatus}
               onChange={(e) => handleStatusChange(e.target.value as OrderStatus)}
             >
-              {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s.value} value={s.value} disabled={s.selectable === false}>
+                  {s.label}
+                </option>
+              ))}
             </select>
           </div>
         )}
@@ -424,11 +528,21 @@ export default function AdminOrderDetailBody({
           </div>
         )}
 
-        {order.status === "delivered" && (
+        {order.status === "delivered" && !openAlteration(order) && (
           <div className="card-gold text-center py-5">
             <p className="text-2xl mb-1">✅</p>
             <p className="text-sm font-semibold text-[#1B6B3A]">Order delivered</p>
           </div>
+        )}
+
+        {!isCancelled && (
+          <AlterationPanel
+            order={order}
+            pending={alterationPending}
+            onStart={() => setAlterationOpen(true)}
+            onComplete={() => runAlterationStep(() => completeAlteration(order.id))}
+            onRedeliver={() => runAlterationStep(() => redeliverAlteration(order.id))}
+          />
         )}
 
         {isCancelled && (
@@ -478,6 +592,29 @@ export default function AdminOrderDetailBody({
         pending={delivering}
         onConfirm={handleDeliver}
         onCancel={() => setDeliverOpen(false)}
+      />
+
+      {deliverPieceTarget && (
+        <DeliverPieceDialog
+          key={deliverPieceTarget.id}
+          open
+          piece={deliverPieceTarget}
+          balance={balance}
+          isLast={pendingPieces(order).length === 1}
+          pending={busyPieceId === deliverPieceTarget.id}
+          onConfirm={handleDeliverPiece}
+          onCancel={() => setDeliverPieceTarget(null)}
+        />
+      )}
+
+      <StartAlterationDialog
+        key={alterationOpen ? "alteration-open" : "alteration-closed"}
+        open={alterationOpen}
+        orderId={order.id}
+        pieces={order.pieces}
+        pending={alterationPending}
+        onConfirm={handleStartAlteration}
+        onCancel={() => setAlterationOpen(false)}
       />
 
       <CancelOrderDialog

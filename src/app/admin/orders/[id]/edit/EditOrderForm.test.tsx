@@ -46,6 +46,9 @@ const order: Order = {
   materialImageUrls: ["https://storage.example/material-1.jpg?sig=1"],
   mainMaterialImageUrl: "https://storage.example/material-1.jpg?sig=1",
   cancellationCharge: null,
+  pieces: null,
+  alterations: [],
+  payments: [],
   createdAt: "2026-06-24",
 };
 

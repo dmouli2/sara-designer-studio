@@ -35,6 +35,9 @@ function order(overrides: Partial<Order>): Order {
     materialImageUrls: [],
     mainMaterialImageUrl: null,
     cancellationCharge: null,
+    pieces: null,
+    alterations: [],
+    payments: [],
     createdAt: "2026-06-01",
     ...overrides,
   };
@@ -394,4 +397,46 @@ describe("OrdersBody", () => {
     await user.click(screen.getByText("Load older orders"));
     expect(await screen.findAllByText("P0")).toHaveLength(1);
   });
+
+  // The list that answers "which orders still have garments on my shelf?" —
+  // it sits with Overdue and In Alteration, ahead of the pipeline stages,
+  // because it is a thing that needs chasing rather than a stage of work.
+  describe("finding orders with garments still to collect", () => {
+    const PARTLY = order({
+      id: "P1",
+      customer: "Kavitha",
+      status: "partly_delivered",
+      pieces: [
+        { id: "p1", label: "Blouse 1", due: "2026-07-10", status: "delivered", deliveredAt: "2026-07-10T00:00:00Z" },
+        { id: "p2", label: "Blouse 2", due: "2026-07-20", status: "pending", deliveredAt: null },
+        { id: "p3", label: "Blouse 3", due: "2026-07-25", status: "pending", deliveredAt: null },
+      ],
+    });
+
+    it("filters the list down to part-delivered orders", async () => {
+      const user = userEvent.setup();
+      render(<OrdersBody initialOrders={[PARTLY, order({ id: "C2", customer: "Meena" })]} />);
+
+      await user.click(screen.getByRole("button", { name: /Part Delivered/ }));
+
+      expect(screen.getByText("Kavitha")).toBeInTheDocument();
+      expect(screen.queryByText("Meena")).not.toBeInTheDocument();
+    });
+
+    it("shows the delivered count on the card without opening it", () => {
+      render(<OrdersBody initialOrders={[PARTLY]} />);
+      expect(screen.getByText("👗 1/3 delivered")).toBeInTheDocument();
+    });
+
+    it("counts a split order overdue on its earliest waiting garment", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-07-22T10:00:00"));
+      // order.due is 2026-07-10 for the fixture, but the garments still here
+      // are due on the 20th and 25th — the 20th is what has actually slipped.
+      render(<OrdersBody initialOrders={[PARTLY]} />);
+      expect(screen.getByText(/was due 20 Jul 2026/)).toBeInTheDocument();
+      vi.useRealTimers();
+    });
+  });
+
 });

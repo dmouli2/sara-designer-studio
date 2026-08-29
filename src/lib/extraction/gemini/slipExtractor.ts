@@ -67,6 +67,10 @@ export function coerceExtraction(raw: unknown): SlipExtraction {
     lineItems,
     advance: str(r.advance),
     advanceConfidence: conf(r.advanceConfidence),
+    // Only carried through when the model actually answered it. Left absent
+    // otherwise so normalizeExtraction can tell "the model said the box is
+    // blank" apart from "this response predates the field".
+    ...(typeof r.advanceBoxFilled === "boolean" ? { advanceBoxFilled: r.advanceBoxFilled } : {}),
     writtenTotal: str(r.writtenTotal),
     writtenTotalConfidence: conf(r.writtenTotalConfidence),
     extraNotes: (Array.isArray(r.extraNotes) ? r.extraNotes : []).filter(

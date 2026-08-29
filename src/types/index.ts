@@ -5,6 +5,13 @@ export type OrderStatus =
   | "stitching"
   | "hemming_hook" // finishing gate after stitching — admin marks it done to release to "ready"
   | "ready"
+  // Some — but not all — of a multi-piece order's garments have been handed
+  // over. Only deliverPiece can set this, and only an order with `pieces`
+  // can ever hold it; single-piece orders go straight from ready to
+  // delivered exactly as before. Never offered in the admin's manual status
+  // dropdown: it describes what has physically left the shop, not a stage
+  // the admin picks.
+  | "partly_delivered"
   | "delivered"
   | "cancelled";
 
@@ -158,6 +165,13 @@ export interface SlipExtraction {
   lineItems: ExtractedLineItem[];
   advance: string; // digits, "" when the box is blank
   advanceConfidence: ExtractionConfidence;
+  // A second, independent signal that the Advance box carries handwriting at
+  // all. The model returning a number while claiming the box is blank is the
+  // signature of a guess, and a guessed advance is money the shop never took
+  // — normalizeExtraction refuses to prefill unless this is true. Optional so
+  // drafts scanned before this field existed still parse (they fall back to
+  // "the advance is filled if a value came back").
+  advanceBoxFilled?: boolean;
   writtenTotal: string; // the handwritten Total — compared, never trusted
   writtenTotalConfidence: ExtractionConfidence;
   // Pen writing with no matching app field: Given/L.B/O.B boxes, Reminder
@@ -175,6 +189,74 @@ export type DraftOrderStatus = "draft" | "confirmed" | "discarded";
 // list that mirrors what actually happens is more useful than one that covers
 // every payment rail in existence.
 export type PaymentMethod = "cash" | "upi";
+
+// ── Multi-piece orders ──────────────────────────────────────────────────
+// One customer, one order, several garments cut to the SAME measurements —
+// the shop's common "three blouses from one saree" case. Each garment can
+// carry its own delivery date and be handed over on its own day.
+//
+// `Order.pieces` is null for every order that isn't split this way, which is
+// every order placed before this existed and every single-garment order
+// placed after. Null is not "no pieces" — it means "this order is one
+// garment", and the whole delivery flow behaves exactly as it always has.
+
+export type OrderPieceStatus = "pending" | "delivered";
+
+export interface OrderPiece {
+  // Stable for the life of the order and never reused, so a payment or an
+  // alteration can point at a specific garment even after others are gone.
+  id: string;
+  label: string;             // "Blouse 1" by default; the admin can rename it
+  due: string;               // this garment's own delivery date (yyyy-mm-dd)
+  status: OrderPieceStatus;
+  deliveredAt: string | null; // ISO timestamp of the hand-over
+}
+
+// A practical ceiling, enforced in the wizard and in createOrder. Well above
+// anything the shop takes in one order, low enough that a fat-fingered
+// stepper can't write a thousand-entry array.
+export const MAX_ORDER_PIECES = 12;
+
+// ── Post-delivery alterations ───────────────────────────────────────────
+// An alteration is an episode in a delivered order's life, not a stage of
+// stitching — the garment was finished and handed over, then came back. It
+// can happen more than once, so it's a list, and the order's `status` stays
+// "delivered" throughout: revenue, the delivered count and every Reports
+// figure are deliberately untouched by an alteration.
+//
+// The open record (if any) is the one with no redeliveredAt — see
+// openAlteration() in src/lib/utils.ts, the single definition of "is this
+// order in alteration right now".
+
+export interface AlterationRecord {
+  id: string;
+  reason: string;
+  // Which garment came back, on a multi-piece order — the piece's label at
+  // the time, so the record still reads correctly if the piece is renamed.
+  pieceLabel: string | null;
+  receivedAt: string;            // taken back in from the customer (yyyy-mm-dd)
+  promisedAt: string;            // when we said it would be ready (yyyy-mm-dd)
+  completedAt: string | null;    // alteration work finished
+  redeliveredAt: string | null;  // handed back — closes the record
+}
+
+// ── Payment ledger ──────────────────────────────────────────────────────
+// Money collected AFTER placement, one entry per hand-over. A multi-piece
+// order can be paid off across several visits, so a single amount+method
+// pair can't describe it.
+//
+// This is an audit trail layered over the existing two-entry model, not a
+// replacement for it: `Order.finalPayment` stays the sum of these entries
+// and `Order.finalPaymentMethod` the most recent one's method, so
+// orderBalance() and every Reports figure keep working untouched. The
+// advance is deliberately NOT in here — it has its own two fields.
+export interface OrderPayment {
+  id: string;
+  amount: number;
+  method: PaymentMethod;
+  at: string;              // ISO timestamp
+  pieceId: string | null;  // the piece hand-over it came with, when there was one
+}
 
 export interface Order {
   id: string;
@@ -206,5 +288,14 @@ export interface Order {
                                         // every read including list() — the thumbnail
                                         // shown on order cards
   cancellationCharge: number | null;
+  // Null for a single-garment order — see OrderPiece above. Present only on
+  // orders deliberately split into several garments.
+  pieces: OrderPiece[] | null;
+  // Every alteration episode this order has been through, oldest first.
+  // Empty for the overwhelming majority of orders.
+  alterations: AlterationRecord[];
+  // Post-placement collections, oldest first. Empty until money is taken at
+  // a hand-over; `finalPayment` remains the authoritative total.
+  payments: OrderPayment[];
   createdAt: string;
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import AdminOrderDetailBody from "./AdminOrderDetailBody";
 import {
@@ -7,11 +7,39 @@ import {
   assignTailor,
   updateOrderStatus,
   deliverOrder,
+  deliverPiece,
+  updatePieceDue,
+  startAlteration,
+  completeAlteration,
+  redeliverAlteration,
   cancelOrder,
   deleteOrder,
 } from "@/app/actions/orders";
 import { mockRouter } from "../../../../../vitest.setup";
-import type { Order } from "@/types";
+import type { AlterationRecord, Order, OrderPiece } from "@/types";
+
+function piece(over: Partial<OrderPiece> = {}): OrderPiece {
+  return { id: "p1", label: "Blouse 1", due: "2026-07-10", status: "pending", deliveredAt: null, ...over };
+}
+
+function alteration(over: Partial<AlterationRecord> = {}): AlterationRecord {
+  return {
+    id: "a1",
+    reason: "Sleeve tight",
+    pieceLabel: null,
+    receivedAt: "2026-08-01",
+    promisedAt: "2026-08-08",
+    completedAt: null,
+    redeliveredAt: null,
+    ...over,
+  };
+}
+
+const THREE_PIECES: OrderPiece[] = [
+  piece(),
+  piece({ id: "p2", label: "Blouse 2" }),
+  piece({ id: "p3", label: "Blouse 3" }),
+];
 import type { StaffListItem } from "@/app/actions/staff";
 
 vi.mock("@/app/actions/orders", () => ({
@@ -19,6 +47,11 @@ vi.mock("@/app/actions/orders", () => ({
   assignTailor: vi.fn(),
   updateOrderStatus: vi.fn(),
   deliverOrder: vi.fn(),
+  deliverPiece: vi.fn(),
+  updatePieceDue: vi.fn(),
+  startAlteration: vi.fn(),
+  completeAlteration: vi.fn(),
+  redeliverAlteration: vi.fn(),
   cancelOrder: vi.fn(),
   deleteOrder: vi.fn(),
 }));
@@ -50,6 +83,9 @@ function order(overrides: Partial<Order>): Order {
     materialImageUrls: [],
     mainMaterialImageUrl: null,
     cancellationCharge: null,
+  pieces: null,
+  alterations: [],
+  payments: [],
     createdAt: "2026-06-24",
     ...overrides,
   };
@@ -75,6 +111,24 @@ describe("AdminOrderDetailBody", () => {
     vi.mocked(deleteOrder).mockResolvedValue(undefined);
     vi.mocked(deliverOrder).mockReset();
     vi.mocked(deliverOrder).mockResolvedValue(order({ status: "delivered" }));
+    vi.mocked(deliverPiece).mockReset();
+    vi.mocked(deliverPiece).mockResolvedValue(
+      order({ status: "partly_delivered", pieces: [piece({ status: "delivered" }), THREE_PIECES[1], THREE_PIECES[2]] })
+    );
+    vi.mocked(updatePieceDue).mockReset();
+    vi.mocked(updatePieceDue).mockResolvedValue(order({ pieces: THREE_PIECES }));
+    vi.mocked(startAlteration).mockReset();
+    vi.mocked(startAlteration).mockResolvedValue(
+      order({ status: "delivered", alterations: [alteration()] })
+    );
+    vi.mocked(completeAlteration).mockReset();
+    vi.mocked(completeAlteration).mockResolvedValue(
+      order({ status: "delivered", alterations: [alteration({ completedAt: "2026-08-05" })] })
+    );
+    vi.mocked(redeliverAlteration).mockReset();
+    vi.mocked(redeliverAlteration).mockResolvedValue(
+      order({ status: "delivered", alterations: [alteration({ completedAt: "2026-08-05", redeliveredAt: "2026-08-06" })] })
+    );
   });
 
   it("shows order details, progress and payment summary", () => {
@@ -574,6 +628,218 @@ describe("AdminOrderDetailBody", () => {
         order({ status: "delivered", amount: 1000, advance: 0, finalPayment: 1000, finalPaymentMethod: null })
       );
       expect(screen.getByText("₹1,000 · method not recorded")).toBeInTheDocument();
+    });
+  });
+
+
+  // ── Multi-piece orders ────────────────────────────────────────────────
+
+  describe("a split order", () => {
+    it("shows no pieces card on a single-garment order", () => {
+      renderBody(order({ status: "ready" }));
+      expect(screen.queryByText(/of 3 delivered/)).not.toBeInTheDocument();
+    });
+
+    it("lists the garments with the delivered count", () => {
+      renderBody(order({ status: "ready", pieces: THREE_PIECES }));
+      expect(screen.getByText("0 of 3 delivered")).toBeInTheDocument();
+      expect(screen.getByText("Blouse 2")).toBeInTheDocument();
+    });
+
+    it("hands one garment over and keeps the order open", async () => {
+      const user = userEvent.setup();
+      renderBody(order({ status: "ready", pieces: THREE_PIECES }));
+
+      await user.click(screen.getAllByRole("button", { name: "Hand over" })[0]);
+      expect(screen.getByText("Hand over Blouse 1")).toBeInTheDocument();
+      // Not the last piece, so no money is required. The card's own buttons
+      // stay mounted behind the dialog, whose confirm renders last.
+      const confirm = screen.getAllByRole("button", { name: "Hand over" }).at(-1)!;
+      await user.click(confirm);
+
+      await waitFor(() => expect(deliverPiece).toHaveBeenCalledWith("AD1", "p1", undefined));
+      await waitFor(() => expect(screen.getByText("1 of 3 delivered")).toBeInTheDocument());
+      // Badge, not the dropdown option that carries the same label.
+      expect(
+        screen.getByText("Part Delivered", { selector: "span.badge-partly_delivered" })
+      ).toBeInTheDocument();
+    });
+
+    it("collects a part payment with the hand-over", async () => {
+      const user = userEvent.setup();
+      renderBody(order({ status: "ready", pieces: THREE_PIECES, amount: 4200, advance: 1000 }));
+
+      await user.click(screen.getAllByRole("button", { name: "Hand over" })[0]);
+      await user.type(screen.getByLabelText(/Collecting now/), "800");
+      await user.click(screen.getByRole("button", { name: "UPI" }));
+      await user.click(screen.getByRole("button", { name: "Collect & hand over" }));
+
+      await waitFor(() =>
+        expect(deliverPiece).toHaveBeenCalledWith("AD1", "p1", { amount: 800, method: "upi" })
+      );
+    });
+
+    it("treats the only remaining garment as the whole order", async () => {
+      const user = userEvent.setup();
+      renderBody(
+        order({
+          status: "partly_delivered",
+          pieces: [piece({ status: "delivered" }), piece({ id: "p2", label: "Blouse 2" })],
+        })
+      );
+      await user.click(screen.getByRole("button", { name: "Hand over" }));
+      expect(screen.getByText(/last piece/)).toBeInTheDocument();
+    });
+
+    it("surfaces a failure and leaves the dialog open", async () => {
+      const user = userEvent.setup();
+      vi.mocked(deliverPiece).mockRejectedValue(new Error("nope"));
+      renderBody(order({ status: "ready", pieces: THREE_PIECES }));
+
+      await user.click(screen.getAllByRole("button", { name: "Hand over" })[0]);
+      await user.click(screen.getAllByRole("button", { name: "Hand over" }).at(-1)!);
+
+      expect(await screen.findByText(/Couldn't save the change/)).toBeInTheDocument();
+      expect(screen.getByText("Hand over Blouse 1")).toBeInTheDocument();
+    });
+
+    it("backs out of the hand-over without calling the action", async () => {
+      const user = userEvent.setup();
+      renderBody(order({ status: "ready", pieces: THREE_PIECES }));
+      await user.click(screen.getAllByRole("button", { name: "Hand over" })[0]);
+      await user.click(screen.getByRole("button", { name: "Not yet" }));
+      expect(screen.queryByText("Hand over Blouse 1")).not.toBeInTheDocument();
+      expect(deliverPiece).not.toHaveBeenCalled();
+    });
+
+    it("pushes a garment's delivery date", async () => {
+      const user = userEvent.setup();
+      renderBody(order({ status: "ready", pieces: THREE_PIECES }));
+      await user.click(screen.getByRole("button", { name: "Change Blouse 2 delivery date" }));
+      fireEvent.change(screen.getByLabelText("Blouse 2 delivery date"), {
+        target: { value: "2026-08-01" },
+      });
+      await waitFor(() => expect(updatePieceDue).toHaveBeenCalledWith("AD1", "p2", "2026-08-01"));
+    });
+
+    it("shows a toast when a date change fails", async () => {
+      const user = userEvent.setup();
+      vi.mocked(updatePieceDue).mockRejectedValue(new Error("nope"));
+      renderBody(order({ status: "ready", pieces: THREE_PIECES }));
+      await user.click(screen.getByRole("button", { name: "Change Blouse 1 delivery date" }));
+      fireEvent.change(screen.getByLabelText("Blouse 1 delivery date"), {
+        target: { value: "2026-08-01" },
+      });
+      expect(await screen.findByText(/Couldn't save the change/)).toBeInTheDocument();
+    });
+
+    // Part Delivered describes what physically left the shop, so it can be
+    // shown but never chosen.
+    it("shows Part Delivered in the status dropdown but won't let it be picked", () => {
+      renderBody(order({ status: "partly_delivered", pieces: THREE_PIECES }));
+      const option = screen.getByRole("option", { name: "Part Delivered" }) as HTMLOptionElement;
+      expect(option.disabled).toBe(true);
+    });
+
+    it("breaks down where the money came from once it arrives in instalments", () => {
+      renderBody(
+        order({
+          status: "partly_delivered",
+          pieces: THREE_PIECES,
+          finalPayment: 1100,
+          finalPaymentMethod: "upi",
+          payments: [
+            { id: "x", amount: 800, method: "cash", at: "2026-07-02T00:00:00Z", pieceId: "p1" },
+            { id: "y", amount: 300, method: "upi", at: "2026-07-09T00:00:00Z", pieceId: null },
+          ],
+        })
+      );
+      expect(screen.getByText("Collected since")).toBeInTheDocument();
+      expect(screen.getByText(/₹800 · Cash/)).toBeInTheDocument();
+      expect(screen.getByText(/₹300 · UPI/)).toBeInTheDocument();
+    });
+  });
+
+  // ── Alterations ───────────────────────────────────────────────────────
+
+  describe("alterations", () => {
+    it("offers nothing before the order is delivered", () => {
+      renderBody(order({ status: "ready" }));
+      expect(screen.queryByRole("button", { name: /Came back for alteration/ })).not.toBeInTheDocument();
+    });
+
+    it("takes a delivered garment back in", async () => {
+      const user = userEvent.setup();
+      renderBody(order({ status: "delivered" }));
+
+      await user.click(screen.getByRole("button", { name: /Came back for alteration/ }));
+      await user.type(screen.getByLabelText(/What needs changing/), "Sleeve tight");
+      await user.click(screen.getByRole("button", { name: "Take it in" }));
+
+      await waitFor(() =>
+        expect(startAlteration).toHaveBeenCalledWith("AD1", {
+          reason: "Sleeve tight",
+          promisedAt: expect.any(String),
+          pieceLabel: null,
+        })
+      );
+      // The badge now says what the admin needs to read, and the "delivered"
+      // banner steps aside.
+      expect(await screen.findByText("In Alteration")).toBeInTheDocument();
+      expect(screen.queryByText("Order delivered")).not.toBeInTheDocument();
+    });
+
+    it("walks done → handed back, one button at a time", async () => {
+      const user = userEvent.setup();
+      renderBody(order({ status: "delivered", alterations: [alteration()] }));
+
+      await user.click(screen.getByRole("button", { name: "✓ Alteration done" }));
+      await waitFor(() => expect(completeAlteration).toHaveBeenCalledWith("AD1"));
+
+      expect(await screen.findByText("Alteration Done")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "✓ Handed back to customer" }));
+      await waitFor(() => expect(redeliverAlteration).toHaveBeenCalledWith("AD1"));
+
+      // Record closed — back to a plain delivered order with its history.
+      expect(await screen.findByText(/Altered & returned/)).toBeInTheDocument();
+      expect(screen.queryByText("In Alteration")).not.toBeInTheDocument();
+      expect(screen.queryByText("Alteration Done")).not.toBeInTheDocument();
+    });
+
+    it("shows a toast when an alteration step fails", async () => {
+      const user = userEvent.setup();
+      vi.mocked(completeAlteration).mockRejectedValue(new Error("nope"));
+      renderBody(order({ status: "delivered", alterations: [alteration()] }));
+      await user.click(screen.getByRole("button", { name: "✓ Alteration done" }));
+      expect(await screen.findByText(/Couldn't save the change/)).toBeInTheDocument();
+    });
+
+    it("closes the take-in dialog without recording anything", async () => {
+      const user = userEvent.setup();
+      renderBody(order({ status: "delivered" }));
+      await user.click(screen.getByRole("button", { name: /Came back for alteration/ }));
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(startAlteration).not.toHaveBeenCalled();
+    });
+
+    it("hides the whole panel on a cancelled order", () => {
+      renderBody(order({ status: "cancelled", cancellationCharge: 500 }));
+      expect(screen.queryByText("Alterations")).not.toBeInTheDocument();
+    });
+
+    // The customer should be told the garment is with us, not that it was
+    // already delivered.
+    it("tells the customer the alteration state, not the stored status", async () => {
+      const user = userEvent.setup();
+      const open = vi.spyOn(window, "open").mockImplementation(() => null);
+      renderBody(order({ status: "delivered", alterations: [alteration()] }));
+
+      await user.click(screen.getByRole("button", { name: /Share status with customer/ }));
+      expect(open).toHaveBeenCalledWith(
+        expect.stringContaining(encodeURIComponent("With us for alteration")),
+        "_blank"
+      );
+      open.mockRestore();
     });
   });
 

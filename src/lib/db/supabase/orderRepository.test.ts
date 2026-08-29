@@ -489,6 +489,9 @@ describe("createSupabaseOrderRepository", () => {
       referenceImageUrls: ["orders/SDS-001/reference-1.jpg", "orders/SDS-001/reference-2.jpg"],
       materialImageUrls: ["orders/SDS-001/material-1.jpg"],
       cancellationCharge: null,
+      pieces: null,
+      alterations: [],
+      payments: [],
     });
     expect(result.master).toEqual({ id: "m1", name: "Ramesh K." });
     expect(result.sketchDataUrl).toBe("https://signed.example/orders/SDS-001/sketch.png");
@@ -521,6 +524,9 @@ describe("createSupabaseOrderRepository", () => {
         referenceImageUrls: [],
         materialImageUrls: [],
         cancellationCharge: null,
+        pieces: null,
+        alterations: [],
+        payments: [],
       })
     ).rejects.toThrow("insert failed");
   });
@@ -558,6 +564,9 @@ describe("createSupabaseOrderRepository", () => {
       referenceImageUrls: ["orders/SDS-001/reference-1.jpg"],
       materialImageUrls: ["orders/SDS-001/material-1.jpg"],
       cancellationCharge: 500,
+      pieces: [{ id: "p1", label: "Blouse 1", due: "2026-08-01", status: "pending", deliveredAt: null }],
+      alterations: [],
+      payments: [{ id: "pay1", amount: 100, method: "cash", at: "2026-08-01T00:00:00Z", pieceId: "p1" }],
     });
     expect(ordersQuery.update).toHaveBeenCalledWith({
       customer: "New Customer",
@@ -580,6 +589,9 @@ describe("createSupabaseOrderRepository", () => {
       reference_image_urls: ["orders/SDS-001/reference-1.jpg"],
       material_image_urls: ["orders/SDS-001/material-1.jpg"],
       cancellation_charge: 500,
+      pieces: [{ id: "p1", label: "Blouse 1", due: "2026-08-01", status: "pending", deliveredAt: null }],
+      alterations: [],
+      payments: [{ id: "pay1", amount: 100, method: "cash", at: "2026-08-01T00:00:00Z", pieceId: "p1" }],
     });
   });
 
@@ -736,5 +748,33 @@ describe("createSupabaseOrderRepository", () => {
     await expect(repo.listImageCleanupCandidates("2026-04-01T00:00:00.000Z")).rejects.toThrow(
       "cleanup scan failed"
     );
+  });
+  describe("pieces / alterations / payments columns", () => {
+    // Every row written before migration 0012 comes back with these absent.
+    // Null pieces is meaningful — "this order is one garment" — and must be
+    // preserved as null, while the two histories default to empty.
+    it("reads a pre-0012 row as an unsplit, never-altered order", async () => {
+      const { pieces: _p, alterations: _a, payments: _pay, ...legacyRow } = orderRow as Record<string, unknown>;
+      void _p; void _a; void _pay;
+      const ordersQuery = fakeQuery({ data: legacyRow, error: null });
+      from.mockImplementation(() => ordersQuery);
+
+      const result = await createSupabaseOrderRepository().findById("SDS-001");
+
+      expect(result!.pieces).toBeNull();
+      expect(result!.alterations).toEqual([]);
+      expect(result!.payments).toEqual([]);
+    });
+
+    it("passes stored values straight through", async () => {
+      const pieces = [
+        { id: "p1", label: "Blouse 1", due: "2026-08-01", status: "delivered", deliveredAt: "2026-08-01T00:00:00Z" },
+      ];
+      const ordersQuery = fakeQuery({ data: { ...orderRow, pieces, alterations: [], payments: [] }, error: null });
+      from.mockImplementation(() => ordersQuery);
+
+      const result = await createSupabaseOrderRepository().findById("SDS-001");
+      expect(result!.pieces).toEqual(pieces);
+    });
   });
 });

@@ -1,0 +1,135 @@
+"use client";
+
+import { Plus, X } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
+import type { OrderLineItem } from "@/types";
+
+// The order-items table, shared by the new-order wizard and the admin edit
+// screen (they were the same markup twice).
+//
+// Rows split in two by position, not by a flag on the item: the first
+// `presetCount` rows are the dress category's printed rows (fixed label,
+// always present, qty 0 = simply not ordered), and everything after them is
+// a row someone added — its name is editable and it can be removed. The scan
+// normalizer already appends unmatched handwritten rows past the presets, so
+// those become editable here for free.
+interface Props {
+  items: OrderLineItem[];
+  presetCount: number;
+  onChange: (items: OrderLineItem[]) => void;
+}
+
+// Grid shared by the header and every row so the columns line up. The last
+// 24px column holds the remove button on custom rows and stays empty on
+// preset rows rather than collapsing, which would shift their inputs.
+const GRID = "grid grid-cols-[1fr_40px_60px_1fr_24px] gap-2";
+
+export default function LineItemsEditor({ items, presetCount, onChange }: Props) {
+  function patch(i: number, next: Partial<OrderLineItem>) {
+    onChange(items.map((li, idx) => (idx === i ? { ...li, ...next } : li)));
+  }
+
+  function addRow() {
+    // qty 1 because someone adding a row means to order the thing; the price
+    // is what they still have to type.
+    onChange([...items, { particulars: "", qty: 1, amount: 0 }]);
+  }
+
+  function removeRow(i: number) {
+    onChange(items.filter((_, idx) => idx !== i));
+  }
+
+  const total = items.reduce((sum, li) => sum + li.qty * li.amount, 0);
+
+  return (
+    <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden bg-white">
+      <div className={`${GRID} bg-[#F9F8F6] border-b border-[#E5E0D5] px-3 py-2`}>
+        <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide">Item</span>
+        <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide text-center">Qty</span>
+        <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide text-center">Price ₹</span>
+        <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide">Comments</span>
+        <span />
+      </div>
+
+      {items.map((li, i) => {
+        const custom = i >= presetCount;
+        // Custom rows start nameless, so aria-labels need something stable to
+        // hang on: fall back to the row's position.
+        const name = li.particulars.trim() || `Item ${i + 1}`;
+        return (
+          <div
+            key={i}
+            className={`${GRID} items-center px-3 py-2 ${i % 2 === 1 ? "bg-[#FDFCFA]" : "bg-white"} ${
+              i > 0 ? "border-t border-[#F0EDE6]" : ""
+            }`}
+          >
+            {custom ? (
+              <input
+                className="w-full min-w-0 text-xs border border-[#E5E0D5] rounded-lg py-1.5 px-2 focus:outline-none focus:border-[#C9A84C] placeholder:text-[#C4C0B6]"
+                placeholder="Item name"
+                aria-label={`Item ${i + 1} name`}
+                value={li.particulars}
+                onChange={(e) => patch(i, { particulars: e.target.value })}
+              />
+            ) : (
+              <span className="text-xs text-[#0F0F0F]">{li.particulars}</span>
+            )}
+            <input
+              className="w-full text-center text-sm border border-[#E5E0D5] rounded-lg py-1.5 focus:outline-none focus:border-[#C9A84C]"
+              type="number"
+              min="0"
+              value={li.qty || ""}
+              placeholder="0"
+              aria-label={`${name} quantity`}
+              onChange={(e) => patch(i, { qty: parseInt(e.target.value) || 0 })}
+            />
+            <input
+              className="w-full text-center text-sm border border-[#E5E0D5] rounded-lg py-1.5 focus:outline-none focus:border-[#C9A84C]"
+              type="number"
+              min="0"
+              value={li.amount || ""}
+              placeholder="0"
+              aria-label={`${name} price`}
+              onChange={(e) => patch(i, { amount: parseFloat(e.target.value) || 0 })}
+            />
+            <input
+              className="w-full min-w-0 text-[13px] border border-[#E5E0D5] rounded-lg py-1.5 px-2 focus:outline-none focus:border-[#C9A84C] placeholder:text-[#C4C0B6]"
+              placeholder="(…)"
+              aria-label={`${name} comments`}
+              value={li.note ?? ""}
+              onChange={(e) => patch(i, { note: e.target.value })}
+            />
+            {custom ? (
+              <button
+                type="button"
+                aria-label={`Remove ${name}`}
+                onClick={() => removeRow(i)}
+                className="w-6 h-6 flex items-center justify-center rounded-full text-[#B04A4A] bg-[#FBECEC] active:scale-90 transition-transform"
+              >
+                <X size={13} />
+              </button>
+            ) : (
+              <span />
+            )}
+          </div>
+        );
+      })}
+
+      <button
+        type="button"
+        onClick={addRow}
+        className="w-full flex items-center justify-center gap-1.5 py-3 text-[13px] font-semibold text-[#7A6020] bg-[#FBF6E8] border-t border-[#EDD98A] active:bg-[#F5E9BB] transition-colors"
+      >
+        <Plus size={15} />
+        Add item
+      </button>
+
+      {/* Running total, so a long list doesn't need scrolling back to the
+          summary card to see what the last edit did. */}
+      <div className="flex justify-between px-3 py-2 border-t border-[#E5E0D5] bg-[#F9F8F6]">
+        <span className="text-[11px] font-semibold text-[#9A9A9A] uppercase tracking-wide">Items total</span>
+        <span className="text-[13px] font-semibold text-[#0F0F0F] tabular-nums">{formatCurrency(total)}</span>
+      </div>
+    </div>
+  );
+}

@@ -52,7 +52,13 @@ FROM THE BILL COUNTERFOIL (right side):
 - customerName: the handwritten Name. It usually also appears on the measurement slip's Name line — read BOTH and compare; if they disagree or either is unclear, mark confidence "low". Tamil names are often long compounds (e.g. Priyadharshini, Dharshini, Lavanya) — transcribe every letter, do not shorten.
 - phone: the handwritten Phone digits only (see the shop-phone warning above).
 - lineItems: each row of the items table that has ANY handwriting: { particulars (the printed row label, or the handwritten text for blank/extra rows), qty (number, 0 if blank), amount (number, 0 if blank), note (other pen writing on that row), confidence }. A row may hold two amounts (e.g. "1300 + 1350" for qty 2) — put the sum split as qty × per-piece only if identical, otherwise keep qty and put the breakdown in note.
-- advance: the ADVANCE amount, digits only ("" if blank). writtenTotal: the Total, digits only ("" if blank).
+- THE ADVANCE BOX — read this rule twice, it is the field most often invented:
+  * Most slips have NO advance written. A blank Advance box is the normal case, not a failure.
+  * Look at the box printed "Advance" and ONLY at that box. Set advanceBoxFilled true only if you can see actual pen strokes forming a number inside or immediately beside it.
+  * If advanceBoxFilled is false, advance MUST be "".
+  * NEVER derive the advance from anything else. Do not copy the Total, the Balance, the "Given" box, an amount from the items table, or a number written elsewhere on the page into advance. If the only number you can find is somewhere else on the slip, the Advance box is blank — say so.
+  * A carbon-copy shadow or an impression from the previous page is not handwriting on this slip.
+- writtenTotal: the Total, digits only ("" if blank).
 - AMOUNT SANITY CHECK: stitching amounts are usually 3–4 digits (₹100–₹5000) and often start with 1 written close to the column line — check the left edge of every amount for a leading digit you may have missed. Then verify: does the sum of the amounts equal the written Total? If not, re-read every amount AND the Total once more; whatever still disagrees, mark confidence "low".
 - billNo: the printed or stamped B.No / Bill No. date: the written Date box only. dueDate: the written "Due Date" box ONLY — it is often blank; if blank return "". NEVER copy the Date into dueDate. The "Reminder Date" is shop bookkeeping — never copy it into dueDate (or anywhere else).
 
@@ -108,6 +114,10 @@ export const SLIP_RESPONSE_SCHEMA = {
     },
     advance: { type: "STRING" },
     advanceConfidence: CONFIDENCE,
+    // Independent of `advance` on purpose: a model that has invented a number
+    // still has to assert, separately, that the box was written in at all.
+    // normalizeExtraction refuses to prefill the advance unless this is true.
+    advanceBoxFilled: { type: "BOOLEAN" },
     writtenTotal: { type: "STRING" },
     writtenTotalConfidence: CONFIDENCE,
     extraNotes: { type: "ARRAY", items: { type: "STRING" } },
@@ -129,6 +139,7 @@ export const SLIP_RESPONSE_SCHEMA = {
     "lineItems",
     "advance",
     "advanceConfidence",
+    "advanceBoxFilled",
     "writtenTotal",
     "writtenTotalConfidence",
     "extraNotes",

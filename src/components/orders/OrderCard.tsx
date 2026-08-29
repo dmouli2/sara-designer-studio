@@ -1,5 +1,13 @@
 import { cn } from "@/lib/utils";
-import { formatCurrency, formatDate, isOrderOverdue, orderBalance } from "@/lib/utils";
+import {
+  deliveredPieceCount,
+  formatCurrency,
+  formatDate,
+  isMultiPiece,
+  isOrderOverdue,
+  nextDueDate,
+  orderBalance,
+} from "@/lib/utils";
 import StatusBadge from "./StatusBadge";
 import type { Order } from "@/types";
 
@@ -31,7 +39,13 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
   const isCancelled = order.status === "cancelled";
   const balance = orderBalance(order);
   const isNew = order.status === "new";
-  const overdue = isOrderOverdue(order.due, order.status);
+  // On a split order the order-level due date is the LAST garment's — an
+  // earlier piece can be overdue while that date is still weeks away, so the
+  // card tracks the next one still in the shop. Identical to order.due for
+  // every single-garment order.
+  const due = nextDueDate(order);
+  const overdue = isOrderOverdue(due, order.status);
+  const multiPiece = isMultiPiece(order);
 
   return (
     <div
@@ -70,7 +84,7 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
                 {order.id}
               </span>
             </span>
-            <StatusBadge status={order.status} />
+            <StatusBadge status={order.status} alterations={order.alterations} />
           </div>
 
           <p className="text-[15px] font-medium text-[#0F0F0F] truncate mt-0.5">{order.customer}</p>
@@ -84,6 +98,11 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
       {/* Below the photo column so the chips line up whether or not an order
           has a material photo. */}
       <div className="flex items-center gap-1.5 flex-wrap mt-3">
+        {multiPiece && (
+          <span className="text-[11px] font-semibold px-2 py-1 rounded-md bg-[#FBF6E8] text-[#7A6020] tabular-nums">
+            👗 {deliveredPieceCount(order)}/{order.pieces.length} delivered
+          </span>
+        )}
         <span
           className={cn(
             "text-[11px] font-medium px-2 py-1 rounded-md max-w-full truncate",
@@ -105,10 +124,10 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
       <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-[#F0EDE6]">
         {overdue ? (
           <span className="text-[12px] font-semibold text-[#B04A4A] min-w-0 truncate">
-            ⚠ Overdue · was due {formatDate(order.due)}
+            ⚠ Overdue · was due {formatDate(due)}
           </span>
         ) : (
-          <span className="text-[12px] text-[#9A9A9A] min-w-0 truncate">Due {formatDate(order.due)}</span>
+          <span className="text-[12px] text-[#9A9A9A] min-w-0 truncate">Due {formatDate(due)}</span>
         )}
         {showPrice && (
           <div className="text-right shrink-0">

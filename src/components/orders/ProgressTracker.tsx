@@ -24,7 +24,11 @@ export default function ProgressTracker({ status }: { status: OrderStatus }) {
 
   const stepIdx = (stepId: OrderStatus) => {
     const map: Record<OrderStatus, number> = {
-      new: 0, cutting: 1, cutting_done: 1, stitching: 2, hemming_hook: 2, ready: 3, delivered: 4, cancelled: -1,
+      new: 0, cutting: 1, cutting_done: 1, stitching: 2, hemming_hook: 2, ready: 3,
+      // Some garments are with the customer and some aren't — the order has
+      // reached the last step without completing it, so it sits on "Ready".
+      partly_delivered: 3,
+      delivered: 4, cancelled: -1,
     };
     return map[stepId];
   };

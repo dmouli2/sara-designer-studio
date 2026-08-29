@@ -23,6 +23,9 @@ const baseOrder: PublicOrder = {
   materialImageUrls: ["https://signed.example/material.jpg"],
   mainMaterialImageUrl: "https://signed.example/material.jpg",
   cancellationCharge: null,
+  pieces: null,
+  alterations: [],
+  payments: [],
   createdAt: "2026-06-01",
 };
 

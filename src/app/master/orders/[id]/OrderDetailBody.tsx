@@ -6,10 +6,11 @@ import TopBar from "@/components/layout/TopBar";
 import Toast from "@/components/layout/Toast";
 import StatusBadge from "@/components/orders/StatusBadge";
 import MeasurementGrid from "@/components/orders/MeasurementGrid";
+import OrderPiecesCard from "@/components/orders/OrderPiecesCard";
 import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
 import MaterialImageGallery from "@/components/orders/MaterialImageGallery";
 import { updateOrderStatus } from "@/app/actions/orders";
-import { formatDate } from "@/lib/utils";
+import { formatDate, isMultiPiece } from "@/lib/utils";
 import type { Order } from "@/types";
 
 export default function OrderDetailBody({ order: initialOrder }: { order: Order }) {
@@ -64,6 +65,10 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
           <p className="section-label">Material photos</p>
           <MaterialImageGallery images={order.materialImageUrls} />
         </div>
+
+        {/* Several garments to the one set of measurements below, each with
+            its own date — read-only here: handing them over is the admin's. */}
+        {isMultiPiece(order) && <OrderPiecesCard order={order} />}
 
         {/* Measurements */}
         <div>
