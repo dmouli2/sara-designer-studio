@@ -97,6 +97,7 @@ const order: Order = {
   materialImageUrls: ["orders/SDS-001/material-1.jpg"],
   mainMaterialImageUrl: null,
   cancellationCharge: null,
+  deliveredOn: null,
   pieces: null,
   alterations: [],
   payments: [],
@@ -267,9 +268,11 @@ const findPublicToken = vi.fn();
 
     await deliverOrder("SDS-001", "cash");
 
-    // Nothing arrived, so nothing is recorded — no ledger entry, and no
-    // method claiming a payment that never happened.
-    expect(updateStatus).toHaveBeenCalledWith("SDS-001", "delivered", {});
+    // Nothing arrived, so no ledger entry and no method claiming a payment
+    // that never happened — only the day it was handed over.
+    expect(updateStatus).toHaveBeenCalledWith("SDS-001", "delivered", {
+      deliveredOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    });
   });
 
   it("deliverOrder rejects an unknown payment method", async () => {
@@ -1170,7 +1173,7 @@ const findPublicToken = vi.fn();
     it("refuses a future date", async () => {
       findById.mockResolvedValue(splitOrder());
       await expect(deliverPiece("SDS-001", "p1", undefined, "2099-01-01")).rejects.toThrow(
-        "can't be dated in the future"
+        "That hand-over date is in the future"
       );
       expect(updateStatus).not.toHaveBeenCalled();
     });
@@ -1194,4 +1197,93 @@ const findPublicToken = vi.fn();
     });
   });
 
+
+  // Every date the admin records follows the same rule, so each action that
+  // takes one is checked for it rather than trusting the shared helper.
+  describe("dates on the other actions", () => {
+    const ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+    it("deliverOrder records the day it went home", async () => {
+      findById.mockResolvedValue({ ...order, amount: 1000, advance: 0, finalPayment: 0 });
+      updateStatus.mockResolvedValue(order);
+
+      await deliverOrder("SDS-001", "cash", "2026-08-20");
+
+      const extra = updateStatus.mock.calls[0][2];
+      expect(extra.deliveredOn).toBe("2026-08-20");
+      expect(extra.payments[0].at).toBe("2026-08-20");
+    });
+
+    it("the last piece dates the order as well as itself", async () => {
+      findById.mockResolvedValue(
+        splitOrder({ pieces: [piece({ id: "p1" })] })
+      );
+      updateStatus.mockResolvedValue(order);
+
+      await deliverPiece("SDS-001", "p1", undefined, "2026-08-20");
+
+      const [, status, extra] = updateStatus.mock.calls[0];
+      expect(status).toBe("delivered");
+      expect(extra.deliveredOn).toBe("2026-08-20");
+    });
+
+    it("an earlier piece leaves the order's date alone", async () => {
+      findById.mockResolvedValue(splitOrder());
+      updateStatus.mockResolvedValue(order);
+
+      await deliverPiece("SDS-001", "p1", undefined, "2026-08-20");
+
+      expect(updateStatus.mock.calls[0][2].deliveredOn).toBeUndefined();
+    });
+
+    it("startAlteration takes the day it came back in", async () => {
+      findById.mockResolvedValue({ ...order, status: "delivered", alterations: [] });
+      update.mockResolvedValue(order);
+
+      await startAlteration("SDS-001", { reason: "x", promisedAt: "2026-09-05", receivedAt: "2026-08-20" });
+
+      expect(update.mock.calls[0][1].alterations[0].receivedAt).toBe("2026-08-20");
+    });
+
+    it("completeAlteration and redeliverAlteration take their day", async () => {
+      findById.mockResolvedValue({ ...order, status: "delivered", alterations: [alteration()] });
+      update.mockResolvedValue(order);
+      await completeAlteration("SDS-001", "2026-08-21");
+      expect(update.mock.calls[0][1].alterations[0].completedAt).toBe("2026-08-21");
+
+      update.mockClear();
+      findById.mockResolvedValue({
+        ...order,
+        status: "delivered",
+        alterations: [alteration({ completedAt: "2026-08-21" })],
+      });
+      await redeliverAlteration("SDS-001", "2026-08-22");
+      expect(update.mock.calls[0][1].alterations[0].redeliveredAt).toBe("2026-08-22");
+    });
+
+    it("every one of them refuses a future date", async () => {
+      findById.mockResolvedValue({ ...order, status: "delivered", alterations: [alteration()] });
+      await expect(completeAlteration("SDS-001", "2099-01-01")).rejects.toThrow("is in the future");
+
+      findById.mockResolvedValue({
+        ...order, status: "delivered", alterations: [alteration({ completedAt: "2026-08-21" })],
+      });
+      await expect(redeliverAlteration("SDS-001", "2099-01-01")).rejects.toThrow("is in the future");
+
+      findById.mockResolvedValue({ ...order, status: "delivered", alterations: [] });
+      await expect(
+        startAlteration("SDS-001", { reason: "", promisedAt: "2026-09-05", receivedAt: "2099-01-01" })
+      ).rejects.toThrow("is in the future");
+
+      findById.mockResolvedValue({ ...order, amount: 1000, advance: 0, finalPayment: 0 });
+      await expect(deliverOrder("SDS-001", "cash", "2099-01-01")).rejects.toThrow("is in the future");
+    });
+
+    it("defaults to today when the date is left out", async () => {
+      findById.mockResolvedValue({ ...order, status: "delivered", alterations: [alteration()] });
+      update.mockResolvedValue(order);
+      await completeAlteration("SDS-001");
+      expect(update.mock.calls[0][1].alterations[0].completedAt).toMatch(ISO);
+    });
+  });
 });

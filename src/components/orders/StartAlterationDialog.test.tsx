@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import StartAlterationDialog, { defaultPromisedDate } from "./StartAlterationDialog";
+import { shopToday } from "@/lib/utils";
 import type { OrderPiece } from "@/types";
 
 const pieces: OrderPiece[] = [
@@ -77,6 +78,7 @@ describe("StartAlterationDialog", () => {
       reason: "Sleeve tight",
       promisedAt: expect.any(String),
       pieceLabel: null,
+      receivedAt: shopToday(),
     });
   });
 
@@ -118,5 +120,27 @@ describe("StartAlterationDialog", () => {
     setup({ pending: true });
     expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+  });
+
+  // The customer may have dropped it off yesterday.
+  it("takes the day it actually came back in", async () => {
+    const user = userEvent.setup();
+    const { onConfirm } = setup();
+    fireEvent.change(screen.getByLabelText("Taken in on"), { target: { value: "2026-08-20" } });
+    await user.click(screen.getByRole("button", { name: "Take it in" }));
+    expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ receivedAt: "2026-08-20" }));
+  });
+
+  it("defaults the taken-in date to today", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-29T06:00:00Z"));
+    setup();
+    expect(screen.getByLabelText("Taken in on")).toHaveValue("2026-08-29");
+  });
+
+  it("won't take something in from the future", () => {
+    setup();
+    fireEvent.change(screen.getByLabelText("Taken in on"), { target: { value: "2099-01-01" } });
+    expect(screen.getByRole("button", { name: "Take it in" })).toBeDisabled();
   });
 });

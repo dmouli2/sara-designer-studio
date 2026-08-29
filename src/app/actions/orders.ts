@@ -99,6 +99,7 @@ export async function createOrder(
     | "sketchDataUrl"
     | "referenceImageUrls"
     | "materialImageUrls"
+    | "deliveredOn"
     | "pieces"
     | "alterations"
     | "payments"
@@ -139,6 +140,7 @@ export async function createOrder(
     referenceImageUrls,
     materialImageUrls,
     cancellationCharge: null,
+    deliveredOn: null,
     pieces,
     // A brand-new order has been through neither.
     alterations: [],
@@ -313,7 +315,12 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
 // Hands the order over and settles it in one step. The balance is computed
 // server-side from the stored order rather than taken from the client, so the
 // amount recorded is always exactly what was owed.
-export async function deliverOrder(id: string, method: PaymentMethod): Promise<Order> {
+export async function deliverOrder(
+  id: string,
+  method: PaymentMethod,
+  // The day it went home. Defaults to today; may be backdated.
+  deliveredOn?: string
+): Promise<Order> {
   await requireRole(["admin"]);
   if (method !== "cash" && method !== "upi") {
     throw new Error("Choose how the payment was made.");
@@ -325,12 +332,13 @@ export async function deliverOrder(id: string, method: PaymentMethod): Promise<O
   }
 
   const balance = orderBalance(order);
-  const today = shopToday();
+  const on = resolveEventDate(deliveredOn, "delivery");
   const updated = await getDb().orders.updateStatus(id, "delivered", {
-    ...collectPayment(order, balance, method, null, today),
+    deliveredOn: on,
+    ...collectPayment(order, balance, method, null, on),
     // Handing the whole order over hands over everything still in the shop.
     // A single-garment order has no pieces and this is a no-op.
-    ...(order.pieces ? { pieces: markPiecesDelivered(order.pieces, today) } : {}),
+    ...(order.pieces ? { pieces: markPiecesDelivered(order.pieces, on) } : {}),
   });
   revalidateOrderPaths(id);
   refresh();
@@ -375,17 +383,18 @@ function markPiecesDelivered(pieces: OrderPiece[], on: string): OrderPiece[] {
   );
 }
 
-// A hand-over can be backdated — the shop records it when it gets a moment,
-// often a day or two after the customer walked out — but never postdated: a
-// garment that hasn't left yet hasn't been handed over.
-function resolveHandoverDate(input: string | undefined): string {
+// Every date the admin records here is "the day this actually happened", and
+// all of them share one rule: default to today, accept any earlier day
+// because the shop writes things up when it gets a moment, and refuse a
+// future one because it hasn't happened yet.
+function resolveEventDate(input: string | undefined, noun: string): string {
   const today = shopToday();
   if (input === undefined) return today;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) {
-    throw new Error("Enter a valid hand-over date.");
+    throw new Error(`Enter a valid ${noun} date.`);
   }
   if (input > today) {
-    throw new Error("A hand-over can't be dated in the future.");
+    throw new Error(`That ${noun} date is in the future.`);
   }
   return input;
 }
@@ -439,12 +448,15 @@ export async function deliverPiece(
     throw new Error("Choose how the payment was made.");
   }
 
-  const at = resolveHandoverDate(handedOverOn);
+  const at = resolveEventDate(handedOverOn, "hand-over");
   const pieces = order.pieces.map((p) =>
     p.id === pieceId ? { ...p, status: "delivered" as const, deliveredAt: at } : p
   );
 
   const updated = await getDb().orders.updateStatus(id, isLast ? "delivered" : "partly_delivered", {
+    // The last garment leaving is the order being delivered, so it carries
+    // the order's delivery date as well as its own.
+    ...(isLast ? { deliveredOn: at } : {}),
     ...collectPayment(order, amount, method, pieceId, at),
     pieces,
   });
@@ -487,6 +499,8 @@ export interface StartAlterationInput {
   // Which garment came back, on a multi-piece order. Stored as the label so
   // the record still reads correctly if the piece is later renamed.
   pieceLabel?: string | null;
+  // The day it came back in. Defaults to today; may be backdated.
+  receivedAt?: string;
 }
 
 export async function startAlteration(id: string, input: StartAlterationInput): Promise<Order> {
@@ -507,7 +521,7 @@ export async function startAlteration(id: string, input: StartAlterationInput): 
     id: crypto.randomUUID(),
     reason: input.reason.trim(),
     pieceLabel: input.pieceLabel?.trim() || null,
-    receivedAt: shopToday(),
+    receivedAt: resolveEventDate(input.receivedAt, "taken-in"),
     promisedAt: input.promisedAt,
     completedAt: null,
     redeliveredAt: null,
@@ -521,7 +535,7 @@ export async function startAlteration(id: string, input: StartAlterationInput): 
 
 // Alteration work finished — the garment is back on the shelf waiting for the
 // customer, not yet handed over.
-export async function completeAlteration(id: string): Promise<Order> {
+export async function completeAlteration(id: string, completedOn?: string): Promise<Order> {
   await requireRole(["admin"]);
   const order = await getDb().orders.findById(id);
   if (!order) throw new Error("Order not found.");
@@ -530,8 +544,9 @@ export async function completeAlteration(id: string): Promise<Order> {
   if (!open) throw new Error("This order isn't in alteration.");
   if (open.completedAt) throw new Error("That alteration is already done.");
 
+  const on = resolveEventDate(completedOn, "alteration-done");
   const alterations = order.alterations.map((a) =>
-    a.id === open.id ? { ...a, completedAt: shopToday() } : a
+    a.id === open.id ? { ...a, completedAt: on } : a
   );
   const updated = await getDb().orders.update(id, { alterations });
   revalidateOrderPaths(id);
@@ -541,7 +556,7 @@ export async function completeAlteration(id: string): Promise<Order> {
 
 // Handed back to the customer — closes the record, and the order reads as a
 // plain delivered order again with the episode kept in its history.
-export async function redeliverAlteration(id: string): Promise<Order> {
+export async function redeliverAlteration(id: string, redeliveredOn?: string): Promise<Order> {
   await requireRole(["admin"]);
   const order = await getDb().orders.findById(id);
   if (!order) throw new Error("Order not found.");
@@ -550,8 +565,9 @@ export async function redeliverAlteration(id: string): Promise<Order> {
   if (!open) throw new Error("This order isn't in alteration.");
   if (!open.completedAt) throw new Error("Mark the alteration done before handing it back.");
 
+  const on = resolveEventDate(redeliveredOn, "hand-back");
   const alterations = order.alterations.map((a) =>
-    a.id === open.id ? { ...a, redeliveredAt: shopToday() } : a
+    a.id === open.id ? { ...a, redeliveredAt: on } : a
   );
   const updated = await getDb().orders.update(id, { alterations });
   revalidateOrderPaths(id);

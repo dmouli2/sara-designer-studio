@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import DeliverOrderDialog from "./DeliverOrderDialog";
+import { shopToday } from "@/lib/utils";
 
 function setup(overrides: Partial<Parameters<typeof DeliverOrderDialog>[0]> = {}) {
   const onConfirm = vi.fn();
@@ -54,7 +55,7 @@ describe("DeliverOrderDialog", () => {
     expect(confirm).toBeEnabled();
     await user.click(confirm);
 
-    expect(onConfirm).toHaveBeenCalledWith("upi");
+    expect(onConfirm).toHaveBeenCalledWith("upi", expect.any(String));
   });
 
   it("passes cash through when cash is chosen", async () => {
@@ -62,7 +63,7 @@ describe("DeliverOrderDialog", () => {
     const { onConfirm } = setup();
     await user.click(screen.getByText("Cash"));
     await user.click(screen.getByText("Collect & deliver"));
-    expect(onConfirm).toHaveBeenCalledWith("cash");
+    expect(onConfirm).toHaveBeenCalledWith("cash", expect.any(String));
   });
 
   it("marks the chosen method as pressed", async () => {
@@ -105,5 +106,33 @@ describe("DeliverOrderDialog", () => {
     await user.click(screen.getByText("Not yet"));
     expect(onCancel).toHaveBeenCalled();
     expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  // Same rule as every other date the admin records: today by default,
+  // backdating allowed because the shop writes hand-overs up later, no
+  // future dates.
+  describe("the delivery date", () => {
+    it("defaults to today", () => {
+      setup();
+      expect(screen.getByLabelText("Delivered on")).toHaveValue(shopToday());
+    });
+
+    it("travels with the confirmation", async () => {
+      const user = userEvent.setup();
+      const { onConfirm } = setup();
+      fireEvent.change(screen.getByLabelText("Delivered on"), { target: { value: "2026-08-20" } });
+      // The method buttons carry a hint line, so their accessible name is
+      // "Cash Notes at the counter" — match the visible label instead.
+      await user.click(screen.getByText("Cash"));
+      await user.click(screen.getByText("Collect & deliver"));
+      expect(onConfirm).toHaveBeenCalledWith("cash", "2026-08-20");
+    });
+
+    it("blocks a future date", () => {
+      setup();
+      fireEvent.change(screen.getByLabelText("Delivered on"), { target: { value: "2099-01-01" } });
+      expect(screen.getByText(/hasn't happened yet/)).toBeInTheDocument();
+      expect(screen.getByText("Collect & deliver").closest("button")).toBeDisabled();
+    });
   });
 });

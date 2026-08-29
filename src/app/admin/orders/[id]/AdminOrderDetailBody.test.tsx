@@ -83,6 +83,7 @@ function order(overrides: Partial<Order>): Order {
     materialImageUrls: [],
     mainMaterialImageUrl: null,
     cancellationCharge: null,
+    deliveredOn: null,
   pieces: null,
   alterations: [],
   payments: [],
@@ -577,7 +578,7 @@ describe("AdminOrderDetailBody", () => {
       await user.click(screen.getByText("UPI"));
       await user.click(screen.getByText("Collect & deliver"));
 
-      expect(deliverOrder).toHaveBeenCalledWith("AD1", "upi");
+      expect(deliverOrder).toHaveBeenCalledWith("AD1", "upi", expect.any(String));
       expect(await screen.findByText("Collected on delivery")).toBeInTheDocument();
     });
 
@@ -788,6 +789,7 @@ describe("AdminOrderDetailBody", () => {
           reason: "Sleeve tight",
           promisedAt: expect.any(String),
           pieceLabel: null,
+          receivedAt: expect.any(String),
         })
       );
       // The badge now says what the admin needs to read, and the "delivered"
@@ -801,11 +803,11 @@ describe("AdminOrderDetailBody", () => {
       renderBody(order({ status: "delivered", alterations: [alteration()] }));
 
       await user.click(screen.getByRole("button", { name: "✓ Alteration done" }));
-      await waitFor(() => expect(completeAlteration).toHaveBeenCalledWith("AD1"));
+      await waitFor(() => expect(completeAlteration).toHaveBeenCalledWith("AD1", expect.any(String)));
 
       expect(await screen.findByText("Alteration Done")).toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: "✓ Handed back to customer" }));
-      await waitFor(() => expect(redeliverAlteration).toHaveBeenCalledWith("AD1"));
+      await waitFor(() => expect(redeliverAlteration).toHaveBeenCalledWith("AD1", expect.any(String)));
 
       // Record closed — back to a plain delivered order with its history.
       expect(await screen.findByText(/Altered & returned/)).toBeInTheDocument();

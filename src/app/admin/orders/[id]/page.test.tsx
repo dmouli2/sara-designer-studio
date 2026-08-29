@@ -33,6 +33,7 @@ const order: Order = {
   materialImageUrls: [],
   mainMaterialImageUrl: null,
   cancellationCharge: null,
+  deliveredOn: null,
   pieces: null,
   alterations: [],
   payments: [],

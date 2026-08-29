@@ -187,10 +187,10 @@ export default function AdminOrderDetailBody({
     }
   }
 
-  async function handleDeliver(method: PaymentMethod) {
+  async function handleDeliver(method: PaymentMethod, deliveredOn: string) {
     setDelivering(true);
     try {
-      const updated = await deliverOrder(order.id, method);
+      const updated = await deliverOrder(order.id, method, deliveredOn);
       setOrder(updated);
       setDeliverOpen(false);
     } catch {
@@ -534,7 +534,9 @@ export default function AdminOrderDetailBody({
         {order.status === "delivered" && !openAlteration(order) && (
           <div className="card-gold text-center py-5">
             <p className="text-2xl mb-1">✅</p>
-            <p className="text-sm font-semibold text-[#1B6B3A]">Order delivered</p>
+            <p className="text-sm font-semibold text-[#1B6B3A]">
+              Order delivered{order.deliveredOn ? ` ${formatDate(order.deliveredOn)}` : ""}
+            </p>
           </div>
         )}
 
@@ -543,8 +545,8 @@ export default function AdminOrderDetailBody({
             order={order}
             pending={alterationPending}
             onStart={() => setAlterationOpen(true)}
-            onComplete={() => runAlterationStep(() => completeAlteration(order.id))}
-            onRedeliver={() => runAlterationStep(() => redeliverAlteration(order.id))}
+            onComplete={(on) => runAlterationStep(() => completeAlteration(order.id, on))}
+            onRedeliver={(on) => runAlterationStep(() => redeliverAlteration(order.id, on))}
           />
         )}
 

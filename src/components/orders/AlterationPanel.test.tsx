@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import AlterationPanel from "./AlterationPanel";
 import type { AlterationRecord, Order, OrderStatus } from "@/types";
@@ -80,7 +80,7 @@ describe("AlterationPanel", () => {
       expect(screen.getAllByRole("button")).toHaveLength(1);
 
       await user.click(screen.getByRole("button", { name: "✓ Alteration done" }));
-      expect(onComplete).toHaveBeenCalled();
+      expect(onComplete).toHaveBeenCalledWith(expect.any(String));
       expect(onRedeliver).not.toHaveBeenCalled();
     });
 
@@ -101,7 +101,7 @@ describe("AlterationPanel", () => {
       const { onRedeliver } = setup("delivered", [alteration({ completedAt: "2026-08-05" })]);
       expect(screen.getByText(/waiting for pickup/)).toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: "✓ Handed back to customer" }));
-      expect(onRedeliver).toHaveBeenCalled();
+      expect(onRedeliver).toHaveBeenCalledWith(expect.any(String));
     });
 
     it("hides the 'came back' entry while one is already open", () => {
@@ -128,5 +128,36 @@ describe("AlterationPanel", () => {
   it("says so when a closed episode has no reason recorded", () => {
     setup("delivered", [alteration({ reason: "", redeliveredAt: "2026-07-06" })]);
     expect(screen.getByText(/No reason recorded/)).toBeInTheDocument();
+  });
+
+  // Inline rather than a modal: one action on the card, so its date sits
+  // right above it.
+  describe("dating the step", () => {
+    it("labels the date for the step being taken", () => {
+      setup("delivered", [alteration()]);
+      expect(screen.getByLabelText("Alteration done on")).toBeInTheDocument();
+
+      cleanup();
+      setup("delivered", [alteration({ completedAt: "2026-08-05" })]);
+      expect(screen.getByLabelText("Handed back on")).toBeInTheDocument();
+    });
+
+    it("passes the chosen day to the action", async () => {
+      const user = userEvent.setup();
+      const { onComplete } = setup("delivered", [alteration()]);
+      fireEvent.change(screen.getByLabelText("Alteration done on"), {
+        target: { value: "2026-08-20" },
+      });
+      await user.click(screen.getByRole("button", { name: "✓ Alteration done" }));
+      expect(onComplete).toHaveBeenCalledWith("2026-08-20");
+    });
+
+    it("blocks a future date", () => {
+      setup("delivered", [alteration()]);
+      fireEvent.change(screen.getByLabelText("Alteration done on"), {
+        target: { value: "2099-01-01" },
+      });
+      expect(screen.getByRole("button", { name: "✓ Alteration done" })).toBeDisabled();
+    });
   });
 });

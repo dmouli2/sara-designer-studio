@@ -293,6 +293,10 @@ export interface Order {
                                         // every read including list() — the thumbnail
                                         // shown on order cards
   cancellationCharge: number | null;
+  // The day the order was handed over — the admin's choice, not a stamp.
+  // Null until it is delivered, and for orders delivered before this was
+  // recorded (see supabase/migrations/0013_order_delivered_on.sql).
+  deliveredOn: string | null;
   // Null for a single-garment order — see OrderPiece above. Present only on
   // orders deliberately split into several garments.
   pieces: OrderPiece[] | null;

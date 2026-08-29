@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn, formatCurrency, shopToday } from "@/lib/utils";
+import EventDateField, { isInvalidEventDate } from "./EventDateField";
 import type { OrderPiece, PaymentMethod } from "@/types";
 
 interface Props {
@@ -58,10 +59,8 @@ export default function DeliverPieceDialog({
   const collecting = isLast ? balance : Math.min(Math.max(typed, 0), balance);
   const needsMethod = collecting > 0;
   const overBalance = !isLast && typed > balance;
-  // A garment that hasn't left yet hasn't been handed over.
-  const futureDated = !!handedOverOn && handedOverOn > shopToday();
   const canConfirm =
-    !pending && !overBalance && !!handedOverOn && !futureDated && (!needsMethod || method !== null);
+    !pending && !overBalance && !isInvalidEventDate(handedOverOn) && (!needsMethod || method !== null);
 
   function confirm() {
     if (!canConfirm) return;
@@ -82,20 +81,12 @@ export default function DeliverPieceDialog({
         </p>
 
         <div className="mt-4">
-          <label className="text-xs text-[#9A9A9A] mb-1 block" htmlFor="piece-handed-over-on">
-            Handed over on
-          </label>
-          <input
+          <EventDateField
             id="piece-handed-over-on"
-            className="input"
-            type="date"
-            max={shopToday()}
+            label="Handed over on"
             value={handedOverOn}
-            onChange={(e) => setHandedOverOn(e.target.value)}
+            onChange={setHandedOverOn}
           />
-          {futureDated && (
-            <p className="text-xs text-red-600 mt-1">That date hasn&apos;t happened yet.</p>
-          )}
         </div>
 
         {balance > 0 ? (

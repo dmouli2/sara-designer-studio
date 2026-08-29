@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { shopToday } from "@/lib/utils";
+import EventDateField, { isInvalidEventDate } from "./EventDateField";
 import type { OrderPiece } from "@/types";
 
 interface Props {
@@ -11,7 +12,12 @@ interface Props {
   // order there is nothing to choose between.
   pieces: OrderPiece[] | null;
   pending: boolean;
-  onConfirm: (input: { reason: string; promisedAt: string; pieceLabel: string | null }) => void;
+  onConfirm: (input: {
+    reason: string;
+    promisedAt: string;
+    pieceLabel: string | null;
+    receivedAt: string;
+  }) => void;
   onCancel: () => void;
 }
 
@@ -43,6 +49,8 @@ export default function StartAlterationDialog({
   const [reason, setReason] = useState("");
   const [promisedAt, setPromisedAt] = useState(() => defaultPromisedDate());
   const [pieceLabel, setPieceLabel] = useState("");
+  // The day the customer actually brought it back, which may not be today.
+  const [receivedAt, setReceivedAt] = useState(() => shopToday());
 
   if (!open) return null;
 
@@ -77,6 +85,13 @@ export default function StartAlterationDialog({
               </select>
             </div>
           )}
+
+          <EventDateField
+            id="alteration-received"
+            label="Taken in on"
+            value={receivedAt}
+            onChange={setReceivedAt}
+          />
 
           <div>
             <label className="text-xs text-[#9A9A9A] mb-1 block" htmlFor="alteration-reason">
@@ -117,9 +132,9 @@ export default function StartAlterationDialog({
           </button>
           <button
             type="button"
-            disabled={pending || !promisedAt}
+            disabled={pending || !promisedAt || isInvalidEventDate(receivedAt)}
             onClick={() =>
-              onConfirm({ reason, promisedAt, pieceLabel: pieceLabel || null })
+              onConfirm({ reason, promisedAt, pieceLabel: pieceLabel || null, receivedAt })
             }
             className="flex-1 py-3 rounded-xl bg-[#6B4FA8] text-white text-[14px] font-semibold active:scale-[0.98] transition-all disabled:opacity-40"
           >

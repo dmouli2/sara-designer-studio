@@ -1,16 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { cn, formatDate, openAlteration, shopToday } from "@/lib/utils";
 import { FEATURE_ALTERATIONS } from "@/lib/features";
+import EventDateField, { isInvalidEventDate } from "./EventDateField";
 import type { AlterationRecord, Order } from "@/types";
 
 interface Props {
   order: Order;
   pending: boolean;
   onStart: () => void;
-  onComplete: () => void;
-  onRedeliver: () => void;
+  // Both carry the day it happened — see EventDateField.
+  onComplete: (on: string) => void;
+  onRedeliver: (on: string) => void;
 }
 
 // The whole alteration flow, as one card with exactly one button on it.
@@ -86,9 +89,13 @@ function OpenAlteration({
 }: {
   record: AlterationRecord;
   pending: boolean;
-  onComplete: () => void;
-  onRedeliver: () => void;
+  onComplete: (on: string) => void;
+  onRedeliver: (on: string) => void;
 }) {
+  // Inline rather than another dialog: there is one action on this card, and
+  // asking for its date shouldn't cost a modal. Today by default, so the
+  // common case is still a single tap.
+  const [on, setOn] = useState(() => shopToday());
   const done = !!record.completedAt;
   // The promised date is a real commitment to a customer standing in the
   // shop, so it gets the same overdue treatment an order's due date does.
@@ -109,11 +116,18 @@ function OpenAlteration({
         </p>
       </div>
 
+      <EventDateField
+        id="alteration-step-date"
+        label={done ? "Handed back on" : "Alteration done on"}
+        value={on}
+        onChange={setOn}
+      />
+
       {done ? (
         <button
           type="button"
-          onClick={onRedeliver}
-          disabled={pending}
+          onClick={() => onRedeliver(on)}
+          disabled={pending || isInvalidEventDate(on)}
           className="w-full bg-[#1B6B3A] text-white rounded-xl py-3 text-[14px] font-semibold active:opacity-80 disabled:opacity-40 transition-all"
         >
           {pending ? "Saving…" : "✓ Handed back to customer"}
@@ -121,8 +135,8 @@ function OpenAlteration({
       ) : (
         <button
           type="button"
-          onClick={onComplete}
-          disabled={pending}
+          onClick={() => onComplete(on)}
+          disabled={pending || isInvalidEventDate(on)}
           className="w-full bg-[#6B4FA8] text-white rounded-xl py-3 text-[14px] font-semibold active:opacity-80 disabled:opacity-40 transition-all"
         >
           {pending ? "Saving…" : "✓ Alteration done"}
