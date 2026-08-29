@@ -10,6 +10,8 @@ import SketchCanvas from "@/components/orders/SketchCanvas";
 import ReferenceImageUpload from "@/components/orders/ReferenceImageUpload";
 import MaterialImageUpload from "@/components/orders/MaterialImageUpload";
 import LineItemsEditor from "@/components/orders/LineItemsEditor";
+import PiecesEditor from "@/components/orders/PiecesEditor";
+import { FEATURE_MULTI_PIECE } from "@/lib/features";
 import { LINE_ITEM_PRESETS, lineItemCategoryForDress } from "@/lib/mock";
 import { formatCurrency, isValidIndianMobile } from "@/lib/utils";
 import { galleryEntryToFile, MAX_PHOTO_PAYLOAD_BYTES } from "@/lib/image";
@@ -63,6 +65,10 @@ export default function EditOrderForm({ order }: { order: Order }) {
   // Line-item edits move the total by their delta; the admin can still type
   // a total directly (the fabric portion isn't itemized on a stored order).
   const [totalOverride, setTotalOverride] = useState<string | null>(null);
+  // How many garments the order is for. Sent to updateOrder as a count; the
+  // server reconciles it against the stored pieces so a garment already with
+  // the customer can never be edited away.
+  const [pieceCount, setPieceCount] = useState(order.pieces?.length ?? 1);
 
   // Galleries start as the stored photos' signed http URLs; newly captured
   // photos are base64 data URLs. A gallery that still JSON-matches its
@@ -86,6 +92,15 @@ export default function EditOrderForm({ order }: { order: Order }) {
   // point a blank canvas appears for redrawing.
   const keepingStoredSketch = !!sketch && !sketch.startsWith("data:");
 
+  // Same rule as the new-order wizard: several garments to one set of
+  // measurements is the blouse book's case.
+  const canSplitPieces = FEATURE_MULTI_PIECE && order.dress === "Blouse";
+  const deliveredPieces = (order.pieces ?? []).filter((p) => p.status === "delivered").length;
+  // Delivered garments can't be removed, and the last one in the shop has to
+  // leave through a hand-over (which collects the balance) — so the floor is
+  // one above what's already gone.
+  const minPieceCount = deliveredPieces > 0 ? deliveredPieces + 1 : 1;
+
   async function handleSave() {
     if (saving) return;
 
@@ -103,6 +118,10 @@ export default function EditOrderForm({ order }: { order: Order }) {
     // zeroed advance clears it rather than leaving a stale "Cash".
     const nextMethod = advanceNum > 0 ? advanceMethod : null;
     if (nextMethod !== (order.advanceMethod ?? null)) patch.advanceMethod = nextMethod;
+
+    if (canSplitPieces && pieceCount !== (order.pieces?.length ?? 1)) {
+      patch.pieceCount = pieceCount;
+    }
 
     const items = activeItemsOf(lineItems);
     if (JSON.stringify(items) !== JSON.stringify(order.lineItems)) patch.lineItems = items;
@@ -292,6 +311,24 @@ export default function EditOrderForm({ order }: { order: Order }) {
             </div>
           </div>
         </div>
+
+        {canSplitPieces && (
+          <div>
+            <p className="section-label">Pieces</p>
+            <PiecesEditor
+              count={pieceCount}
+              orderDue={due}
+              labelPrefix={order.dress}
+              onChange={setPieceCount}
+              minCount={minPieceCount}
+              minCountReason={
+                deliveredPieces > 0
+                  ? `${deliveredPieces} already handed over — hand the rest over from the order page rather than removing them here.`
+                  : undefined
+              }
+            />
+          </div>
+        )}
 
         <div className="card-gold">
           <div className="flex justify-between text-sm font-bold text-[#0F0F0F]">

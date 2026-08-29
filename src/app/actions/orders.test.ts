@@ -1060,4 +1060,72 @@ const findPublicToken = vi.fn();
     expect(updateStatus).not.toHaveBeenCalled();
   });
 
+
+  describe("updateOrder changing how many garments", () => {
+    it("splits an existing single-garment order", async () => {
+      findById.mockResolvedValue({ ...order, dress: "Blouse", due: "2026-07-10", pieces: null });
+      update.mockResolvedValue(order);
+
+      await updateOrder("SDS-001", { pieceCount: 3 });
+
+      expect(update.mock.calls[0][1].pieces).toEqual([
+        { id: "p1", label: "Blouse 1", due: "2026-07-10", status: "pending", deliveredAt: null },
+        { id: "p2", label: "Blouse 2", due: "2026-07-10", status: "pending", deliveredAt: null },
+        { id: "p3", label: "Blouse 3", due: "2026-07-10", status: "pending", deliveredAt: null },
+      ]);
+    });
+
+    // A garment added in the same edit that moves the date should follow the
+    // new date, not the one being replaced.
+    it("gives a new garment the delivery date set in the same edit", async () => {
+      findById.mockResolvedValue({ ...order, dress: "Blouse", due: "2026-07-10", pieces: null });
+      update.mockResolvedValue(order);
+
+      await updateOrder("SDS-001", { pieceCount: 2, due: "2026-09-30" });
+
+      expect(update.mock.calls[0][1].pieces.every((p: OrderPiece) => p.due === "2026-09-30")).toBe(true);
+    });
+
+    it("puts a split order back to a single garment", async () => {
+      findById.mockResolvedValue(splitOrder({ status: "ready" }));
+      update.mockResolvedValue(order);
+
+      await updateOrder("SDS-001", { pieceCount: 1 });
+
+      expect(update.mock.calls[0][1].pieces).toBeNull();
+    });
+
+    it("refuses to edit away a garment already with the customer", async () => {
+      findById.mockResolvedValue(
+        splitOrder({
+          status: "partly_delivered",
+          pieces: [
+            piece({ status: "delivered", deliveredAt: "x" }),
+            piece({ id: "p2", label: "Blouse 2" }),
+            piece({ id: "p3", label: "Blouse 3" }),
+          ],
+        })
+      );
+      await expect(updateOrder("SDS-001", { pieceCount: 1 })).rejects.toThrow(
+        "Hand the last piece over instead"
+      );
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it("writes nothing when the count hasn't moved", async () => {
+      findById.mockResolvedValue(splitOrder({ status: "ready" }));
+
+      const result = await updateOrder("SDS-001", { pieceCount: 3 });
+
+      expect(update).not.toHaveBeenCalled();
+      expect(result.id).toBe("SDS-001");
+    });
+
+    // Delivered and cancelled orders are final records, count included.
+    it("still refuses any edit to a finished order", async () => {
+      findById.mockResolvedValue({ ...order, status: "delivered" });
+      await expect(updateOrder("SDS-001", { pieceCount: 3 })).rejects.toThrow("no longer be edited");
+    });
+  });
+
 });

@@ -4,10 +4,16 @@ import userEvent from "@testing-library/user-event";
 import PiecesEditor from "./PiecesEditor";
 import { MAX_ORDER_PIECES } from "@/types";
 
-function setup(count = 1, orderDue = "2026-09-01") {
+function setup(count = 1, orderDue = "2026-09-01", extra: { minCount?: number; minCountReason?: string } = {}) {
   const onChange = vi.fn();
   render(
-    <PiecesEditor count={count} orderDue={orderDue} labelPrefix="Blouse" onChange={onChange} />
+    <PiecesEditor
+      count={count}
+      orderDue={orderDue}
+      labelPrefix="Blouse"
+      onChange={onChange}
+      {...extra}
+    />
   );
   return { onChange };
 }
@@ -58,5 +64,35 @@ describe("PiecesEditor", () => {
   it("treats a nonsense count as one", () => {
     setup(0);
     expect(screen.getByText("1")).toBeInTheDocument();
+  });
+
+  // On the edit screen the floor sits one above whatever is already with the
+  // customer — those garments can't be removed, and the last one still here
+  // has to leave through a hand-over.
+  describe("with a floor", () => {
+    it("won't step below it", () => {
+      setup(2, "2026-09-01", { minCount: 2 });
+      expect(screen.getByRole("button", { name: "One less piece" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "One more piece" })).not.toBeDisabled();
+    });
+
+    it("explains why, but only at the floor", async () => {
+      const user = userEvent.setup();
+      const { onChange } = setup(2, "2026-09-01", { minCount: 2, minCountReason: "1 already handed over" });
+      expect(screen.getByText("1 already handed over")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "One more piece" }));
+      expect(onChange).toHaveBeenCalledWith(3);
+    });
+
+    it("hides the explanation above the floor", () => {
+      setup(4, "2026-09-01", { minCount: 2, minCountReason: "1 already handed over" });
+      expect(screen.queryByText("1 already handed over")).not.toBeInTheDocument();
+    });
+
+    it("never shows a count below the floor", () => {
+      setup(1, "2026-09-01", { minCount: 3 });
+      expect(screen.getByText("3")).toBeInTheDocument();
+    });
   });
 });

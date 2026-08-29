@@ -24,10 +24,25 @@ interface Props {
   onChange: (count: number) => void;
   // Names the garments ("Blouse 1", "Blouse 2", …).
   labelPrefix: string;
+  // Floor for the stepper. On the edit screen this is one above however many
+  // garments are already with the customer: those can't be removed, and the
+  // last one still in the shop has to leave through a hand-over, which is
+  // where the balance is collected.
+  minCount?: number;
+  // Shown under the counter when the floor isn't simply 1.
+  minCountReason?: string;
 }
 
-export default function PiecesEditor({ count, orderDue, onChange, labelPrefix }: Props) {
-  const safeCount = Math.max(count, 1);
+export default function PiecesEditor({
+  count,
+  orderDue,
+  onChange,
+  labelPrefix,
+  minCount = 1,
+  minCountReason,
+}: Props) {
+  const floor = Math.max(minCount, 1);
+  const safeCount = Math.max(count, floor);
 
   return (
     <div className="rounded-2xl border border-[#E5E0D5] bg-white overflow-hidden">
@@ -46,7 +61,7 @@ export default function PiecesEditor({ count, orderDue, onChange, labelPrefix }:
           <button
             type="button"
             aria-label="One less piece"
-            disabled={safeCount <= 1}
+            disabled={safeCount <= floor}
             onClick={() => onChange(safeCount - 1)}
             className="w-9 h-9 rounded-full border border-[#E5E0D5] flex items-center justify-center text-[#0F0F0F] active:scale-90 transition-transform disabled:opacity-30"
           >
@@ -66,6 +81,10 @@ export default function PiecesEditor({ count, orderDue, onChange, labelPrefix }:
           </button>
         </div>
       </div>
+
+      {minCountReason && safeCount <= floor && (
+        <p className="px-4 pb-3 -mt-1 text-[12px] text-[#9A9A9A]">{minCountReason}</p>
+      )}
 
       {safeCount > 1 && (
         <p className="px-4 py-2.5 text-[12px] text-[#7A6020] bg-[#FBF6E8] border-t border-[#EDD98A]">

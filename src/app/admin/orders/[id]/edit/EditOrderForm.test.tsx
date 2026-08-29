@@ -259,4 +259,68 @@ describe("EditOrderForm", () => {
     await user.click(container.querySelector(".rounded-full")!);
     expect(mockRouter.push).toHaveBeenCalledWith("/admin/orders/B2401");
   });
+
+  describe("changing how many garments the order is for", () => {
+    function renderWith(overrides: Partial<Order> = {}) {
+      render(<EditOrderForm order={{ ...order, ...overrides }} />);
+    }
+
+    it("sends the new count when it changes", async () => {
+      const user = userEvent.setup();
+      renderWith();
+
+      await user.click(screen.getByRole("button", { name: "One more piece" }));
+      await user.click(screen.getByRole("button", { name: "One more piece" }));
+      await user.click(saveButton());
+
+      await waitFor(() =>
+        expect(updateOrder).toHaveBeenCalledWith(
+          "B2401",
+          expect.objectContaining({ pieceCount: 3 }),
+          undefined
+        )
+      );
+    });
+
+    it("sends nothing when the count is left alone", async () => {
+      const user = userEvent.setup();
+      renderWith();
+
+      await user.type(screen.getByPlaceholderText("Full name *"), "!");
+      await user.click(saveButton());
+
+      await waitFor(() => expect(updateOrder).toHaveBeenCalled());
+      expect(vi.mocked(updateOrder).mock.calls[0][1]).not.toHaveProperty("pieceCount");
+    });
+
+    it("starts from the order's existing count", () => {
+      renderWith({
+        pieces: [
+          { id: "p1", label: "Blouse 1", due: "2026-07-10", status: "pending", deliveredAt: null },
+          { id: "p2", label: "Blouse 2", due: "2026-07-10", status: "pending", deliveredAt: null },
+        ],
+      });
+      expect(screen.getByText("2")).toBeInTheDocument();
+    });
+
+    // The floor is one above what's already gone: those garments are with the
+    // customer, and the last one in the shop has to leave through a hand-over,
+    // which is where the balance gets collected.
+    it("won't let a delivered garment be removed", () => {
+      renderWith({
+        status: "partly_delivered",
+        pieces: [
+          { id: "p1", label: "Blouse 1", due: "2026-07-10", status: "delivered", deliveredAt: "x" },
+          { id: "p2", label: "Blouse 2", due: "2026-07-10", status: "pending", deliveredAt: null },
+        ],
+      });
+      expect(screen.getByRole("button", { name: "One less piece" })).toBeDisabled();
+      expect(screen.getByText(/1 already handed over/)).toBeInTheDocument();
+    });
+
+    it("is not offered on a Salwar order", () => {
+      renderWith({ dress: "Salwar" });
+      expect(screen.queryByRole("button", { name: "One more piece" })).not.toBeInTheDocument();
+    });
+  });
 });

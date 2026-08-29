@@ -17,7 +17,7 @@ import {
   type PaymentMethod,
 } from "@/types";
 import { openAlteration, orderBalance, shopToday } from "@/lib/utils";
-import { buildPieces, type OrderPieceDraft } from "@/lib/pieces";
+import { buildPieces, reconcilePieces, type OrderPieceDraft } from "@/lib/pieces";
 import { assertAlterationsEnabled } from "@/lib/features";
 
 const ALL_ROLES = ["admin", "master", "tailor"] as const;
@@ -164,6 +164,12 @@ export interface OrderEditInput {
   measurements?: GarmentMeasurements;
   lineItems?: OrderLineItem[];
   notes?: string;
+  // How many garments the order is for. Sent as a count, not an array: the
+  // server reconciles it against what's already there so a client can never
+  // remove a garment that's with the customer or re-point a payment at a new
+  // one. Handled separately from EDITABLE_FIELDS below since it maps to
+  // `pieces`, not to a column of its own.
+  pieceCount?: number;
 }
 
 const EDITABLE_FIELDS = [
@@ -201,6 +207,21 @@ export async function updateOrder(id: string, patch: OrderEditInput, photos?: Fo
   }
   if (dbPatch.due !== undefined && !dbPatch.due) {
     throw new Error("Delivery date is required.");
+  }
+  if (patch.pieceCount !== undefined) {
+    const next = reconcilePieces(
+      current.pieces,
+      patch.pieceCount,
+      current.dress,
+      // A new garment follows whatever the order's delivery date now is,
+      // including one being changed in this same edit.
+      dbPatch.due ?? current.due
+    );
+    // Only write when it actually moves — an unchanged count shouldn't make
+    // this a "real" edit or rewrite the stored array.
+    if (JSON.stringify(next) !== JSON.stringify(current.pieces)) {
+      dbPatch.pieces = next;
+    }
   }
   for (const money of ["amount", "advance"] as const) {
     const value = dbPatch[money];
