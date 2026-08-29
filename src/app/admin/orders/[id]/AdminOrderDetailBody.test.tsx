@@ -70,6 +70,7 @@ function order(overrides: Partial<Order>): Order {
     amount: 4200,
     advance: 1000,
     advanceMethod: null,
+    advanceSplit: null,
     finalPayment: 0,
     finalPaymentMethod: null,
     due: "2026-07-10",
@@ -578,7 +579,7 @@ describe("AdminOrderDetailBody", () => {
       await user.click(screen.getByText("UPI"));
       await user.click(screen.getByText("Collect & deliver"));
 
-      expect(deliverOrder).toHaveBeenCalledWith("AD1", "upi", expect.any(String));
+      expect(deliverOrder).toHaveBeenCalledWith("AD1", { cash: 0, upi: 3200 }, expect.any(String));
       expect(await screen.findByText("Collected on delivery")).toBeInTheDocument();
     });
 
@@ -681,7 +682,7 @@ describe("AdminOrderDetailBody", () => {
         expect(deliverPiece).toHaveBeenCalledWith(
           "AD1",
           "p1",
-          { amount: 800, method: "upi" },
+          { cash: 0, upi: 800 },
           expect.any(String)
         )
       );

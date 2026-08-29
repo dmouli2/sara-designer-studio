@@ -23,6 +23,14 @@ import {
   orderDisplayStatus,
   shopToday,
   buildMaterialLabel,
+  splitTotal,
+  addSplits,
+  isSplitPayment,
+  describePaymentSplit,
+  splitFromMethod,
+  advanceSplitOf,
+  collectedSplitOf,
+  ZERO_SPLIT,
 } from "./utils";
 import type { AlterationRecord, OrderPiece } from "@/types";
 
@@ -501,5 +509,82 @@ describe("buildMaterialLabel", () => {
   it("falls back to generic wording when a fabric wasn't named", () => {
     expect(buildMaterialLabel(["shop"], "", "")).toBe("Fabric (shop)");
     expect(buildMaterialLabel(["customer"], "", "")).toBe("Customer fabric (customer)");
+  });
+});
+
+describe("payment splits", () => {
+  it("adds up and combines", () => {
+    expect(splitTotal({ cash: 600, upi: 400 })).toBe(1000);
+    expect(addSplits({ cash: 600, upi: 0 }, { cash: 0, upi: 400 })).toEqual({ cash: 600, upi: 400 });
+    expect(splitTotal(ZERO_SPLIT)).toBe(0);
+  });
+
+  // Only money on both sides is a split; everything else is one method.
+  it("recognises a genuine split", () => {
+    expect(isSplitPayment({ cash: 600, upi: 400 })).toBe(true);
+    expect(isSplitPayment({ cash: 1000, upi: 0 })).toBe(false);
+    expect(isSplitPayment(ZERO_SPLIT)).toBe(false);
+  });
+
+  it("describes a payment the way it arrived", () => {
+    expect(describePaymentSplit({ cash: 600, upi: 400 })).toBe("₹600 cash + ₹400 UPI");
+    expect(describePaymentSplit({ cash: 1000, upi: 0 })).toBe("Cash");
+    expect(describePaymentSplit({ cash: 0, upi: 1000 })).toBe("UPI");
+    expect(describePaymentSplit(ZERO_SPLIT)).toBe("");
+  });
+
+  // A null method means "never recorded", which is not the same as zero.
+  it("converts a single method, and keeps 'unrecorded' unrecorded", () => {
+    expect(splitFromMethod(500, "cash")).toEqual({ cash: 500, upi: 0 });
+    expect(splitFromMethod(500, "upi")).toEqual({ cash: 0, upi: 500 });
+    expect(splitFromMethod(500, null)).toBeNull();
+  });
+
+  describe("advanceSplitOf", () => {
+    it("prefers the stored split", () => {
+      expect(
+        advanceSplitOf({ advance: 1000, advanceMethod: null, advanceSplit: { cash: 600, upi: 400 } })
+      ).toEqual({ cash: 600, upi: 400 });
+    });
+
+    it("falls back to the single method every older order carries", () => {
+      expect(advanceSplitOf({ advance: 500, advanceMethod: "upi", advanceSplit: null })).toEqual({
+        cash: 0,
+        upi: 500,
+      });
+    });
+
+    it("stays null when nothing was ever recorded", () => {
+      expect(advanceSplitOf({ advance: 500, advanceMethod: null, advanceSplit: null })).toBeNull();
+    });
+  });
+
+  describe("collectedSplitOf", () => {
+    // A split collection writes one ledger entry per method, so summing the
+    // ledger is what gives the real breakdown.
+    it("sums the ledger when it has entries", () => {
+      expect(
+        collectedSplitOf({
+          finalPayment: 1000,
+          finalPaymentMethod: null,
+          payments: [
+            { id: "a", amount: 600, method: "cash", at: "2026-08-01", pieceId: "p1" },
+            { id: "b", amount: 400, method: "upi", at: "2026-08-01", pieceId: "p1" },
+          ],
+        })
+      ).toEqual({ cash: 600, upi: 400 });
+    });
+
+    it("falls back to the single method for an order with no ledger", () => {
+      expect(
+        collectedSplitOf({ finalPayment: 800, finalPaymentMethod: "cash", payments: [] })
+      ).toEqual({ cash: 800, upi: 0 });
+    });
+
+    it("reports nothing for an order settled before methods were recorded", () => {
+      expect(
+        collectedSplitOf({ finalPayment: 800, finalPaymentMethod: null, payments: [] })
+      ).toBeNull();
+    });
   });
 });

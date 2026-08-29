@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { cn, formatCurrency, shopToday } from "@/lib/utils";
+import { formatCurrency, shopToday, splitTotal } from "@/lib/utils";
 import EventDateField, { isInvalidEventDate } from "./EventDateField";
-import type { OrderPiece, PaymentMethod } from "@/types";
+import PaymentSplitPicker from "./PaymentSplitPicker";
+import type { OrderPiece, PaymentSplit } from "@/types";
 
 interface Props {
   open: boolean;
@@ -15,17 +16,9 @@ interface Props {
   // settles the order, so the amount stops being a choice.
   isLast: boolean;
   pending: boolean;
-  onConfirm: (
-    collect: { amount: number; method: PaymentMethod } | undefined,
-    handedOverOn: string
-  ) => void;
+  onConfirm: (collect: PaymentSplit | undefined, handedOverOn: string) => void;
   onCancel: () => void;
 }
-
-const METHODS: { id: PaymentMethod; label: string }[] = [
-  { id: "cash", label: "Cash" },
-  { id: "upi", label: "UPI" },
-];
 
 // Handing over one garment of a multi-piece order.
 //
@@ -47,7 +40,7 @@ export default function DeliverPieceDialog({
   onCancel,
 }: Props) {
   const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState<PaymentMethod | null>(null);
+  const [split, setSplit] = useState<PaymentSplit>({ cash: 0, upi: 0 });
   // Defaults to today, which is right most of the time — but the shop often
   // records a hand-over a day or two after the customer actually walked out,
   // and the date on the record should be the day it happened.
@@ -59,15 +52,15 @@ export default function DeliverPieceDialog({
   const collecting = isLast ? balance : Math.min(Math.max(typed, 0), balance);
   const needsMethod = collecting > 0;
   const overBalance = !isLast && typed > balance;
+  // Whatever was entered has to account for exactly what's being collected —
+  // the picker fills a single-method choice in for itself.
+  const accounted = !needsMethod || splitTotal(split) === collecting;
   const canConfirm =
-    !pending && !overBalance && !isInvalidEventDate(handedOverOn) && (!needsMethod || method !== null);
+    !pending && !overBalance && !isInvalidEventDate(handedOverOn) && accounted;
 
   function confirm() {
     if (!canConfirm) return;
-    onConfirm(
-      collecting > 0 ? { amount: collecting, method: method ?? "cash" } : undefined,
-      handedOverOn
-    );
+    onConfirm(collecting > 0 ? split : undefined, handedOverOn);
   }
 
   return (
@@ -128,24 +121,12 @@ export default function DeliverPieceDialog({
                 <p className="text-xs text-[#9A9A9A] mt-4 mb-2">
                   How was the {formatCurrency(collecting)} paid?
                 </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {METHODS.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      aria-pressed={method === m.id}
-                      onClick={() => setMethod(m.id)}
-                      className={cn(
-                        "rounded-xl border px-3 py-3 text-[14px] font-semibold transition-all active:scale-[0.98]",
-                        method === m.id
-                          ? "border-[#0F0F0F] bg-[#0F0F0F] text-white"
-                          : "border-[#E5E0D5] bg-white text-[#0F0F0F]"
-                      )}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                </div>
+                <PaymentSplitPicker
+                  idPrefix="deliver-piece"
+                  total={collecting}
+                  value={split}
+                  onChange={setSplit}
+                />
               </>
             )}
           </>

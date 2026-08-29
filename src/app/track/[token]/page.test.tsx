@@ -16,6 +16,7 @@ const publicOrder: PublicOrder = {
   amount: 1000,
   advance: 300,
   advanceMethod: null,
+  advanceSplit: null,
   finalPayment: 0,
   finalPaymentMethod: null,
   due: "2026-07-10",

@@ -190,6 +190,15 @@ export type DraftOrderStatus = "draft" | "confirmed" | "discarded";
 // every payment rail in existence.
 export type PaymentMethod = "cash" | "upi";
 
+// One collection, split across the two ways the shop takes money — a customer
+// paying ₹600 in notes and ₹400 by UPI is one payment, not two decisions.
+// Either side may be zero; a single-method payment is simply the other side
+// at zero, so callers never branch on "is this split".
+export interface PaymentSplit {
+  cash: number;
+  upi: number;
+}
+
 // ── Multi-piece orders ──────────────────────────────────────────────────
 // One customer, one order, several garments cut to the SAME measurements —
 // the shop's common "three blouses from one saree" case. Each garment can
@@ -284,10 +293,17 @@ export interface Order {
   // Money received, in two entries. Balance is amount - advance - finalPayment
   // — always via orderBalance() in src/lib/utils.ts, never inline.
   advance: number;                       // taken at placement
-  advanceMethod: PaymentMethod | null;   // null for a zero advance, or an order
-                                         // taken before methods were captured
+  advanceMethod: PaymentMethod | null;   // null for a zero advance, an order taken
+                                         // before methods were captured, or one
+                                         // whose advance was split — see advanceSplit
+  // How the advance actually arrived. Null means it wasn't split — read
+  // advanceMethod instead, which covers every order taken before this existed.
+  advanceSplit: PaymentSplit | null;
   finalPayment: number;                  // balance collected at delivery; 0 until then
-  finalPaymentMethod: PaymentMethod | null; // null where it was never recorded
+  // Null where it was never recorded AND where a collection was split: the
+  // `payments` ledger is the breakdown in that case, and it is what the UI
+  // reads whenever it has entries.
+  finalPaymentMethod: PaymentMethod | null;
   due: string;
   master: AssignedStaff | null;
   tailor: AssignedStaff | null;

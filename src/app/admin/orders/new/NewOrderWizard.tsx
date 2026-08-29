@@ -12,10 +12,13 @@ import MaterialImageUpload from "@/components/orders/MaterialImageUpload";
 import FabricManagerSheet from "@/components/orders/FabricManagerSheet";
 import LineItemsEditor from "@/components/orders/LineItemsEditor";
 import PiecesEditor from "@/components/orders/PiecesEditor";
+import PaymentSplitPicker from "@/components/orders/PaymentSplitPicker";
 import { canDressHavePieces, DRESS_TYPES, LINE_ITEM_PRESETS, lineItemCategoryForDress } from "@/lib/mock";
 import {
   buildMaterialLabel,
   formatCurrency,
+  isSplitPayment,
+  splitTotal,
   isValidIndianMobile,
   buildOrderWhatsAppMessage,
   buildWhatsAppShareUrl,
@@ -26,7 +29,13 @@ import { lineItemsForDress, measurementsForDress, normalizeExtraction } from "@/
 import { createOrder } from "@/app/actions/orders";
 import { confirmDraft } from "@/app/actions/drafts";
 import type { Fabric } from "@/lib/db/types";
-import type { GarmentMeasurements, MaterialSource, OrderLineItem, PaymentMethod, SlipExtraction } from "@/types";
+import type {
+  GarmentMeasurements,
+  MaterialSource,
+  OrderLineItem,
+  PaymentSplit,
+  SlipExtraction,
+} from "@/types";
 
 // A scanned draft being verified — everything the wizard needs to prefill
 // itself and, on success, mark the draft confirmed. Passed by page.tsx when
@@ -76,7 +85,7 @@ interface OrderDraft {
   lineItems: OrderLineItem[];
   delivery: string;
   advance: string;
-  advanceMethod?: PaymentMethod;
+  advanceSplit?: PaymentSplit;
   // Absent on drafts saved before multi-piece existed — resumed as a
   // single-garment order, which is what they were.
   pieceCount?: number;
@@ -192,8 +201,15 @@ export default function NewOrderWizard({
   // existed. Only ever raised for Blouse orders (see canSplitPieces below).
   const [pieceCount, setPieceCount] = useState(1);
   const [advance, setAdvance]       = useState(scanPrefill?.advance ?? "");
-  // Only meaningful when an advance was actually taken — see advanceMethod below.
-  const [advanceMethod, setAdvanceMethod] = useState<PaymentMethod>("cash");
+  // How the advance arrived. Only meaningful once money has actually changed
+  // hands; a single-method advance is simply the other side at zero.
+  const [advanceSplit, setAdvanceSplit] = useState<PaymentSplit>(() => ({
+    // A slip records the amount but never how it was paid, so a scanned
+    // advance starts as cash — the same assumption the old form made, and one
+    // tap to correct. It is also flagged for verification either way.
+    cash: parseFloat(scanPrefill?.advance ?? "0") || 0,
+    upi: 0,
+  }));
 
   // Several garments to one set of measurements — three blouses from one
   // saree, or two salwar sets to the same measurements.
@@ -256,7 +272,7 @@ export default function NewOrderWizard({
       const data: OrderDraft = {
         step, dress, name, phone, matSource,
         fabricName: fabric?.name ?? "", metres, custFabric, materialImages,
-        meas, notes, sketch, refImages, lineItems, delivery, advance, advanceMethod, pieceCount,
+        meas, notes, sketch, refImages, lineItems, delivery, advance, advanceSplit, pieceCount,
         uniformMaterial, pieceSources,
       };
       try {
@@ -273,7 +289,7 @@ export default function NewOrderWizard({
       }
     }, DRAFT_SAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [dress, step, name, phone, matSource, fabric, metres, custFabric, materialImages, meas, notes, sketch, refImages, lineItems, delivery, advance, advanceMethod, pieceCount, uniformMaterial, pieceSources, placedOrder, scan]);
+  }, [dress, step, name, phone, matSource, fabric, metres, custFabric, materialImages, meas, notes, sketch, refImages, lineItems, delivery, advance, advanceSplit, pieceCount, uniformMaterial, pieceSources, placedOrder, scan]);
 
   function resumeDraft() {
     if (!draft) return;
@@ -294,7 +310,10 @@ export default function NewOrderWizard({
     setLineItems(draft.lineItems);
     setDelivery(draft.delivery);
     setAdvance(draft.advance);
-    setAdvanceMethod(draft.advanceMethod ?? "cash");
+    // Drafts saved before splits existed carry only an amount.
+    setAdvanceSplit(
+      draft.advanceSplit ?? { cash: parseFloat(draft.advance || "0") || 0, upi: 0 }
+    );
     setPieceCount(draft.pieceCount ?? 1);
     setUniformMaterial(draft.uniformMaterial ?? true);
     setPieceSources(draft.pieceSources ?? []);
@@ -304,6 +323,20 @@ export default function NewOrderWizard({
   function discardDraft() {
     clearDraft();
     setDraft(null);
+  }
+
+  // Keeps the advance split following the amount as it's typed, holding on to
+  // whichever method is already chosen. Without this the picker would show
+  // "Cash" un-lit until the admin tapped it, adding a tap to the ordinary
+  // cash advance that the old two-button toggle never charged.
+  function handleAdvanceChange(next: string) {
+    setAdvance(next);
+    const amount = parseFloat(next || "0") || 0;
+    setAdvanceSplit((prev) => {
+      if (prev.cash > 0 && prev.upi > 0) return prev; // a real split — admin re-enters it
+      if (prev.upi > 0) return { cash: 0, upi: amount };
+      return { cash: amount, upi: 0 };
+    });
   }
 
   function handlePieceSourceChange(index: number, source: MaterialSource) {
@@ -381,7 +414,13 @@ export default function NewOrderWizard({
           advance: advanceValue,
           // No advance means no method to record — don't claim money arrived
           // as cash when none arrived at all.
-          advanceMethod: advanceValue > 0 ? advanceMethod : null,
+          advanceMethod:
+            advanceValue > 0 && !isSplitPayment(advanceSplit)
+              ? advanceSplit.upi > 0
+                ? "upi"
+                : "cash"
+              : null,
+          advanceSplit: advanceValue > 0 && isSplitPayment(advanceSplit) ? advanceSplit : null,
           // Filled in at delivery, by deliverOrder.
           finalPayment: 0,
           finalPaymentMethod: null,
@@ -782,27 +821,23 @@ export default function NewOrderWizard({
               <div className="space-y-3">
                 <div>
                   <label className="text-xs text-[#9A9A9A] mb-1 block">Advance collected (₹)</label>
-                  <input className="input" type="number" value={advance} onChange={(e) => setAdvance(e.target.value)} />
+                  <input
+                    className="input"
+                    type="number"
+                    value={advance}
+                    onChange={(e) => handleAdvanceChange(e.target.value)}
+                  />
                 </div>
                 {/* Only asked once money has actually changed hands. */}
                 {advanceValue > 0 && (
                   <div>
                     <label className="text-xs text-[#9A9A9A] mb-1 block">How was the advance paid?</label>
-                    <div className="flex rounded-xl border border-[#E5E0D5] overflow-hidden bg-white">
-                      {(["cash", "upi"] as const).map((m) => (
-                        <button
-                          key={m}
-                          type="button"
-                          aria-pressed={advanceMethod === m}
-                          onClick={() => setAdvanceMethod(m)}
-                          className={`flex-1 py-3 text-sm font-medium transition-all ${
-                            advanceMethod === m ? "bg-[#0F0F0F] text-white" : "text-[#6B6B6B]"
-                          }`}
-                        >
-                          {m === "cash" ? "Cash" : "UPI"}
-                        </button>
-                      ))}
-                    </div>
+                    <PaymentSplitPicker
+                      idPrefix="advance"
+                      total={advanceValue}
+                      value={advanceSplit}
+                      onChange={setAdvanceSplit}
+                    />
                   </div>
                 )}
                 <div>
@@ -861,7 +896,19 @@ export default function NewOrderWizard({
               <p className="text-xs text-red-600 -mt-2">Delivery date is required.</p>
             )}
 
-            <button onClick={handleSubmit} disabled={submitting || !delivery} className="btn-gold disabled:opacity-40">
+            {advanceValue > 0 && splitTotal(advanceSplit) !== advanceValue && (
+              <p className="text-xs text-red-600 -mt-2">
+                Say how the {formatCurrency(advanceValue)} advance was paid.
+              </p>
+            )}
+
+            <button
+              onClick={handleSubmit}
+              disabled={
+                submitting || !delivery || (advanceValue > 0 && splitTotal(advanceSplit) !== advanceValue)
+              }
+              className="btn-gold disabled:opacity-40"
+            >
               {submitting ? "Placing order…" : "✓ Confirm & Place Order"}
             </button>
             <div className="h-4" />

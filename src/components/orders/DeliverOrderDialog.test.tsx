@@ -55,7 +55,7 @@ describe("DeliverOrderDialog", () => {
     expect(confirm).toBeEnabled();
     await user.click(confirm);
 
-    expect(onConfirm).toHaveBeenCalledWith("upi", expect.any(String));
+    expect(onConfirm).toHaveBeenCalledWith({ cash: 0, upi: 3400 }, expect.any(String));
   });
 
   it("passes cash through when cash is chosen", async () => {
@@ -63,7 +63,7 @@ describe("DeliverOrderDialog", () => {
     const { onConfirm } = setup();
     await user.click(screen.getByText("Cash"));
     await user.click(screen.getByText("Collect & deliver"));
-    expect(onConfirm).toHaveBeenCalledWith("cash", expect.any(String));
+    expect(onConfirm).toHaveBeenCalledWith({ cash: 3400, upi: 0 }, expect.any(String));
   });
 
   it("marks the chosen method as pressed", async () => {
@@ -125,7 +125,7 @@ describe("DeliverOrderDialog", () => {
       // "Cash Notes at the counter" — match the visible label instead.
       await user.click(screen.getByText("Cash"));
       await user.click(screen.getByText("Collect & deliver"));
-      expect(onConfirm).toHaveBeenCalledWith("cash", "2026-08-20");
+      expect(onConfirm).toHaveBeenCalledWith({ cash: 3400, upi: 0 }, "2026-08-20");
     });
 
     it("blocks a future date", () => {
@@ -133,6 +133,44 @@ describe("DeliverOrderDialog", () => {
       fireEvent.change(screen.getByLabelText("Delivered on"), { target: { value: "2099-01-01" } });
       expect(screen.getByText(/hasn't happened yet/)).toBeInTheDocument();
       expect(screen.getByText("Collect & deliver").closest("button")).toBeDisabled();
+    });
+  });
+
+  // A customer paying part in notes and part by UPI is one payment, and
+  // recording it as "Cash" would be a false record of half of it.
+  describe("a payment that arrived two ways", () => {
+    it("asks for both amounts and sends the split", async () => {
+      const user = userEvent.setup();
+      const { onConfirm } = setup({ balance: 1000 });
+
+      await user.click(screen.getByRole("button", { name: "Both" }));
+      fireEvent.change(screen.getByLabelText("Cash (₹)"), { target: { value: "600" } });
+      fireEvent.change(screen.getByLabelText("UPI (₹)"), { target: { value: "400" } });
+      await user.click(screen.getByText("Collect & deliver"));
+
+      expect(onConfirm).toHaveBeenCalledWith({ cash: 600, upi: 400 }, expect.any(String));
+    });
+
+    it("holds until the two sides account for the balance", async () => {
+      const user = userEvent.setup();
+      setup({ balance: 1000 });
+
+      await user.click(screen.getByRole("button", { name: "Both" }));
+      fireEvent.change(screen.getByLabelText("Cash (₹)"), { target: { value: "600" } });
+
+      expect(screen.getByText(/₹400 still unaccounted for/)).toBeInTheDocument();
+      expect(screen.getByText("Collect & deliver").closest("button")).toBeDisabled();
+    });
+
+    it("flags more than the balance", async () => {
+      const user = userEvent.setup();
+      setup({ balance: 1000 });
+
+      await user.click(screen.getByRole("button", { name: "Both" }));
+      fireEvent.change(screen.getByLabelText("Cash (₹)"), { target: { value: "900" } });
+      fireEvent.change(screen.getByLabelText("UPI (₹)"), { target: { value: "900" } });
+
+      expect(screen.getByText(/₹800 more than the ₹1,000 due/)).toBeInTheDocument();
     });
   });
 });

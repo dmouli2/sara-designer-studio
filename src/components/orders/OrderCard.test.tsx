@@ -14,6 +14,7 @@ const baseOrder: Order = {
   amount: 4200,
   advance: 1000,
   advanceMethod: null,
+  advanceSplit: null,
   finalPayment: 0,
   finalPaymentMethod: null,
   // Far future so the shared fixture is never incidentally "overdue" — the

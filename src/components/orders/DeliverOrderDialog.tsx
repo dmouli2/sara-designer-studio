@@ -1,24 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { formatCurrency, shopToday } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { formatCurrency, shopToday, splitTotal } from "@/lib/utils";
 import EventDateField, { isInvalidEventDate } from "./EventDateField";
-import type { PaymentMethod } from "@/types";
+import PaymentSplitPicker from "./PaymentSplitPicker";
+import type { PaymentSplit } from "@/types";
 
 interface Props {
   open: boolean;
   orderId: string;
   balance: number;
   pending: boolean;
-  onConfirm: (method: PaymentMethod, deliveredOn: string) => void;
+  onConfirm: (collected: PaymentSplit, deliveredOn: string) => void;
   onCancel: () => void;
 }
-
-const METHODS: { id: PaymentMethod; label: string; hint: string }[] = [
-  { id: "cash", label: "Cash", hint: "Notes at the counter" },
-  { id: "upi", label: "UPI", hint: "GPay / PhonePe / any UPI" },
-];
 
 // Handing an order over is also when the money arrives, so the two happen
 // together: there is no way to mark an order delivered without saying how the
@@ -36,7 +31,9 @@ export default function DeliverOrderDialog({
   onConfirm,
   onCancel,
 }: Props) {
-  const [method, setMethod] = useState<PaymentMethod | null>(null);
+  // Starts empty so the admin has to say how the money arrived — the same
+  // rule as before, now expressed as a split.
+  const [collected, setCollected] = useState<PaymentSplit>({ cash: 0, upi: 0 });
   // The day it went home. Today is right most of the time, but the shop often
   // writes a hand-over up a day or two later.
   const [deliveredOn, setDeliveredOn] = useState(() => shopToday());
@@ -46,7 +43,9 @@ export default function DeliverOrderDialog({
   // Fully paid up front — there is nothing to collect, so nothing to ask.
   const nothingToCollect = balance <= 0;
   const canConfirm =
-    !pending && !isInvalidEventDate(deliveredOn) && (nothingToCollect || method !== null);
+    !pending &&
+    !isInvalidEventDate(deliveredOn) &&
+    (nothingToCollect || splitTotal(collected) === balance);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-[2px] p-4">
@@ -80,32 +79,12 @@ export default function DeliverOrderDialog({
             </div>
 
             <p className="text-xs text-[#9A9A9A] mt-4 mb-2">How was it paid?</p>
-            <div className="grid grid-cols-2 gap-2">
-              {METHODS.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  aria-pressed={method === m.id}
-                  onClick={() => setMethod(m.id)}
-                  className={cn(
-                    "rounded-xl border px-3 py-3 text-left transition-all active:scale-[0.98]",
-                    method === m.id
-                      ? "border-[#0F0F0F] bg-[#0F0F0F] text-white"
-                      : "border-[#E5E0D5] bg-white text-[#0F0F0F]"
-                  )}
-                >
-                  <span className="block text-[14px] font-semibold">{m.label}</span>
-                  <span
-                    className={cn(
-                      "block text-[11px] mt-0.5",
-                      method === m.id ? "text-white/60" : "text-[#9A9A9A]"
-                    )}
-                  >
-                    {m.hint}
-                  </span>
-                </button>
-              ))}
-            </div>
+            <PaymentSplitPicker
+              idPrefix="deliver-order"
+              total={balance}
+              value={collected}
+              onChange={setCollected}
+            />
           </>
         )}
 
@@ -120,7 +99,7 @@ export default function DeliverOrderDialog({
           </button>
           <button
             type="button"
-            onClick={() => canConfirm && onConfirm(method ?? "cash", deliveredOn)}
+            onClick={() => canConfirm && onConfirm(collected, deliveredOn)}
             disabled={!canConfirm}
             className="flex-1 py-3 rounded-xl bg-[#1B6B3A] text-white text-[14px] font-semibold active:scale-[0.98] transition-all disabled:opacity-40"
           >

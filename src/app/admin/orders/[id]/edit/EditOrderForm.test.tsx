@@ -28,6 +28,7 @@ const order: Order = {
   amount: 4200, // 400 fabric + Blouse 1×3800
   advance: 1000,
   advanceMethod: null,
+  advanceSplit: null,
   finalPayment: 0,
   finalPaymentMethod: null,
   due: "2026-07-10",

@@ -32,6 +32,9 @@ import {
   type StartAlterationInput,
 } from "@/app/actions/orders";
 import {
+  advanceSplitOf,
+  collectedSplitOf,
+  describePaymentSplit,
   formatCurrency,
   formatDate,
   isMultiPiece,
@@ -43,7 +46,7 @@ import {
   buildOrderStatusWhatsAppMessage,
   buildWhatsAppShareUrl,
 } from "@/lib/utils";
-import type { Order, OrderPiece, OrderStatus, PaymentMethod } from "@/types";
+import type { Order, OrderPiece, OrderStatus, PaymentSplit } from "@/types";
 import type { StaffListItem } from "@/app/actions/staff";
 
 // Admin can move an order to any of these directly — cancellation is
@@ -110,6 +113,13 @@ export default function AdminOrderDetailBody({
   const showTailorAssign = [
     "cutting", "cutting_done", "stitching", "hemming_hook", "ready", "partly_delivered", "delivered",
   ].includes(order.status);
+
+  // How the money actually arrived. Both prefer the recorded split and fall
+  // back to the single method every order taken before splits existed carries.
+  const advanceSplit = advanceSplitOf(order);
+  const advanceLabel = advanceSplit ? describePaymentSplit(advanceSplit) : "";
+  const collectedSplit = collectedSplitOf(order);
+  const collectedLabel = collectedSplit ? describePaymentSplit(collectedSplit) : "";
 
   const cancellationCharge = order.cancellationCharge ?? 0;
   const cancelBalance = cancellationCharge - order.advance;
@@ -187,10 +197,10 @@ export default function AdminOrderDetailBody({
     }
   }
 
-  async function handleDeliver(method: PaymentMethod, deliveredOn: string) {
+  async function handleDeliver(collected: PaymentSplit, deliveredOn: string) {
     setDelivering(true);
     try {
-      const updated = await deliverOrder(order.id, method, deliveredOn);
+      const updated = await deliverOrder(order.id, collected, deliveredOn);
       setOrder(updated);
       setDeliverOpen(false);
     } catch {
@@ -200,10 +210,7 @@ export default function AdminOrderDetailBody({
     }
   }
 
-  async function handleDeliverPiece(
-    collect: { amount: number; method: PaymentMethod } | undefined,
-    handedOverOn: string
-  ) {
+  async function handleDeliverPiece(collect: PaymentSplit | undefined, handedOverOn: string) {
     const piece = deliverPieceTarget;
     if (!piece) return;
     setBusyPieceId(piece.id);
@@ -450,16 +457,14 @@ export default function AdminOrderDetailBody({
                 <Row
                   label="Advance paid"
                   value={`${formatCurrency(order.advance)}${
-                    order.advanceMethod ? ` · ${PAYMENT_METHOD_LABELS[order.advanceMethod]}` : ""
+                    advanceLabel ? ` · ${advanceLabel}` : ""
                   }`}
                 />
                 {order.finalPayment > 0 && (
                   <Row
                     label={multiPiece ? "Collected since" : "Collected on delivery"}
                     value={`${formatCurrency(order.finalPayment)}${
-                      order.finalPaymentMethod
-                        ? ` · ${PAYMENT_METHOD_LABELS[order.finalPaymentMethod]}`
-                        : " · method not recorded"
+                      collectedLabel ? ` · ${collectedLabel}` : " · method not recorded"
                     }`}
                   />
                 )}

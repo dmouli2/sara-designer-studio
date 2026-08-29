@@ -16,6 +16,7 @@ import type {
   OrderLineItem,
   OrderPayment,
   OrderPiece,
+  PaymentSplit,
   PaymentMethod,
 } from "@/types";
 
@@ -34,6 +35,7 @@ interface OrderRow {
   amount: number;
   advance: number;
   advance_method: PaymentMethod | null;
+  advance_split: PaymentSplit | null; // added in 0014; null on every earlier row
   final_payment: number | null;
   final_payment_method: PaymentMethod | null;
   due: string;
@@ -66,7 +68,7 @@ const STAFF_EMBEDS =
 // the wire. material_image_urls is the one exception: it's just short
 // Storage paths (cheap), needed to resolve each row's single main-photo
 // thumbnail for the order card (see list() below).
-const LIST_COLUMNS = `id, customer, phone, dress, material, status, amount, advance, advance_method, final_payment, final_payment_method, due, measurements, line_items, notes, cancellation_charge, delivered_on, pieces, alterations, payments, created_at, material_image_urls, ${STAFF_EMBEDS}`;
+const LIST_COLUMNS = `id, customer, phone, dress, material, status, amount, advance, advance_method, final_payment, final_payment_method, due, measurements, line_items, notes, cancellation_charge, delivered_on, advance_split, pieces, alterations, payments, created_at, material_image_urls, ${STAFF_EMBEDS}`;
 
 const DETAIL_COLUMNS = `*, ${STAFF_EMBEDS}`;
 
@@ -140,6 +142,7 @@ function toOrder(row: OrderRow): Order {
     amount: row.amount,
     advance: row.advance,
     advanceMethod: row.advance_method ?? null,
+    advanceSplit: row.advance_split ?? null,
     finalPayment: row.final_payment ?? 0,
     finalPaymentMethod: row.final_payment_method ?? null,
     due: row.due,
@@ -207,6 +210,7 @@ function toInsertRow(input: OrderWriteInput) {
     amount: input.amount,
     advance: input.advance,
     advance_method: input.advanceMethod,
+    advance_split: input.advanceSplit,
     final_payment: input.finalPayment,
     final_payment_method: input.finalPaymentMethod,
     due: input.due,
@@ -236,6 +240,7 @@ function toUpdateRow(patch: OrderUpdateInput): Record<string, unknown> {
   if (patch.amount !== undefined) row.amount = patch.amount;
   if (patch.advance !== undefined) row.advance = patch.advance;
   if (patch.advanceMethod !== undefined) row.advance_method = patch.advanceMethod;
+  if (patch.advanceSplit !== undefined) row.advance_split = patch.advanceSplit;
   if (patch.finalPayment !== undefined) row.final_payment = patch.finalPayment;
   if (patch.finalPaymentMethod !== undefined) row.final_payment_method = patch.finalPaymentMethod;
   if (patch.due !== undefined) row.due = patch.due;

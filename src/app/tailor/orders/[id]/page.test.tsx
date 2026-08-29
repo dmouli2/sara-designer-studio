@@ -18,6 +18,7 @@ const order: Order = {
   amount: 1000,
   advance: 0,
   advanceMethod: null,
+  advanceSplit: null,
   finalPayment: 0,
   finalPaymentMethod: null,
   due: "2026-07-10",

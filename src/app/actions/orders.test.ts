@@ -25,6 +25,10 @@ import { mockRefresh, mockRevalidatePath } from "../../../vitest.setup";
 import { MAX_REFERENCE_IMAGES, MAX_MATERIAL_IMAGES } from "@/types";
 import type { AlterationRecord, GarmentMeasurements, OrderLineItem, Order, OrderPiece } from "@/types";
 
+// A payment is a split; a single-method one is the other side at zero.
+const cash = (amount: number) => ({ cash: amount, upi: 0 });
+const upi = (amount: number) => ({ cash: 0, upi: amount });
+
 function piece(over: Partial<OrderPiece> = {}): OrderPiece {
   return { id: "p1", label: "Blouse 1", due: "2026-07-10", status: "pending", deliveredAt: null, ...over };
 }
@@ -84,6 +88,7 @@ const order: Order = {
   amount: 1000,
   advance: 300,
   advanceMethod: null,
+  advanceSplit: null,
   finalPayment: 0,
   finalPaymentMethod: null,
   due: "2026-07-10",
@@ -231,7 +236,7 @@ const findPublicToken = vi.fn();
     findById.mockResolvedValue({ ...order, status: "ready", amount: 3000, advance: 500, finalPayment: 0 });
     updateStatus.mockResolvedValue(order);
 
-    await deliverOrder("SDS-001", "upi");
+    await deliverOrder("SDS-001", upi(2500));
 
     expect(requireRole).toHaveBeenCalledWith(["admin"]);
     expect(updateStatus).toHaveBeenCalledWith(
@@ -253,7 +258,7 @@ const findPublicToken = vi.fn();
     findById.mockResolvedValue({ ...order, amount: 1200, advance: 200, finalPayment: 0 });
     updateStatus.mockResolvedValue(order);
 
-    await deliverOrder("SDS-001", "cash");
+    await deliverOrder("SDS-001", cash(1000));
 
     expect(updateStatus).toHaveBeenCalledWith(
       "SDS-001",
@@ -266,7 +271,7 @@ const findPublicToken = vi.fn();
     findById.mockResolvedValue({ ...order, amount: 1000, advance: 1000, finalPayment: 0 });
     updateStatus.mockResolvedValue(order);
 
-    await deliverOrder("SDS-001", "cash");
+    await deliverOrder("SDS-001", cash(0));
 
     // Nothing arrived, so no ledger entry and no method claiming a payment
     // that never happened — only the day it was handed over.
@@ -276,18 +281,18 @@ const findPublicToken = vi.fn();
   });
 
   it("deliverOrder rejects an unknown payment method", async () => {
-    await expect(deliverOrder("SDS-001", "cheque" as never)).rejects.toThrow("how the payment was made");
+    await expect(deliverOrder("SDS-001", { cash: -1, upi: 0 })).rejects.toThrow("valid payment amount");
     expect(updateStatus).not.toHaveBeenCalled();
   });
 
   it("deliverOrder refuses a missing order", async () => {
     findById.mockResolvedValue(null);
-    await expect(deliverOrder("nope", "cash")).rejects.toThrow("Order not found");
+    await expect(deliverOrder("nope", cash(0))).rejects.toThrow("Order not found");
   });
 
   it("deliverOrder refuses a cancelled order", async () => {
     findById.mockResolvedValue({ ...order, status: "cancelled" });
-    await expect(deliverOrder("SDS-001", "cash")).rejects.toThrow("cancelled order");
+    await expect(deliverOrder("SDS-001", cash(0))).rejects.toThrow("cancelled order");
     expect(updateStatus).not.toHaveBeenCalled();
   });
 
@@ -746,7 +751,7 @@ const findPublicToken = vi.fn();
       findById.mockResolvedValue(splitOrder());
       updateStatus.mockResolvedValue(order);
 
-      await deliverPiece("SDS-001", "p1", { amount: 800, method: "upi" });
+      await deliverPiece("SDS-001", "p1", upi(800));
 
       const extra = updateStatus.mock.calls[0][2];
       expect(extra.finalPayment).toBe(800);
@@ -770,7 +775,7 @@ const findPublicToken = vi.fn();
       );
       updateStatus.mockResolvedValue(order);
 
-      await deliverPiece("SDS-001", "p2", { amount: 300, method: "cash" });
+      await deliverPiece("SDS-001", "p2", cash(300));
 
       const extra = updateStatus.mock.calls[0][2];
       expect(extra.finalPayment).toBe(800);
@@ -791,20 +796,25 @@ const findPublicToken = vi.fn();
       );
       updateStatus.mockResolvedValue(order);
 
-      await deliverPiece("SDS-001", "p3", { amount: 5, method: "cash" });
+      // The amount is not the admin's to choose on the last piece — it is
+      // exactly what's owed, and a split that disagrees is refused rather
+      // than silently rounded up to the balance.
+      await expect(deliverPiece("SDS-001", "p3", cash(5))).rejects.toThrow("don't add up");
 
+      await deliverPiece("SDS-001", "p3", cash(2000));
       const [, status, extra] = updateStatus.mock.calls[0];
       expect(status).toBe("delivered");
-      expect(extra.finalPayment).toBe(2000); // 3000 - 1000 advance, not the 5 asked for
+      expect(extra.finalPayment).toBe(2000); // 3000 - 1000 advance
     });
 
+    // Refused rather than quietly clamped: recording ₹2,000 when the admin
+    // typed ₹99,999 would be a number nobody entered.
     it("never collects more than the order owes", async () => {
       findById.mockResolvedValue(splitOrder());
-      updateStatus.mockResolvedValue(order);
-
-      await deliverPiece("SDS-001", "p1", { amount: 99999, method: "cash" });
-
-      expect(updateStatus.mock.calls[0][2].finalPayment).toBe(2000);
+      await expect(deliverPiece("SDS-001", "p1", cash(99999))).rejects.toThrow(
+        "more than the order still owes"
+      );
+      expect(updateStatus).not.toHaveBeenCalled();
     });
 
     it("records nothing when the last piece goes out on a fully paid order", async () => {
@@ -868,16 +878,26 @@ const findPublicToken = vi.fn();
 
     it("rejects a nonsense amount", async () => {
       findById.mockResolvedValue(splitOrder());
-      await expect(deliverPiece("SDS-001", "p1", { amount: -5, method: "cash" })).rejects.toThrow(
-        "valid amount"
+      await expect(deliverPiece("SDS-001", "p1", { cash: -5, upi: 0 })).rejects.toThrow(
+        "valid payment amount"
       );
     });
 
-    it("rejects an unknown payment method", async () => {
+    // Both sides at once is the whole point of a split.
+    it("records a payment that arrived two ways", async () => {
       findById.mockResolvedValue(splitOrder());
-      await expect(
-        deliverPiece("SDS-001", "p1", { amount: 100, method: "cheque" as never })
-      ).rejects.toThrow("how the payment was made");
+      updateStatus.mockResolvedValue(order);
+
+      await deliverPiece("SDS-001", "p1", { cash: 300, upi: 200 });
+
+      const extra = updateStatus.mock.calls[0][2];
+      expect(extra.finalPayment).toBe(500);
+      // No single method describes it, so the ledger carries the breakdown.
+      expect(extra.finalPaymentMethod).toBeNull();
+      expect(extra.payments).toEqual([
+        expect.objectContaining({ amount: 300, method: "cash", pieceId: "p1" }),
+        expect.objectContaining({ amount: 200, method: "upi", pieceId: "p1" }),
+      ]);
     });
   });
 
@@ -888,7 +908,7 @@ const findPublicToken = vi.fn();
       );
       updateStatus.mockResolvedValue(order);
 
-      await deliverOrder("SDS-001", "cash");
+      await deliverOrder("SDS-001", cash(2000));
 
       const extra = updateStatus.mock.calls[0][2];
       expect(extra.pieces.every((p: OrderPiece) => p.status === "delivered")).toBe(true);
@@ -1162,7 +1182,7 @@ const findPublicToken = vi.fn();
       findById.mockResolvedValue(splitOrder());
       updateStatus.mockResolvedValue(order);
 
-      await deliverPiece("SDS-001", "p1", { amount: 400, method: "cash" }, "2026-08-20");
+      await deliverPiece("SDS-001", "p1", cash(400), "2026-08-20");
 
       const extra = updateStatus.mock.calls[0][2];
       expect(extra.pieces[0].deliveredAt).toBe("2026-08-20");
@@ -1189,7 +1209,8 @@ const findPublicToken = vi.fn();
       findById.mockResolvedValue(splitOrder());
       updateStatus.mockResolvedValue(order);
 
-      await deliverOrder("SDS-001", "cash");
+      // splitOrder owes 2000 (3000 less a 1000 advance).
+      await deliverOrder("SDS-001", cash(2000));
 
       const extra = updateStatus.mock.calls[0][2];
       expect(extra.pieces.every((p: OrderPiece) => ISO_DATE.test(p.deliveredAt!))).toBe(true);
@@ -1207,7 +1228,7 @@ const findPublicToken = vi.fn();
       findById.mockResolvedValue({ ...order, amount: 1000, advance: 0, finalPayment: 0 });
       updateStatus.mockResolvedValue(order);
 
-      await deliverOrder("SDS-001", "cash", "2026-08-20");
+      await deliverOrder("SDS-001", cash(1000), "2026-08-20");
 
       const extra = updateStatus.mock.calls[0][2];
       expect(extra.deliveredOn).toBe("2026-08-20");
@@ -1220,7 +1241,8 @@ const findPublicToken = vi.fn();
       );
       updateStatus.mockResolvedValue(order);
 
-      await deliverPiece("SDS-001", "p1", undefined, "2026-08-20");
+      // The only pending garment, so it settles the 2000 balance.
+      await deliverPiece("SDS-001", "p1", cash(2000), "2026-08-20");
 
       const [, status, extra] = updateStatus.mock.calls[0];
       expect(status).toBe("delivered");
@@ -1276,7 +1298,7 @@ const findPublicToken = vi.fn();
       ).rejects.toThrow("is in the future");
 
       findById.mockResolvedValue({ ...order, amount: 1000, advance: 0, finalPayment: 0 });
-      await expect(deliverOrder("SDS-001", "cash", "2099-01-01")).rejects.toThrow("is in the future");
+      await expect(deliverOrder("SDS-001", cash(1000), "2099-01-01")).rejects.toThrow("is in the future");
     });
 
     it("defaults to today when the date is left out", async () => {
@@ -1286,4 +1308,122 @@ const findPublicToken = vi.fn();
       expect(update.mock.calls[0][1].alterations[0].completedAt).toMatch(ISO);
     });
   });
+
+  describe("a split advance", () => {
+    it("stores the split and clears the single method", async () => {
+      nextOrderId.mockResolvedValue("B2601");
+      create.mockResolvedValue({ ...order, publicToken: "tok" });
+
+      await createOrder(
+        { ...orderInput, advance: 1000, advanceMethod: "cash", advanceSplit: { cash: 600, upi: 400 } },
+        photosForm()
+      );
+
+      const written = create.mock.calls[0][0];
+      expect(written.advanceSplit).toEqual({ cash: 600, upi: 400 });
+      // No single method describes it, and leaving "cash" there would be a
+      // false record of the ₹400 that arrived by UPI.
+      expect(written.advanceMethod).toBeNull();
+    });
+
+    it("keeps a single-method advance on advanceMethod, with no split", async () => {
+      nextOrderId.mockResolvedValue("B2601");
+      create.mockResolvedValue({ ...order, publicToken: "tok" });
+
+      await createOrder(
+        { ...orderInput, advance: 1000, advanceMethod: "upi", advanceSplit: { cash: 0, upi: 1000 } },
+        photosForm()
+      );
+
+      const written = create.mock.calls[0][0];
+      expect(written.advanceSplit).toBeNull();
+      expect(written.advanceMethod).toBe("upi");
+    });
+
+    it("refuses a split that doesn't add up to the advance", async () => {
+      nextOrderId.mockResolvedValue("B2601");
+      await expect(
+        createOrder(
+          { ...orderInput, advance: 1000, advanceSplit: { cash: 600, upi: 100 } },
+          photosForm()
+        )
+      ).rejects.toThrow("doesn't add up");
+      expect(create).not.toHaveBeenCalled();
+    });
+
+    it("refuses a negative side", async () => {
+      nextOrderId.mockResolvedValue("B2601");
+      await expect(
+        createOrder(
+          { ...orderInput, advance: 1000, advanceSplit: { cash: 1100, upi: -100 } },
+          photosForm()
+        )
+      ).rejects.toThrow("valid advance amount");
+    });
+
+    it("updateOrder corrects a split advance and clears the method", async () => {
+      findById.mockResolvedValue({ ...order, advance: 1000 });
+      update.mockResolvedValue(order);
+
+      await updateOrder("SDS-001", { advanceSplit: { cash: 700, upi: 300 } });
+
+      const patch = update.mock.calls[0][1];
+      expect(patch.advanceSplit).toEqual({ cash: 700, upi: 300 });
+      expect(patch.advanceMethod).toBeNull();
+    });
+
+    it("updateOrder refuses a corrected split that doesn't add up", async () => {
+      findById.mockResolvedValue({ ...order, advance: 1000 });
+      await expect(
+        updateOrder("SDS-001", { advanceSplit: { cash: 700, upi: 100 } })
+      ).rejects.toThrow("doesn't add up");
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    // The split is checked against the advance being set in the same edit,
+    // not the one already stored.
+    it("updateOrder checks the split against a changed advance", async () => {
+      findById.mockResolvedValue({ ...order, advance: 1000 });
+      update.mockResolvedValue(order);
+
+      await updateOrder("SDS-001", { advance: 500, advanceSplit: { cash: 200, upi: 300 } });
+
+      expect(update.mock.calls[0][1].advanceSplit).toEqual({ cash: 200, upi: 300 });
+    });
+  });
+
+  describe("a split collection at delivery", () => {
+    it("writes one ledger entry per method, sharing the hand-over", async () => {
+      findById.mockResolvedValue({ ...order, amount: 1000, advance: 0, finalPayment: 0 });
+      updateStatus.mockResolvedValue(order);
+
+      await deliverOrder("SDS-001", { cash: 600, upi: 400 }, "2026-08-20");
+
+      const extra = updateStatus.mock.calls[0][2];
+      expect(extra.finalPayment).toBe(1000);
+      expect(extra.finalPaymentMethod).toBeNull();
+      expect(extra.payments).toEqual([
+        expect.objectContaining({ amount: 600, method: "cash", at: "2026-08-20", pieceId: null }),
+        expect.objectContaining({ amount: 400, method: "upi", at: "2026-08-20", pieceId: null }),
+      ]);
+    });
+
+    it("refuses a split that doesn't settle the balance", async () => {
+      findById.mockResolvedValue({ ...order, amount: 1000, advance: 0, finalPayment: 0 });
+      await expect(deliverOrder("SDS-001", { cash: 600, upi: 100 })).rejects.toThrow("don't add up");
+      expect(updateStatus).not.toHaveBeenCalled();
+    });
+
+    it("records nothing at all when there is nothing to collect", async () => {
+      findById.mockResolvedValue({ ...order, amount: 1000, advance: 1000, finalPayment: 0 });
+      updateStatus.mockResolvedValue(order);
+
+      await deliverOrder("SDS-001", { cash: 0, upi: 0 });
+
+      const extra = updateStatus.mock.calls[0][2];
+      expect(extra.payments).toBeUndefined();
+      expect(extra.finalPaymentMethod).toBeUndefined();
+    });
+  });
+
 });

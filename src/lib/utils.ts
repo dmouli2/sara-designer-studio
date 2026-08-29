@@ -1,6 +1,15 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import type { AlterationRecord, MaterialSource, Order, OrderPiece, OrderStatus, PaymentMethod } from "@/types";
+import type {
+  AlterationRecord,
+  MaterialSource,
+  Order,
+  OrderPayment,
+  OrderPiece,
+  OrderStatus,
+  PaymentMethod,
+  PaymentSplit,
+} from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -270,4 +279,68 @@ export function buildMaterialLabel(
   // Mixed: say how it splits, since "which of my three?" is the whole reason
   // this case exists.
   return `${shopCount} × ${shop} + ${sources.length - shopCount} × ${customer}`;
+}
+
+// ── Split payments ──────────────────────────────────────────────────────
+// The shop takes cash and UPI, and one payment often uses both. A split is
+// the general shape: a single-method payment is the other side at zero, so
+// nothing downstream has to ask "was this split?".
+
+export const ZERO_SPLIT: PaymentSplit = { cash: 0, upi: 0 };
+
+export function splitTotal(split: PaymentSplit): number {
+  return split.cash + split.upi;
+}
+
+export function addSplits(a: PaymentSplit, b: PaymentSplit): PaymentSplit {
+  return { cash: a.cash + b.cash, upi: a.upi + b.upi };
+}
+
+// A split with money on both sides; anything else is one method.
+export function isSplitPayment(split: PaymentSplit): boolean {
+  return split.cash > 0 && split.upi > 0;
+}
+
+// How a payment reads on screen. One method gets its plain label; a genuine
+// split names both amounts, because "₹1,000 · Cash" would be a false record
+// of money that half arrived by UPI.
+export function describePaymentSplit(split: PaymentSplit): string {
+  if (isSplitPayment(split)) {
+    return `${formatCurrency(split.cash)} cash + ${formatCurrency(split.upi)} UPI`;
+  }
+  if (split.upi > 0) return PAYMENT_METHOD_LABELS.upi;
+  if (split.cash > 0) return PAYMENT_METHOD_LABELS.cash;
+  return "";
+}
+
+// Turns a single method into a split, for the many places that still record
+// one. A null method means "never recorded" — hence null, not a zero split.
+export function splitFromMethod(amount: number, method: PaymentMethod | null): PaymentSplit | null {
+  if (!method) return null;
+  return method === "cash" ? { cash: amount, upi: 0 } : { cash: 0, upi: amount };
+}
+
+// How the advance arrived. Prefers the stored split, falling back to the
+// single method every order taken before splits existed carries.
+export function advanceSplitOf(
+  order: Pick<Order, "advance" | "advanceMethod" | "advanceSplit">
+): PaymentSplit | null {
+  return order.advanceSplit ?? splitFromMethod(order.advance, order.advanceMethod);
+}
+
+// How everything collected after placement arrived. The ledger is the truth
+// whenever it has entries — a split collection writes one entry per method,
+// so summing it gives the real breakdown. Legacy orders have money in
+// finalPayment with an empty ledger, so they fall back to the single method.
+export function collectedSplitOf(
+  order: Pick<Order, "finalPayment" | "finalPaymentMethod" | "payments">
+): PaymentSplit | null {
+  const ledger: OrderPayment[] = order.payments ?? [];
+  if (ledger.length > 0) {
+    return ledger.reduce(
+      (sum, p) => addSplits(sum, splitFromMethod(p.amount, p.method) ?? ZERO_SPLIT),
+      ZERO_SPLIT
+    );
+  }
+  return splitFromMethod(order.finalPayment, order.finalPaymentMethod);
 }

@@ -16,8 +16,16 @@ import {
   type OrderPiece,
   type OrderStatus,
   type PaymentMethod,
+  type PaymentSplit,
 } from "@/types";
-import { openAlteration, orderBalance, shopToday } from "@/lib/utils";
+import {
+  isSplitPayment,
+  openAlteration,
+  orderBalance,
+  shopToday,
+  splitTotal,
+  ZERO_SPLIT,
+} from "@/lib/utils";
 import { buildPieces, reconcilePieces, type OrderPieceDraft } from "@/lib/pieces";
 import { assertAlterationsEnabled } from "@/lib/features";
 
@@ -101,18 +109,28 @@ export async function createOrder(
     | "referenceImageUrls"
     | "materialImageUrls"
     | "deliveredOn"
+    | "advanceSplit"
     | "pieces"
     | "alterations"
     | "payments"
-  > & { pieces?: OrderPieceDraft[] },
+  > & { pieces?: OrderPieceDraft[]; advanceSplit?: PaymentSplit | null },
   photos: FormData
 ): Promise<Order & { publicToken: string }> {
   await requireRole(["admin"]);
   if (!input.due) {
     throw new Error("Delivery date is required.");
   }
-  const { pieces: pieceDrafts, ...orderInput } = input;
+  const { pieces: pieceDrafts, advanceSplit, ...orderInput } = input;
   const pieces = buildPieces(pieceDrafts, input.due);
+
+  // A split advance has no single method, so advanceMethod is cleared and the
+  // split carries the truth — see advanceSplitOf.
+  if (advanceSplit) {
+    assertValidSplit(advanceSplit, "advance");
+    if (splitTotal(advanceSplit) !== orderInput.advance) {
+      throw new Error("The advance split doesn't add up to the advance.");
+    }
+  }
   const referenceFiles = filesFrom(photos, "reference", MAX_REFERENCE_IMAGES);
   const materialFiles = filesFrom(photos, "material", MAX_MATERIAL_IMAGES);
   // Scanned book orders (scanOrder="1") have no fabric on hand at scan time,
@@ -142,6 +160,8 @@ export async function createOrder(
     materialImageUrls,
     cancellationCharge: null,
     deliveredOn: null,
+    advanceSplit: advanceSplit && isSplitPayment(advanceSplit) ? roundSplit(advanceSplit) : null,
+    advanceMethod: advanceSplit && isSplitPayment(advanceSplit) ? null : orderInput.advanceMethod,
     pieces,
     // A brand-new order has been through neither.
     alterations: [],
@@ -163,6 +183,8 @@ export interface OrderEditInput {
   amount?: number;
   advance?: number;
   advanceMethod?: PaymentMethod | null;
+  // Set when the corrected advance arrived two ways; clears advanceMethod.
+  advanceSplit?: PaymentSplit | null;
   due?: string;
   measurements?: GarmentMeasurements;
   lineItems?: OrderLineItem[];
@@ -179,7 +201,7 @@ export interface OrderEditInput {
 }
 
 const EDITABLE_FIELDS = [
-  "customer", "phone", "material", "amount", "advance", "advanceMethod", "due",
+  "customer", "phone", "material", "amount", "advance", "advanceMethod", "advanceSplit", "due",
   "measurements", "lineItems", "notes",
 ] as const;
 
@@ -229,6 +251,15 @@ export async function updateOrder(id: string, patch: OrderEditInput, photos?: Fo
     if (JSON.stringify(next) !== JSON.stringify(current.pieces)) {
       dbPatch.pieces = next;
     }
+  }
+  if (patch.advanceSplit) {
+    assertValidSplit(patch.advanceSplit, "advance");
+    const advance = patch.advance ?? current.advance;
+    if (splitTotal(patch.advanceSplit) !== advance) {
+      throw new Error("The advance split doesn't add up to the advance.");
+    }
+    // No single method describes a split; keep the two in step.
+    dbPatch.advanceMethod = null;
   }
   for (const money of ["amount", "advance"] as const) {
     const value = dbPatch[money];
@@ -322,14 +353,13 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
 // amount recorded is always exactly what was owed.
 export async function deliverOrder(
   id: string,
-  method: PaymentMethod,
+  // How the balance arrived. A single method is the other side at zero.
+  collected: PaymentSplit,
   // The day it went home. Defaults to today; may be backdated.
   deliveredOn?: string
 ): Promise<Order> {
   await requireRole(["admin"]);
-  if (method !== "cash" && method !== "upi") {
-    throw new Error("Choose how the payment was made.");
-  }
+  assertValidSplit(collected, "payment");
   const order = await getDb().orders.findById(id);
   if (!order) throw new Error("Order not found.");
   if (order.status === "cancelled") {
@@ -337,10 +367,17 @@ export async function deliverOrder(
   }
 
   const balance = orderBalance(order);
+  // The amount is not the caller's to choose — it is exactly what's owed —
+  // but how it arrived is. A split that doesn't add up would silently
+  // under- or over-record the collection.
+  const split = roundSplit(collected);
+  if (balance > 0 && splitTotal(split) !== balance) {
+    throw new Error("The amounts collected don't add up to the balance.");
+  }
   const on = resolveEventDate(deliveredOn, "delivery");
   const updated = await getDb().orders.updateStatus(id, "delivered", {
     deliveredOn: on,
-    ...collectPayment(order, balance, method, null, on),
+    ...collectPayment(order, balance > 0 ? split : ZERO_SPLIT, null, on),
     // Handing the whole order over hands over everything still in the shop.
     // A single-garment order has no pieces and this is a no-op.
     ...(order.pieces ? { pieces: markPiecesDelivered(order.pieces, on) } : {}),
@@ -357,28 +394,42 @@ export async function deliverOrder(
 // finalPaymentMethod the latest method — and adds the ledger entry that says
 // which hand-over it came with. A zero collection records nothing at all: an
 // order paid in full up front must not claim its balance arrived as cash.
+// Records money arriving after placement.
+//
+// A split writes one ledger entry per method rather than one entry with two
+// amounts: the ledger shape stays as it was, every existing entry keeps
+// meaning what it meant, and summing the ledger gives the real cash/UPI
+// breakdown for free (see collectedSplitOf). The two entries share a date and
+// a pieceId, so they still read as the one hand-over they were.
+//
+// finalPaymentMethod is left null for a split — no single method describes
+// it, and the ledger is what the UI reads whenever it has entries.
 function collectPayment(
   order: Order,
-  amount: number,
-  method: PaymentMethod,
+  split: PaymentSplit,
   pieceId: string | null,
   // The day the money changed hands — the same day the garment did, which is
   // not necessarily today: a hand-over recorded on Monday may have happened
   // on Saturday, and the ledger should say Saturday.
   at: string
 ): OrderUpdateInput {
-  if (amount <= 0) return {};
-  const entry: OrderPayment = {
-    id: crypto.randomUUID(),
-    amount,
-    method,
-    at,
-    pieceId,
-  };
+  const total = splitTotal(split);
+  if (total <= 0) return {};
+
+  const entries: OrderPayment[] = (["cash", "upi"] as const)
+    .filter((method) => split[method] > 0)
+    .map((method) => ({
+      id: crypto.randomUUID(),
+      amount: split[method],
+      method,
+      at,
+      pieceId,
+    }));
+
   return {
-    finalPayment: order.finalPayment + amount,
-    finalPaymentMethod: method,
-    payments: [...order.payments, entry],
+    finalPayment: order.finalPayment + total,
+    finalPaymentMethod: isSplitPayment(split) ? null : entries[0].method,
+    payments: [...(order.payments ?? []), ...entries],
   };
 }
 
@@ -386,6 +437,25 @@ function markPiecesDelivered(pieces: OrderPiece[], on: string): OrderPiece[] {
   return pieces.map((p) =>
     p.status === "delivered" ? p : { ...p, status: "delivered" as const, deliveredAt: on }
   );
+}
+
+// Money arrives as a split across the two ways the shop takes it. Validated
+// in one place so the wizard, the delivery dialog and a piece hand-over can
+// never disagree about what a legal payment looks like.
+function assertValidSplit(split: PaymentSplit, what: string): void {
+  for (const amount of [split.cash, split.upi]) {
+    if (!Number.isFinite(amount) || amount < 0) {
+      throw new Error(`Enter a valid ${what} amount.`);
+    }
+  }
+}
+
+// Rounds each side to paise so a split can never drift from its total.
+function roundSplit(split: PaymentSplit): PaymentSplit {
+  return {
+    cash: Math.round(split.cash * 100) / 100,
+    upi: Math.round(split.upi * 100) / 100,
+  };
 }
 
 // Every date the admin records here is "the day this actually happened", and
@@ -423,7 +493,9 @@ function resolveEventDate(input: string | undefined, noun: string): string {
 export async function deliverPiece(
   id: string,
   pieceId: string,
-  collect?: { amount: number; method: PaymentMethod },
+  // How much came in with this garment, and in what form. Omitted means
+  // nothing was collected, which is the normal case for an early piece.
+  collect?: PaymentSplit,
   // The day it actually went home. Defaults to today; may be backdated.
   handedOverOn?: string
 ): Promise<Order> {
@@ -441,17 +513,19 @@ export async function deliverPiece(
   const balance = orderBalance(order);
   const isLast = order.pieces.filter((p) => p.status === "pending").length === 1;
 
+  const requested = collect ? roundSplit(collect) : ZERO_SPLIT;
+  assertValidSplit(requested, "payment");
+
   // The final hand-over settles the order, so the amount isn't the admin's to
-  // choose — it is exactly what's owed, same rule as deliverOrder.
-  let amount = isLast ? balance : (collect?.amount ?? 0);
-  if (!Number.isFinite(amount) || amount < 0) {
-    throw new Error("Enter a valid amount to collect.");
+  // choose — it is exactly what's owed, same rule as deliverOrder. Earlier
+  // pieces may collect any part of it, or nothing.
+  if (isLast && balance > 0 && splitTotal(requested) !== balance) {
+    throw new Error("The amounts collected don't add up to the balance.");
   }
-  amount = Math.min(Math.round(amount * 100) / 100, balance);
-  const method = collect?.method ?? "cash";
-  if (amount > 0 && method !== "cash" && method !== "upi") {
-    throw new Error("Choose how the payment was made.");
+  if (splitTotal(requested) > balance) {
+    throw new Error("That's more than the order still owes.");
   }
+  const split = requested;
 
   const at = resolveEventDate(handedOverOn, "hand-over");
   const pieces = order.pieces.map((p) =>
@@ -462,7 +536,7 @@ export async function deliverPiece(
     // The last garment leaving is the order being delivered, so it carries
     // the order's delivery date as well as its own.
     ...(isLast ? { deliveredOn: at } : {}),
-    ...collectPayment(order, amount, method, pieceId, at),
+    ...collectPayment(order, split, pieceId, at),
     pieces,
   });
   revalidateOrderPaths(id);
