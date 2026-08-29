@@ -80,4 +80,26 @@ describe("GET /sw.js", () => {
     expect(shellLine).not.toContain('"/",');
     expect(shellLine).toContain('"/login"');
   });
+
+  // Serving the cached copy resolves the fetch event. Without waitUntil the
+  // browser may kill the worker before the revalidation's cache.put lands,
+  // and every later visit gets the same stale page forever — an order handed
+  // over on one device kept reading as untouched on the next visit.
+  it("keeps the worker alive until a background revalidation has been cached", async () => {
+    const body = await (await GET()).text();
+
+    // Both stale-while-revalidate branches — app pages and static assets.
+    expect(body.match(/event\.waitUntil\(/g)?.length).toBeGreaterThanOrEqual(4);
+    expect(body).toContain("event.waitUntil(revalidate.catch(() => {}))");
+    expect(body).toContain("event.waitUntil(assetNetwork.catch(() => {}))");
+
+    // And the put is awaited inside that kept-alive promise, rather than
+    // being left dangling.
+    expect(body).toContain("await cache.put(request, res.clone())");
+  });
+
+  it("still refuses to cache a redirected page under its own URL", async () => {
+    const body = await (await GET()).text();
+    expect(body).toContain("res.ok && !res.redirected");
+  });
 });

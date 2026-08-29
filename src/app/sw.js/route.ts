@@ -85,44 +85,59 @@ self.addEventListener("fetch", (event) => {
     // background, and tell the page when fresh content has landed so it can
     // refresh its data. First visit (nothing cached) falls through to the
     // network with an offline fallback to the login shell.
+    const cacheReady = caches.open(RUNTIME_CACHE);
+
+    // Started here, and handed to waitUntil BEFORE respondWith settles.
+    // Without that, serving the cached copy resolves the fetch event and the
+    // browser is free to kill this worker mid-revalidation — the cache.put
+    // never lands, and every later visit is served the same stale page
+    // forever. That is exactly what happened: an order handed over on one
+    // device kept reading as untouched on the next visit.
+    const revalidate = cacheReady.then((cache) =>
+      fetch(request).then(async (res) => {
+        // A redirected response means the session no longer allows this page
+        // — never cache it under this URL, but still notify so the open page
+        // re-checks and follows the redirect.
+        if (res.ok && !res.redirected) await cache.put(request, res.clone());
+        return res;
+      })
+    );
+    event.waitUntil(revalidate.catch(() => {}));
+
     event.respondWith(
-      caches.open(RUNTIME_CACHE).then((cache) =>
-        cache.match(request).then((cached) => {
-          const network = fetch(request).then((res) => {
-            if (res.ok) {
-              // A redirected response means the session no longer allows this
-              // page — never cache it under this URL, but still notify so the
-              // open page re-checks and follows the redirect.
-              if (!res.redirected) cache.put(request, res.clone());
-              if (cached) notifyNavUpdated(request.url);
-            }
-            return res;
-          });
-          if (cached) {
-            network.catch(() => {});
-            return cached;
-          }
-          return network.catch(() => caches.match("/login"));
+      cacheReady
+        .then((cache) => cache.match(request))
+        .then((cached) => {
+          if (!cached) return revalidate.catch(() => caches.match("/login"));
+          // Tell the page once the fresh copy has actually landed.
+          revalidate
+            .then((res) => {
+              if (res.ok) notifyNavUpdated(request.url);
+            })
+            .catch(() => {});
+          return cached;
         })
-      )
     );
     return;
   }
 
   // Static assets (manifest, icons, images, fonts): stale-while-revalidate.
   if (/\\.(png|jpg|jpeg|svg|ico|webp|woff2?)$/.test(url.pathname) || url.pathname === "/manifest.json") {
+    const assetCache = caches.open(RUNTIME_CACHE);
+    const assetNetwork = assetCache.then((cache) =>
+      fetch(request).then(async (res) => {
+        if (res.ok) await cache.put(request, res.clone());
+        return res;
+      })
+    );
+    // Same reason as the navigation branch above: the put has to be allowed
+    // to finish after the cached copy has already been served.
+    event.waitUntil(assetNetwork.catch(() => {}));
+
     event.respondWith(
-      caches.open(RUNTIME_CACHE).then((cache) =>
-        cache.match(request).then((cached) => {
-          const network = fetch(request)
-            .then((res) => {
-              if (res.ok) cache.put(request, res.clone());
-              return res;
-            })
-            .catch(() => cached);
-          return cached || network;
-        })
-      )
+      assetCache
+        .then((cache) => cache.match(request))
+        .then((cached) => cached || assetNetwork)
     );
   }
 });
