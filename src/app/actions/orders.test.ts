@@ -1141,4 +1141,57 @@ const findPublicToken = vi.fn();
     });
   });
 
+
+  describe("the hand-over date", () => {
+    const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+    it("defaults to today when none is given", async () => {
+      findById.mockResolvedValue(splitOrder());
+      updateStatus.mockResolvedValue(order);
+
+      await deliverPiece("SDS-001", "p1");
+
+      expect(updateStatus.mock.calls[0][2].pieces[0].deliveredAt).toMatch(ISO_DATE);
+    });
+
+    // The shop records a hand-over when it gets a moment, not at the counter.
+    it("backdates the garment and the money together", async () => {
+      findById.mockResolvedValue(splitOrder());
+      updateStatus.mockResolvedValue(order);
+
+      await deliverPiece("SDS-001", "p1", { amount: 400, method: "cash" }, "2026-08-20");
+
+      const extra = updateStatus.mock.calls[0][2];
+      expect(extra.pieces[0].deliveredAt).toBe("2026-08-20");
+      // The ledger says the day the money arrived, not the day it was typed in.
+      expect(extra.payments[0].at).toBe("2026-08-20");
+    });
+
+    it("refuses a future date", async () => {
+      findById.mockResolvedValue(splitOrder());
+      await expect(deliverPiece("SDS-001", "p1", undefined, "2099-01-01")).rejects.toThrow(
+        "can't be dated in the future"
+      );
+      expect(updateStatus).not.toHaveBeenCalled();
+    });
+
+    it("refuses a malformed date", async () => {
+      findById.mockResolvedValue(splitOrder());
+      await expect(deliverPiece("SDS-001", "p1", undefined, "20/08/2026")).rejects.toThrow(
+        "valid hand-over date"
+      );
+    });
+
+    it("dates the whole-order delivery today", async () => {
+      findById.mockResolvedValue(splitOrder());
+      updateStatus.mockResolvedValue(order);
+
+      await deliverOrder("SDS-001", "cash");
+
+      const extra = updateStatus.mock.calls[0][2];
+      expect(extra.pieces.every((p: OrderPiece) => ISO_DATE.test(p.deliveredAt!))).toBe(true);
+      expect(extra.payments[0].at).toMatch(ISO_DATE);
+    });
+  });
+
 });

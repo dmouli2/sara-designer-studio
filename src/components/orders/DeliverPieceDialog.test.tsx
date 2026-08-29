@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import DeliverPieceDialog from "./DeliverPieceDialog";
+import { shopToday } from "@/lib/utils";
 import type { OrderPiece } from "@/types";
 
 const piece: OrderPiece = {
@@ -59,7 +60,7 @@ describe("DeliverPieceDialog", () => {
     const user = userEvent.setup();
     const { onConfirm } = setup();
     await user.click(screen.getByRole("button", { name: "Hand over" }));
-    expect(onConfirm).toHaveBeenCalledWith(undefined);
+    expect(onConfirm).toHaveBeenCalledWith(undefined, expect.any(String));
   });
 
   it("asks how the money arrived only once an amount is typed", async () => {
@@ -74,7 +75,7 @@ describe("DeliverPieceDialog", () => {
     expect(screen.getByRole("button", { name: "Collect & hand over" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "UPI" }));
     await user.click(screen.getByRole("button", { name: "Collect & hand over" }));
-    expect(onConfirm).toHaveBeenCalledWith({ amount: 800, method: "upi" });
+    expect(onConfirm).toHaveBeenCalledWith({ amount: 800, method: "upi" }, expect.any(String));
   });
 
   it("refuses an amount larger than the order owes", async () => {
@@ -97,7 +98,7 @@ describe("DeliverPieceDialog", () => {
 
     await user.click(screen.getByRole("button", { name: "Cash" }));
     await user.click(screen.getByRole("button", { name: "Collect & hand over" }));
-    expect(onConfirm).toHaveBeenCalledWith({ amount: 2000, method: "cash" });
+    expect(onConfirm).toHaveBeenCalledWith({ amount: 2000, method: "cash" }, expect.any(String));
   });
 
   it("asks nothing when the order is already paid in full", async () => {
@@ -105,7 +106,7 @@ describe("DeliverPieceDialog", () => {
     const { onConfirm } = setup({ balance: 0, isLast: true });
     expect(screen.getByText(/Nothing left to collect/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Hand over" }));
-    expect(onConfirm).toHaveBeenCalledWith(undefined);
+    expect(onConfirm).toHaveBeenCalledWith(undefined, expect.any(String));
   });
 
   it("backs out without handing anything over", async () => {
@@ -120,5 +121,47 @@ describe("DeliverPieceDialog", () => {
     setup({ pending: true });
     expect(screen.getByRole("button", { name: "Not yet" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+  });
+
+  // The shop records a hand-over when it gets a moment, often a day or two
+  // after the customer walked out — so the date defaults to today but is the
+  // admin's to set.
+  describe("the hand-over date", () => {
+    it("defaults to today", () => {
+      setup();
+      expect(screen.getByLabelText("Handed over on")).toHaveValue(shopToday());
+    });
+
+    it("can be backdated", async () => {
+      const user = userEvent.setup();
+      const { onConfirm } = setup();
+      fireEvent.change(screen.getByLabelText("Handed over on"), { target: { value: "2026-08-20" } });
+      await user.click(screen.getByRole("button", { name: "Hand over" }));
+      expect(onConfirm).toHaveBeenCalledWith(undefined, "2026-08-20");
+    });
+
+    it("travels with a payment too", async () => {
+      const user = userEvent.setup();
+      const { onConfirm } = setup();
+      fireEvent.change(screen.getByLabelText("Handed over on"), { target: { value: "2026-08-20" } });
+      await user.type(screen.getByLabelText(/Collecting now/), "300");
+      await user.click(screen.getByRole("button", { name: "Cash" }));
+      await user.click(screen.getByRole("button", { name: "Collect & hand over" }));
+      expect(onConfirm).toHaveBeenCalledWith({ amount: 300, method: "cash" }, "2026-08-20");
+    });
+
+    // A garment that hasn't left yet hasn't been handed over.
+    it("refuses a future date", () => {
+      setup();
+      fireEvent.change(screen.getByLabelText("Handed over on"), { target: { value: "2099-01-01" } });
+      expect(screen.getByText(/hasn't happened yet/)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Hand over" })).toBeDisabled();
+    });
+
+    it("refuses an empty date", () => {
+      setup();
+      fireEvent.change(screen.getByLabelText("Handed over on"), { target: { value: "" } });
+      expect(screen.getByRole("button", { name: "Hand over" })).toBeDisabled();
+    });
   });
 });

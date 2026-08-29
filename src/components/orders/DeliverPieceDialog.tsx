@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, shopToday } from "@/lib/utils";
 import type { OrderPiece, PaymentMethod } from "@/types";
 
 interface Props {
@@ -14,7 +14,10 @@ interface Props {
   // settles the order, so the amount stops being a choice.
   isLast: boolean;
   pending: boolean;
-  onConfirm: (collect?: { amount: number; method: PaymentMethod }) => void;
+  onConfirm: (
+    collect: { amount: number; method: PaymentMethod } | undefined,
+    handedOverOn: string
+  ) => void;
   onCancel: () => void;
 }
 
@@ -44,6 +47,10 @@ export default function DeliverPieceDialog({
 }: Props) {
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<PaymentMethod | null>(null);
+  // Defaults to today, which is right most of the time — but the shop often
+  // records a hand-over a day or two after the customer actually walked out,
+  // and the date on the record should be the day it happened.
+  const [handedOverOn, setHandedOverOn] = useState(() => shopToday());
 
   if (!open) return null;
 
@@ -51,11 +58,17 @@ export default function DeliverPieceDialog({
   const collecting = isLast ? balance : Math.min(Math.max(typed, 0), balance);
   const needsMethod = collecting > 0;
   const overBalance = !isLast && typed > balance;
-  const canConfirm = !pending && !overBalance && (!needsMethod || method !== null);
+  // A garment that hasn't left yet hasn't been handed over.
+  const futureDated = !!handedOverOn && handedOverOn > shopToday();
+  const canConfirm =
+    !pending && !overBalance && !!handedOverOn && !futureDated && (!needsMethod || method !== null);
 
   function confirm() {
     if (!canConfirm) return;
-    onConfirm(collecting > 0 ? { amount: collecting, method: method ?? "cash" } : undefined);
+    onConfirm(
+      collecting > 0 ? { amount: collecting, method: method ?? "cash" } : undefined,
+      handedOverOn
+    );
   }
 
   return (
@@ -68,9 +81,26 @@ export default function DeliverPieceDialog({
             : "The rest of the order stays open until its pieces go out."}
         </p>
 
+        <div className="mt-4">
+          <label className="text-xs text-[#9A9A9A] mb-1 block" htmlFor="piece-handed-over-on">
+            Handed over on
+          </label>
+          <input
+            id="piece-handed-over-on"
+            className="input"
+            type="date"
+            max={shopToday()}
+            value={handedOverOn}
+            onChange={(e) => setHandedOverOn(e.target.value)}
+          />
+          {futureDated && (
+            <p className="text-xs text-red-600 mt-1">That date hasn&apos;t happened yet.</p>
+          )}
+        </div>
+
         {balance > 0 ? (
           <>
-            <div className="mt-4 rounded-2xl bg-[#FBF6E8] border border-[#EDD98A] px-4 py-3.5 flex items-baseline justify-between">
+            <div className="mt-3 rounded-2xl bg-[#FBF6E8] border border-[#EDD98A] px-4 py-3.5 flex items-baseline justify-between">
               <span className="text-[13px] font-medium text-[#7A6020]">
                 {isLast ? "Balance to collect" : "Balance on the order"}
               </span>
@@ -130,6 +160,7 @@ export default function DeliverPieceDialog({
           </>
         ) : (
           <p className="text-[14px] text-[#1B6B3A] mt-3">Nothing left to collect on this order.</p>
+
         )}
 
         <div className="flex gap-2 mt-6">

@@ -200,12 +200,15 @@ export default function AdminOrderDetailBody({
     }
   }
 
-  async function handleDeliverPiece(collect?: { amount: number; method: PaymentMethod }) {
+  async function handleDeliverPiece(
+    collect: { amount: number; method: PaymentMethod } | undefined,
+    handedOverOn: string
+  ) {
     const piece = deliverPieceTarget;
     if (!piece) return;
     setBusyPieceId(piece.id);
     try {
-      const updated = await deliverPiece(order.id, piece.id, collect);
+      const updated = await deliverPiece(order.id, piece.id, collect, handedOverOn);
       setOrder(updated);
       setDeliverPieceTarget(null);
     } catch {

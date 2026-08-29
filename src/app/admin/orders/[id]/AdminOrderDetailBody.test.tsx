@@ -657,7 +657,9 @@ describe("AdminOrderDetailBody", () => {
       const confirm = screen.getAllByRole("button", { name: "Hand over" }).at(-1)!;
       await user.click(confirm);
 
-      await waitFor(() => expect(deliverPiece).toHaveBeenCalledWith("AD1", "p1", undefined));
+      await waitFor(() =>
+        expect(deliverPiece).toHaveBeenCalledWith("AD1", "p1", undefined, expect.any(String))
+      );
       await waitFor(() => expect(screen.getByText("1 of 3 delivered")).toBeInTheDocument());
       // Badge, not the dropdown option that carries the same label.
       expect(
@@ -675,7 +677,12 @@ describe("AdminOrderDetailBody", () => {
       await user.click(screen.getByRole("button", { name: "Collect & hand over" }));
 
       await waitFor(() =>
-        expect(deliverPiece).toHaveBeenCalledWith("AD1", "p1", { amount: 800, method: "upi" })
+        expect(deliverPiece).toHaveBeenCalledWith(
+          "AD1",
+          "p1",
+          { amount: 800, method: "upi" },
+          expect.any(String)
+        )
       );
     });
 

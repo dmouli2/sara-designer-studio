@@ -209,7 +209,12 @@ export interface OrderPiece {
   label: string;             // "Blouse 1" by default; the admin can rename it
   due: string;               // this garment's own delivery date (yyyy-mm-dd)
   status: OrderPieceStatus;
-  deliveredAt: string | null; // ISO timestamp of the hand-over
+  // The day the garment actually went home with the customer, as a calendar
+  // date ("YYYY-MM-DD") like every other human-meaningful date in the app.
+  // Chosen by the admin — it defaults to today but is often a day or two ago,
+  // because the shop records the hand-over when it gets a moment, not at the
+  // counter. Only the payment ledger keeps a true timestamp.
+  deliveredAt: string | null;
 }
 
 // A practical ceiling, enforced in the wizard and in createOrder. Well above

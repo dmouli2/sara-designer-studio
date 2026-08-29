@@ -325,11 +325,12 @@ export async function deliverOrder(id: string, method: PaymentMethod): Promise<O
   }
 
   const balance = orderBalance(order);
+  const today = shopToday();
   const updated = await getDb().orders.updateStatus(id, "delivered", {
-    ...collectPayment(order, balance, method, null),
+    ...collectPayment(order, balance, method, null, today),
     // Handing the whole order over hands over everything still in the shop.
     // A single-garment order has no pieces and this is a no-op.
-    ...(order.pieces ? { pieces: markPiecesDelivered(order.pieces) } : {}),
+    ...(order.pieces ? { pieces: markPiecesDelivered(order.pieces, today) } : {}),
   });
   revalidateOrderPaths(id);
   refresh();
@@ -347,14 +348,18 @@ function collectPayment(
   order: Order,
   amount: number,
   method: PaymentMethod,
-  pieceId: string | null
+  pieceId: string | null,
+  // The day the money changed hands — the same day the garment did, which is
+  // not necessarily today: a hand-over recorded on Monday may have happened
+  // on Saturday, and the ledger should say Saturday.
+  at: string
 ): OrderUpdateInput {
   if (amount <= 0) return {};
   const entry: OrderPayment = {
     id: crypto.randomUUID(),
     amount,
     method,
-    at: new Date().toISOString(),
+    at,
     pieceId,
   };
   return {
@@ -364,11 +369,25 @@ function collectPayment(
   };
 }
 
-function markPiecesDelivered(pieces: OrderPiece[]): OrderPiece[] {
-  const at = new Date().toISOString();
+function markPiecesDelivered(pieces: OrderPiece[], on: string): OrderPiece[] {
   return pieces.map((p) =>
-    p.status === "delivered" ? p : { ...p, status: "delivered" as const, deliveredAt: at }
+    p.status === "delivered" ? p : { ...p, status: "delivered" as const, deliveredAt: on }
   );
+}
+
+// A hand-over can be backdated — the shop records it when it gets a moment,
+// often a day or two after the customer walked out — but never postdated: a
+// garment that hasn't left yet hasn't been handed over.
+function resolveHandoverDate(input: string | undefined): string {
+  const today = shopToday();
+  if (input === undefined) return today;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) {
+    throw new Error("Enter a valid hand-over date.");
+  }
+  if (input > today) {
+    throw new Error("A hand-over can't be dated in the future.");
+  }
+  return input;
 }
 
 // Hands ONE garment of a multi-piece order over.
@@ -390,7 +409,9 @@ function markPiecesDelivered(pieces: OrderPiece[]): OrderPiece[] {
 export async function deliverPiece(
   id: string,
   pieceId: string,
-  collect?: { amount: number; method: PaymentMethod }
+  collect?: { amount: number; method: PaymentMethod },
+  // The day it actually went home. Defaults to today; may be backdated.
+  handedOverOn?: string
 ): Promise<Order> {
   await requireRole(["admin"]);
   const order = await getDb().orders.findById(id);
@@ -418,13 +439,13 @@ export async function deliverPiece(
     throw new Error("Choose how the payment was made.");
   }
 
-  const at = new Date().toISOString();
+  const at = resolveHandoverDate(handedOverOn);
   const pieces = order.pieces.map((p) =>
     p.id === pieceId ? { ...p, status: "delivered" as const, deliveredAt: at } : p
   );
 
   const updated = await getDb().orders.updateStatus(id, isLast ? "delivered" : "partly_delivered", {
-    ...collectPayment(order, amount, method, pieceId),
+    ...collectPayment(order, amount, method, pieceId, at),
     pieces,
   });
   revalidateOrderPaths(id);
