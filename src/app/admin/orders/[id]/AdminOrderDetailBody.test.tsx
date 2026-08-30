@@ -328,8 +328,8 @@ describe("AdminOrderDetailBody", () => {
 
   it("navigates to the admin orders list (fresh, not a cached back-nav) when the top bar back button is clicked", async () => {
     const user = userEvent.setup();
-    const { container } = renderBody(order({ status: "new" }));
-    await user.click(container.querySelector(".rounded-full")!);
+    renderBody(order({ status: "new" }));
+    await user.click(screen.getByLabelText("Back"));
     expect(mockRouter.push).toHaveBeenCalledWith("/admin/orders");
   });
 

@@ -21,17 +21,19 @@ export default function TopBar({ title, subtitle, onBack, backHref, right }: Top
           {onBack && (
             <button
               onClick={onBack}
+              aria-label="Back"
               className="w-9 h-9 flex items-center justify-center rounded-full bg-white/10 active:bg-white/20 active:scale-95 transition-all"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft size={18} aria-hidden="true" />
             </button>
           )}
           {!onBack && backHref && (
             <Link
               href={backHref}
+              aria-label="Back"
               className="w-9 h-9 flex items-center justify-center rounded-full bg-white/10 active:bg-white/20 active:scale-95 transition-all"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft size={18} aria-hidden="true" />
             </Link>
           )}
           <div>

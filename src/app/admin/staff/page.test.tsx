@@ -22,8 +22,8 @@ describe("StaffListPage", () => {
 
   it("shows a back link to the orders list", async () => {
     vi.mocked(listStaff).mockResolvedValue([]);
-    const { container } = render(await StaffListPage());
-    expect(container.querySelector(".rounded-full")).toHaveAttribute("href", "/admin/orders");
+    render(await StaffListPage());
+    expect(screen.getByLabelText("Back")).toHaveAttribute("href", "/admin/orders");
   });
 
   it("shows an empty state with no staff", async () => {

@@ -89,8 +89,8 @@ describe("NewOrderWizard", () => {
 
     it("goes back to the orders list when back is clicked on the selector", async () => {
       const user = userEvent.setup();
-      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
-      await user.click(container.querySelector(".rounded-full")!);
+      render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await user.click(screen.getByLabelText("Back"));
       expect(mockRouter.back).toHaveBeenCalled();
     });
 
@@ -105,9 +105,9 @@ describe("NewOrderWizard", () => {
 
     it("goes back to the order-type selector (not the orders list) when back is clicked on step 1", async () => {
       const user = userEvent.setup();
-      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      render(<NewOrderWizard fabrics={TEST_FABRICS} />);
       await chooseOrderType(user, "Blouse");
-      await user.click(container.querySelector(".rounded-full")!);
+      await user.click(screen.getByLabelText("Back"));
 
       expect(screen.getByText("What are we stitching?")).toBeInTheDocument();
       expect(mockRouter.back).not.toHaveBeenCalled();
@@ -306,7 +306,7 @@ describe("NewOrderWizard", () => {
     expect(screen.getByText("New Order · Step 2/3")).toBeInTheDocument();
     expect(screen.getByText("L.B")).toBeInTheDocument(); // blouse form column header
 
-    await user.click(container.querySelector(".rounded-full")!);
+    await user.click(screen.getByLabelText("Back"));
     expect(screen.getByText("New Order · Step 1/3")).toBeInTheDocument();
     expect(mockRouter.back).not.toHaveBeenCalled();
   });

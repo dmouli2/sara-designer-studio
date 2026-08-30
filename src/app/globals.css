@@ -52,17 +52,18 @@
      is a rename and nothing more. A dark theme becomes a second block
      redefining these names rather than a second visit to those 562 sites.
 
-     surface-3 (#FDFCFA) and surface-4 (#FAF9F7) are two barely-different
-     zebra tints that arrived separately; they are kept apart here only to
-     preserve the exact current rendering and are the obvious first
-     candidates to consolidate. */
+     surface-3 and surface-muted are within a few units of each other and
+     look like duplicates, but they are not: surface-3 is the zebra stripe
+     on alternating measurement and line-item rows, and surface-muted marks
+     a piece that has already been handed over. Same colour today, different
+     jobs, and a dark theme will want them to diverge. */
 
   /* Ground and surfaces */
   --color-canvas:              #E8E4DA;
   --color-bg:                  #F9F8F6;
   --color-surface-2:           #F0EDE6;
   --color-surface-3:           #FDFCFA;
-  --color-surface-4:           #FAF9F7;
+  --color-surface-muted:           #FAF9F7;
   --color-header:              #0F0F0F;
   --color-ink-soft:            #1C1C1E;
   --color-selected:            #0F0F0F;
@@ -134,7 +135,6 @@
   --color-whatsapp:            #25D366;
 
   --font-sans:           'Inter', system-ui, sans-serif;
-  --font-display:        'Playfair Display', Georgia, serif;
 }
 
 @layer base {
@@ -252,20 +252,37 @@
 
   .section-label { @apply text-[12px] font-semibold text-fg-2 uppercase tracking-widest mb-2; }
 
-  .badge-base         { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide; }
-  .badge-new          { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-gold-50 text-accent-ink; }
-  .badge-cutting      { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-header text-white; }
-  .badge-cutting_done { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-gold-200 text-gold-900; }
-  .badge-stitching    { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-gold-100 text-gold-900; }
-  .badge-hemming_hook { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-info-light text-info-ink; }
-  .badge-ready        { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-success-light text-success-ink; }
-  .badge-partly_delivered { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-success-50 text-success-mid; }
-  .badge-delivered    { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-surface-2 text-fg-chip; }
+  /* The shared run was repeated verbatim on all eleven badges, which is
+     what made retuning their contrast a twelve-line edit instead of a
+     one-line one. Stated once here; each badge below carries only its
+     tint pair. Element class names are unchanged. */
+  .badge-new,
+  .badge-cutting,
+  .badge-cutting_done,
+  .badge-stitching,
+  .badge-hemming_hook,
+  .badge-ready,
+  .badge-partly_delivered,
+  .badge-delivered,
+  .badge-in_alteration,
+  .badge-alteration_done,
+  .badge-cancelled {
+    @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide;
+  }
+
+  .badge-new               { @apply bg-gold-50 text-accent-ink; }
+  .badge-cutting           { @apply bg-header text-white; }
+  .badge-cutting_done      { @apply bg-gold-200 text-gold-900; }
+  .badge-stitching         { @apply bg-gold-100 text-gold-900; }
+  .badge-hemming_hook      { @apply bg-info-light text-info-ink; }
+  .badge-ready             { @apply bg-success-light text-success-ink; }
+  .badge-partly_delivered  { @apply bg-success-50 text-success-mid; }
+  .badge-delivered         { @apply bg-surface-2 text-fg-chip; }
   /* Alteration states are not pipeline stages — a distinct violet keeps a
      garment that came back from reading like just another workshop step. */
-  .badge-in_alteration   { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-violet-light text-violet-mid; }
-  .badge-alteration_done { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-violet-200 text-violet-deep; }
-  .badge-cancelled    { @apply inline-flex items-center shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[12px] font-semibold tracking-wide bg-danger-light text-danger-ink; }
+  .badge-in_alteration     { @apply bg-violet-light text-violet-mid; }
+  .badge-alteration_done   { @apply bg-violet-200 text-violet-deep; }
+  .badge-cancelled         { @apply bg-danger-light text-danger-ink; }
 
   .bottom-nav {
     @apply fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] sm:max-w-[600px] md:max-w-[700px] lg:max-w-[820px] z-50

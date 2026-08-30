@@ -48,7 +48,7 @@ export default function OrderPiecesCard({ order, onDeliver, onChangeDue, busyPie
               key={piece.id}
               className={cn(
                 "rounded-xl border px-3 py-2.5",
-                isDelivered ? "border-border-soft bg-surface-4" : "border-border bg-white"
+                isDelivered ? "border-border-soft bg-surface-muted" : "border-border bg-white"
               )}
             >
               <div className="flex items-center gap-2">

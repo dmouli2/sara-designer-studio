@@ -253,12 +253,12 @@ describe("EditOrderForm", () => {
 
   it("returns to the detail page from the Cancel button and the top bar back arrow", async () => {
     const user = userEvent.setup();
-    const { container } = render(<EditOrderForm order={order} />);
+    render(<EditOrderForm order={order} />);
     await user.click(screen.getByText("Cancel"));
     expect(mockRouter.push).toHaveBeenCalledWith("/admin/orders/B2401");
 
     mockRouter.push.mockClear();
-    await user.click(container.querySelector(".rounded-full")!);
+    await user.click(screen.getByLabelText("Back"));
     expect(mockRouter.push).toHaveBeenCalledWith("/admin/orders/B2401");
   });
 
