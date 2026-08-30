@@ -70,7 +70,7 @@ export default function LoginPage() {
         </div>
 
         <div className="flex-1 px-5 -mt-7 relative z-10">
-        <form action={formAction} className="bg-white rounded-3xl shadow-2xl border border-[#E5E0D5] p-6 space-y-5">
+        <form action={formAction} className="bg-white rounded-2xl shadow-2xl border border-[#E5E0D5] p-6 space-y-5">
           <div>
             <label htmlFor="username" className="text-[13px] font-medium text-[#56524A] mb-1.5 block">
               Username
@@ -114,7 +114,7 @@ export default function LoginPage() {
           </div>
 
           {state?.error && (
-            <p className="text-[13px] text-red-600 bg-red-50 rounded-lg px-3 py-2.5">{state.error}</p>
+            <p className="text-[13px] text-red-600 bg-red-50 rounded-xl px-3 py-2.5">{state.error}</p>
           )}
 
           <button

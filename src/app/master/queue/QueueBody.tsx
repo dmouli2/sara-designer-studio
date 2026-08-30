@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, Search } from "lucide-react";
+import { LogOut, Search, Scissors, CheckCheck } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import BottomNav from "@/components/layout/BottomNav";
 import PullToRefresh from "@/components/layout/PullToRefresh";
@@ -11,8 +11,8 @@ import { matchesOrderSearch } from "@/lib/utils";
 import type { Order } from "@/types";
 
 const NAV_TABS = [
-  { id: "queue", label: "Queue",     icon: "✂️" },
-  { id: "done",  label: "Completed", icon: "✓" },
+  { id: "queue", label: "Queue",     icon: <Scissors size={20} /> },
+  { id: "done",  label: "Completed", icon: <CheckCheck size={20} /> },
 ];
 
 interface Props {
@@ -62,7 +62,7 @@ export default function QueueBody({ myOrders, doneOrders }: Props) {
         {tab === "queue" ? (
           myOrders.length === 0 ? (
             <div className="text-center pt-16">
-              <p className="text-4xl mb-3">✂️</p>
+              <Scissors size={34} className="mx-auto mb-3 text-[#8E8A80]" aria-hidden="true" />
               <p className="text-sm font-medium text-[#0F0F0F]">No orders assigned yet</p>
               <p className="text-xs text-[#56524A] mt-1">Admin will assign orders to your queue</p>
             </div>

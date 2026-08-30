@@ -131,7 +131,7 @@ export default function PiecesEditor({
                   <span className="text-[13px] text-[#0F0F0F] min-w-0 flex-1 truncate">
                     {labelPrefix} {i + 1}
                   </span>
-                  <div className="flex rounded-lg border border-[#E5E0D5] overflow-hidden shrink-0">
+                  <div className="flex rounded-xl border border-[#E5E0D5] overflow-hidden shrink-0">
                     {(["customer", "shop"] as const).map((s) => (
                       <button
                         key={s}

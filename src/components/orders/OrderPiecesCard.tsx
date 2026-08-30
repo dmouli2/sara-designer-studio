@@ -92,7 +92,7 @@ export default function OrderPiecesCard({ order, onDeliver, onChangeDue, busyPie
                   </span>
                 ) : editing === piece.id && onChangeDue ? (
                   <input
-                    className="text-[12px] border border-[#E5E0D5] rounded-lg py-1.5 px-2 focus:outline-none focus:border-[#C9A84C]"
+                    className="text-[12px] border border-[#E5E0D5] rounded-xl py-1.5 px-2 focus:outline-none focus:border-[#C9A84C]"
                     type="date"
                     aria-label={`${piece.label} delivery date`}
                     defaultValue={piece.due}
@@ -111,7 +111,7 @@ export default function OrderPiecesCard({ order, onDeliver, onChangeDue, busyPie
                       overdue ? "font-semibold text-[#B04A4A]" : "text-[#56524A]"
                     )}
                   >
-                    {overdue ? "⚠ Overdue · was due" : "Due"} {formatDate(piece.due)}
+                    {overdue ? "Overdue · was due" : "Due"} {formatDate(piece.due)}
                     {onChangeDue && (
                       <button
                         type="button"
@@ -130,7 +130,7 @@ export default function OrderPiecesCard({ order, onDeliver, onChangeDue, busyPie
                     type="button"
                     disabled={busy}
                     onClick={() => onDeliver(piece)}
-                    className="shrink-0 px-3 py-1.5 rounded-lg bg-[#1B6B3A] text-white text-[12px] font-semibold active:scale-95 transition-transform disabled:opacity-40"
+                    className="shrink-0 px-3 py-1.5 rounded-xl bg-[#1B6B3A] text-white text-[12px] font-semibold active:scale-95 transition-transform disabled:opacity-40"
                   >
                     {busy ? "Saving…" : "Hand over"}
                   </button>

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, LogOut, Users, SlidersHorizontal, Search } from "lucide-react";
+import { Plus, LogOut, Users, SlidersHorizontal, Search, ClipboardList, ChartColumn, Inbox } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import BottomNav from "@/components/layout/BottomNav";
 import PullToRefresh from "@/components/layout/PullToRefresh";
@@ -64,8 +64,8 @@ const DRESS_TABS: { id: DressTab; label: string }[] = [
 ];
 
 const NAV_TABS = [
-  { id: "orders",  label: "Orders",  icon: "📋" },
-  { id: "reports", label: "Reports", icon: "📊" },
+  { id: "orders",  label: "Orders",  icon: <ClipboardList size={20} /> },
+  { id: "reports", label: "Reports", icon: <ChartColumn size={20} /> },
 ];
 
 function uniqueStaff(list: (AssignedStaff | null)[]): AssignedStaff[] {
@@ -184,7 +184,7 @@ export default function OrdersBody({ initialOrders }: { initialOrders: Order[] }
               aria-selected={dressTab === t.id}
               onClick={() => setDressTab(t.id)}
               className={cn(
-                "flex-1 py-2 rounded-lg text-[13px] font-semibold transition-all active:scale-[0.98]",
+                "flex-1 py-2 rounded-xl text-[13px] font-semibold transition-all active:scale-[0.98]",
                 dressTab === t.id
                   ? "bg-white text-[#0F0F0F] shadow-[0_1px_3px_rgba(15,15,15,0.10)]"
                   : "text-[#6B6B6B]"
@@ -240,7 +240,7 @@ export default function OrdersBody({ initialOrders }: { initialOrders: Order[] }
       <PullToRefresh>
         {filtered.length === 0 ? (
           <div className="text-center pt-16">
-            <p className="text-3xl mb-3">📋</p>
+            <Inbox size={30} className="mx-auto mb-3 text-[#8E8A80]" aria-hidden="true" />
             <p className="text-sm text-[#56524A]">
               {dressTab === "all" ? "No orders found" : `No ${dressTab} orders found`}
             </p>

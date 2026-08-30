@@ -134,7 +134,7 @@ export default function FabricManagerSheet({ open, fabrics, onChange, onClose }:
         </div>
 
         {error && (
-          <p role="alert" className="text-[13px] text-red-600 bg-red-50 rounded-lg px-3 py-2.5">
+          <p role="alert" className="text-[13px] text-red-600 bg-red-50 rounded-xl px-3 py-2.5">
             {error}
           </p>
         )}
@@ -198,7 +198,7 @@ export default function FabricManagerSheet({ open, fabrics, onChange, onClose }:
                     type="button"
                     aria-label={`Edit ${fabric.name}`}
                     onClick={() => startEdit(fabric)}
-                    className="w-9 h-9 flex items-center justify-center rounded-lg text-[#6B6B6B] active:bg-[#F0EDE6]"
+                    className="w-9 h-9 flex items-center justify-center rounded-xl text-[#6B6B6B] active:bg-[#F0EDE6]"
                   >
                     <Pencil size={16} />
                   </button>
@@ -206,7 +206,7 @@ export default function FabricManagerSheet({ open, fabrics, onChange, onClose }:
                     type="button"
                     aria-label={`Delete ${fabric.name}`}
                     onClick={() => setDeleteTarget(fabric)}
-                    className="w-9 h-9 flex items-center justify-center rounded-lg text-[#B04A4A] active:bg-[#FBECEC]"
+                    className="w-9 h-9 flex items-center justify-center rounded-xl text-[#B04A4A] active:bg-[#FBECEC]"
                   >
                     <Trash2 size={16} />
                   </button>

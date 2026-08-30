@@ -110,7 +110,7 @@ function OpenAlteration({
         </p>
         {record.reason && <p className="text-[13px] text-[#6B4FA8] mt-1">{record.reason}</p>}
         <p className={cn("text-[12px] mt-1.5", overdue ? "font-semibold text-[#B04A4A]" : "text-[#6B4FA8]/80")}>
-          {overdue ? "⚠ Was promised" : done ? "Was promised" : "Promised back"} {formatDate(record.promisedAt)}
+          {overdue ? "Was promised" : done ? "Was promised" : "Promised back"} {formatDate(record.promisedAt)}
           {" · took in "}
           {formatDate(record.receivedAt)}
         </p>

@@ -23,7 +23,7 @@ export default function BottomNav({ tabs, active, onChange }: BottomNavProps) {
           onClick={() => onChange(tab.id)}
           className={cn("nav-item active:scale-95 transition-transform", active === tab.id && "active")}
         >
-          <span className="text-[22px] leading-none">{tab.icon}</span>
+          <span className="nav-icon">{tab.icon}</span>
           <span>{tab.label}</span>
         </button>
       ))}

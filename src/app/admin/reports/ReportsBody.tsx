@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ClipboardList, ChartColumn } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import BottomNav from "@/components/layout/BottomNav";
 import ReportDateRangeFilter from "@/components/reports/ReportDateRangeFilter";
@@ -26,8 +27,8 @@ import {
 import type { Order } from "@/types";
 
 const NAV_TABS = [
-  { id: "orders", label: "Orders", icon: "📋" },
-  { id: "reports", label: "Reports", icon: "📊" },
+  { id: "orders", label: "Orders", icon: <ClipboardList size={20} /> },
+  { id: "reports", label: "Reports", icon: <ChartColumn size={20} /> },
 ];
 
 export default function ReportsBody({ orders }: { orders: Order[] }) {

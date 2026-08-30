@@ -58,7 +58,7 @@ export default function StartAlterationDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-[2px] p-4">
-      <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl">
+      <div className="w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl">
         <p className="text-[16px] font-semibold text-[#0F0F0F]">Alteration for {orderId}</p>
         <p className="text-[14px] text-[#6B6B6B] mt-2 leading-relaxed">
           The order stays delivered — this just tracks the garment while it&apos;s back with us.

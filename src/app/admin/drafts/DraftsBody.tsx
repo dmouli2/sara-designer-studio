@@ -101,7 +101,7 @@ export default function DraftsBody({ drafts: initialDrafts }: { drafts: DraftOrd
                           handleDiscard(d.id);
                         }}
                         disabled={discardingId === d.id}
-                        className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-[11px] font-semibold active:scale-95 transition-transform disabled:opacity-40"
+                        className="px-3 py-1.5 rounded-xl bg-red-600 text-white text-[11px] font-semibold active:scale-95 transition-transform disabled:opacity-40"
                       >
                         {discardingId === d.id ? "Discarding…" : "Discard"}
                       </button>
@@ -112,7 +112,7 @@ export default function DraftsBody({ drafts: initialDrafts }: { drafts: DraftOrd
                           setConfirmingId(null);
                         }}
                         disabled={discardingId === d.id}
-                        className="px-3 py-1.5 rounded-lg border border-[#E5E0D5] bg-white text-[11px] font-medium text-[#6B6B6B] active:scale-95 transition-transform"
+                        className="px-3 py-1.5 rounded-xl border border-[#E5E0D5] bg-white text-[11px] font-medium text-[#6B6B6B] active:scale-95 transition-transform"
                       >
                         Keep
                       </button>
@@ -125,7 +125,7 @@ export default function DraftsBody({ drafts: initialDrafts }: { drafts: DraftOrd
                         e.stopPropagation();
                         setConfirmingId(d.id);
                       }}
-                      className="p-1.5 rounded-lg text-red-600 active:scale-90 transition-transform"
+                      className="p-1.5 rounded-xl text-red-600 active:scale-90 transition-transform"
                     >
                       <Trash2 size={16} />
                     </button>

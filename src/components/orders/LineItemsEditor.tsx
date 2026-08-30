@@ -65,7 +65,7 @@ export default function LineItemsEditor({ items, presetCount, onChange }: Props)
           >
             {custom ? (
               <input
-                className="w-full min-w-0 text-xs border border-[#E5E0D5] rounded-lg py-1.5 px-2 focus:outline-none focus:border-[#C9A84C] placeholder:text-[#C4C0B6]"
+                className="w-full min-w-0 text-xs border border-[#E5E0D5] rounded-xl py-1.5 px-2 focus:outline-none focus:border-[#C9A84C] placeholder:text-[#C4C0B6]"
                 placeholder="Item name"
                 aria-label={`Item ${i + 1} name`}
                 value={li.particulars}
@@ -75,7 +75,7 @@ export default function LineItemsEditor({ items, presetCount, onChange }: Props)
               <span className="text-xs text-[#0F0F0F]">{li.particulars}</span>
             )}
             <input
-              className="w-full text-center text-sm border border-[#E5E0D5] rounded-lg py-1.5 focus:outline-none focus:border-[#C9A84C]"
+              className="w-full text-center text-sm border border-[#E5E0D5] rounded-xl py-1.5 focus:outline-none focus:border-[#C9A84C]"
               type="number"
               min="0"
               value={li.qty || ""}
@@ -84,7 +84,7 @@ export default function LineItemsEditor({ items, presetCount, onChange }: Props)
               onChange={(e) => patch(i, { qty: parseInt(e.target.value) || 0 })}
             />
             <input
-              className="w-full text-center text-sm border border-[#E5E0D5] rounded-lg py-1.5 focus:outline-none focus:border-[#C9A84C]"
+              className="w-full text-center text-sm border border-[#E5E0D5] rounded-xl py-1.5 focus:outline-none focus:border-[#C9A84C]"
               type="number"
               min="0"
               value={li.amount || ""}
@@ -93,7 +93,7 @@ export default function LineItemsEditor({ items, presetCount, onChange }: Props)
               onChange={(e) => patch(i, { amount: parseFloat(e.target.value) || 0 })}
             />
             <input
-              className="w-full min-w-0 text-[13px] border border-[#E5E0D5] rounded-lg py-1.5 px-2 focus:outline-none focus:border-[#C9A84C] placeholder:text-[#C4C0B6]"
+              className="w-full min-w-0 text-[13px] border border-[#E5E0D5] rounded-xl py-1.5 px-2 focus:outline-none focus:border-[#C9A84C] placeholder:text-[#C4C0B6]"
               placeholder="(…)"
               aria-label={`${name} comments`}
               value={li.note ?? ""}

@@ -29,7 +29,7 @@ export default function CancelOrderDialog({ open, orderId, pending, onConfirm, o
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-[2px] p-4">
-      <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl">
+      <div className="w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl">
         <p className="text-[16px] font-semibold text-[#0F0F0F]">Cancel order {orderId}?</p>
         <p className="text-[14px] text-[#6B6B6B] mt-2 leading-relaxed">
           Enter the cancellation charge to collect from the customer. The order&apos;s original amount will be

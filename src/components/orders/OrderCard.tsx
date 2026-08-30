@@ -1,3 +1,4 @@
+import { Scissors, Shirt, Spool } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   deliveredPieceCount,
@@ -24,7 +25,7 @@ interface OrderCardProps {
 //   │ 64 │  Shanmuga Priya                 ← customer, own line, truncated
 //   │ px │  Blouse · Customer fabric       ← dress + material, truncated
 //   └────┘
-//   👗 0/3 delivered  ✂ Kasim              ← only what exists; omitted entirely
+//   [icon] 0 of 3 handed over   [icon] Kasim  ← only what exists; omitted
 //   ─────────────────────────────────        when there is nothing to say
 //   Due 30 Aug 2026            ₹4,400 / Bal
 //
@@ -124,18 +125,23 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
       {showChips && (
         <div className="flex items-center gap-1.5 flex-wrap mt-3">
           {multiPiece && (
-            <span className="text-[11px] font-semibold px-2 py-1 rounded-md bg-[#FBF6E8] text-[#7A6020] tabular-nums">
-              👗 {deliveredPieceCount(order)}/{order.pieces.length} delivered
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md bg-[#FBF6E8] text-[#5A4715]">
+              <Shirt size={12} className="shrink-0" aria-hidden="true" />
+              <span className="tabular-nums">
+                {deliveredPieceCount(order)} of {order.pieces.length} handed over
+              </span>
             </span>
           )}
           {order.master && (
-            <span className="text-[11px] font-medium px-2 py-1 rounded-md max-w-full truncate bg-[#F0EDE6] text-[#6B6B6B]">
-              ✂️ {order.master.name}
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md max-w-full min-w-0 bg-[#F0EDE6] text-[#57534B]">
+              <Scissors size={12} className="shrink-0" aria-hidden="true" />
+              <span className="truncate">{order.master.name}</span>
             </span>
           )}
           {order.tailor && (
-            <span className="text-[11px] font-medium px-2 py-1 rounded-md max-w-full truncate bg-[#F0EDE6] text-[#6B6B6B]">
-              🧵 {order.tailor.name}
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md max-w-full min-w-0 bg-[#F0EDE6] text-[#57534B]">
+              <Spool size={12} className="shrink-0" aria-hidden="true" />
+              <span className="truncate">{order.tailor.name}</span>
             </span>
           )}
         </div>
@@ -144,7 +150,7 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
       <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-[#F0EDE6]">
         {overdue ? (
           <span className="text-[12px] font-semibold text-[#B04A4A] min-w-0 truncate">
-            ⚠ Overdue · was due {formatDate(due)}
+            Overdue · was due {formatDate(due)}
           </span>
         ) : (
           <span className="text-[12px] text-[#56524A] min-w-0 truncate">Due {formatDate(due)}</span>

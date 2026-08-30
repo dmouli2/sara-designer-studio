@@ -37,7 +37,7 @@ function ToolButton({
       aria-label={label}
       aria-pressed={active}
       className={cn(
-        "w-9 h-9 rounded-lg flex items-center justify-center transition-all active:scale-90 disabled:opacity-30 disabled:active:scale-100",
+        "w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 disabled:opacity-30 disabled:active:scale-100",
         active
           ? "bg-[#C9A84C] text-[#0F0F0F]"
           : dark

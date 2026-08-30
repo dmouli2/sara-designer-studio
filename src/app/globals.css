@@ -178,12 +178,19 @@
            flex bg-white border-t border-[#E5E0D5]
            shadow-[0_-4px_20px_rgba(15,15,15,0.06)];
   }
-  .nav-item       { @apply flex-1 flex flex-col items-center justify-center py-3 gap-1 text-[11px] text-[#6E6A61] font-medium transition-all; }
+  .nav-item       { @apply flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-[11px] text-[#6E6A61] font-medium transition-all; }
+
   /* The selected tab used to be the hardest label on the bar to read:
      #C9A84C on white is 2.29:1, *worse* than the #9A9A9A beside it, so
-     selection was signalled by degrading the text. Readable gold plus the
-     weight bump carries it now. */
+     selection was signalled by degrading the text.
+
+     Gold moves to a fill behind the icon and stops being a text colour:
+     the ink glyph on it is 8.4:1 and the label under it 7.1:1, and the
+     pill gives the tab a real target instead of a bare text run. The
+     stacked icon-over-label shape is unchanged. */
+  .nav-icon        { @apply flex items-center justify-center w-14 h-7 rounded-full transition-colors; }
   .nav-item.active { @apply text-[#6E5518] font-semibold; }
+  .nav-item.active .nav-icon { @apply bg-[#C9A84C] text-[#0F0F0F]; }
 
   .divider        { @apply h-px bg-[#F0EDE6] my-4; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
