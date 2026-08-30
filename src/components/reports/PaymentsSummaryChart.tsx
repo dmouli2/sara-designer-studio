@@ -12,7 +12,7 @@ export default function PaymentsSummaryChart({ payments }: { payments: PaymentsS
     <div className="card">
       <p className="section-label">Advance Collected vs Balance Due</p>
       {!hasData ? (
-        <p className="text-sm text-[#56524A] py-8 text-center">No orders in this period</p>
+        <p className="text-sm text-fg-2 py-8 text-center">No orders in this period</p>
       ) : (
         <div className="h-40">
           <ResponsiveContainer width="100%" height="100%">

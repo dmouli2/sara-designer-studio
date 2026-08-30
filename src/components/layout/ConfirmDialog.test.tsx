@@ -50,7 +50,7 @@ describe("ConfirmDialog", () => {
 
   it("applies destructive styling when destructive is true", () => {
     render(<ConfirmDialog open destructive title="Delete order" message="Sure?" onConfirm={vi.fn()} onCancel={vi.fn()} />);
-    expect(screen.getByText("Confirm")).toHaveClass("bg-[#B04A4A]");
+    expect(screen.getByText("Confirm")).toHaveClass("bg-danger");
   });
 
   it("disables both buttons and shows a pending label while pending", () => {

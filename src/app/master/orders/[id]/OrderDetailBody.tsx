@@ -49,15 +49,15 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
         {/* Status */}
         <div className="flex items-center gap-3">
           <StatusBadge status={order.status} />
-          <span className="text-[13px] text-[#56524A]">Due {formatDate(order.due)}</span>
+          <span className="text-[13px] text-fg-2">Due {formatDate(order.due)}</span>
         </div>
 
         {/* Dress & material */}
         <div className="card-gold">
-          <p className="text-[16px] font-semibold text-[#7A6020]">{order.dress}</p>
-          <p className="text-[14px] text-[#6E5518] mt-0.5">{order.material}</p>
+          <p className="text-[16px] font-semibold text-gold-800">{order.dress}</p>
+          <p className="text-[14px] text-accent-ink mt-0.5">{order.material}</p>
           {order.notes && (
-            <p className="text-[13px] text-[#6E5518] mt-2 italic">&quot;{order.notes}&quot;</p>
+            <p className="text-[13px] text-accent-ink mt-2 italic">&quot;{order.notes}&quot;</p>
           )}
         </div>
 
@@ -81,7 +81,7 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
         {order.sketchDataUrl && (
           <div>
             <p className="section-label">Garment sketch</p>
-            <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden bg-white">
+            <div className="rounded-2xl border border-border overflow-hidden bg-white">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={order.sketchDataUrl} alt="Sketch" className="w-full" loading="lazy" />
             </div>
@@ -96,15 +96,15 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
 
         {/* Action */}
         {isCancelled ? (
-          <div className="rounded-2xl border border-[#F0D5D5] bg-[#FBECEC] text-center py-6">
+          <div className="rounded-2xl border border-danger-border bg-danger-light text-center py-6">
             <p className="text-3xl mb-1.5">🚫</p>
-            <p className="text-[16px] font-semibold text-[#B04A4A]">Order cancelled</p>
+            <p className="text-[16px] font-semibold text-danger">Order cancelled</p>
           </div>
         ) : alreadyDone || confirmed ? (
           <div className="card-gold text-center py-6">
-            <Scissors size={26} className="mx-auto mb-1.5 text-[#6E5518]" aria-hidden="true" />
-            <p className="text-[16px] font-semibold text-[#7A6020]">Cutting marked done</p>
-            <p className="text-[13px] text-[#6E5518] mt-1">Admin will assign a tailor next</p>
+            <Scissors size={26} className="mx-auto mb-1.5 text-accent-ink" aria-hidden="true" />
+            <p className="text-[16px] font-semibold text-gold-800">Cutting marked done</p>
+            <p className="text-[13px] text-accent-ink mt-1">Admin will assign a tailor next</p>
           </div>
         ) : (
           <button onClick={handleMarkDone} disabled={marking} className="btn-gold disabled:opacity-40">

@@ -55,11 +55,11 @@ export default function PiecesEditor({
   const noun = labelPrefix.toLowerCase();
 
   return (
-    <div className="rounded-2xl border border-[#E5E0D5] bg-white overflow-hidden">
+    <div className="rounded-2xl border border-border bg-white overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3">
         <div className="min-w-0">
-          <p className="text-[14px] font-medium text-[#0F0F0F]">How many {noun}s?</p>
-          <p className="text-[12px] text-[#56524A] mt-0.5">
+          <p className="text-[14px] font-medium text-fg">How many {noun}s?</p>
+          <p className="text-[12px] text-fg-2 mt-0.5">
             {safeCount === 1
               ? "One garment, delivered in one go."
               : "Same measurements. Each one tracked as it's collected."}
@@ -71,7 +71,7 @@ export default function PiecesEditor({
             aria-label="One less piece"
             disabled={safeCount <= floor}
             onClick={() => onChange(safeCount - 1)}
-            className="w-9 h-9 rounded-full border border-[#E5E0D5] flex items-center justify-center text-[#0F0F0F] active:scale-90 transition-transform disabled:opacity-30"
+            className="w-9 h-9 rounded-full border border-border flex items-center justify-center text-fg active:scale-90 transition-transform disabled:opacity-30"
           >
             <Minus size={16} />
           </button>
@@ -83,7 +83,7 @@ export default function PiecesEditor({
             aria-label="One more piece"
             disabled={safeCount >= MAX_ORDER_PIECES}
             onClick={() => onChange(safeCount + 1)}
-            className="w-9 h-9 rounded-full border border-[#E5E0D5] flex items-center justify-center text-[#0F0F0F] active:scale-90 transition-transform disabled:opacity-30"
+            className="w-9 h-9 rounded-full border border-border flex items-center justify-center text-fg active:scale-90 transition-transform disabled:opacity-30"
           >
             <Plus size={16} />
           </button>
@@ -91,47 +91,47 @@ export default function PiecesEditor({
       </div>
 
       {minCountReason && safeCount <= floor && (
-        <p className="px-4 pb-3 -mt-1 text-[12px] text-[#56524A]">{minCountReason}</p>
+        <p className="px-4 pb-3 -mt-1 text-[12px] text-fg-2">{minCountReason}</p>
       )}
 
       {safeCount > 1 && (
         <>
           {/* Opt-out, not opt-in: a mixed order is the rare one, so the
               default keeps this section to a single line. */}
-          <label className="flex items-start gap-2.5 px-4 py-3 border-t border-[#F0EDE6] cursor-pointer">
+          <label className="flex items-start gap-2.5 px-4 py-3 border-t border-border-soft cursor-pointer">
             <input
               type="checkbox"
-              className="mt-0.5 w-4 h-4 shrink-0 accent-[#C9A84C]"
+              className="mt-0.5 w-4 h-4 shrink-0 accent-gold"
               checked={uniform}
               onChange={(e) => onUniformChange(e.target.checked)}
             />
             <span className="min-w-0">
-              <span className="block text-[13px] text-[#0F0F0F]">
+              <span className="block text-[13px] text-fg">
                 All {safeCount} use the same material ({SOURCE_LABEL[orderSource].toLowerCase()})
               </span>
-              <span className="block text-[12px] text-[#56524A] mt-0.5">
+              <span className="block text-[12px] text-fg-2 mt-0.5">
                 Untick if the customer brought cloth for some and is buying the rest.
               </span>
             </span>
           </label>
 
           {!uniform && (
-            <div className="border-t border-[#F0EDE6]">
+            <div className="border-t border-border-soft">
               {Array.from({ length: safeCount }, (_, i) => (
                 <div
                   key={i}
                   className={cn(
                     "flex items-center gap-2 px-3 py-2",
-                    i > 0 && "border-t border-[#F5F3EF]"
+                    i > 0 && "border-t border-border-faint"
                   )}
                 >
-                  <span className="w-6 h-6 shrink-0 rounded-full bg-[#FBF6E8] text-[#7A6020] text-[11px] font-bold flex items-center justify-center tabular-nums">
+                  <span className="w-6 h-6 shrink-0 rounded-full bg-gold-50 text-gold-800 text-[11px] font-bold flex items-center justify-center tabular-nums">
                     {i + 1}
                   </span>
-                  <span className="text-[13px] text-[#0F0F0F] min-w-0 flex-1 truncate">
+                  <span className="text-[13px] text-fg min-w-0 flex-1 truncate">
                     {labelPrefix} {i + 1}
                   </span>
-                  <div className="flex rounded-xl border border-[#E5E0D5] overflow-hidden shrink-0">
+                  <div className="flex rounded-xl border border-border overflow-hidden shrink-0">
                     {(["customer", "shop"] as const).map((s) => (
                       <button
                         key={s}
@@ -142,8 +142,8 @@ export default function PiecesEditor({
                         className={cn(
                           "px-2.5 py-1.5 text-[12px] font-medium transition-all",
                           (sources[i] ?? orderSource) === s
-                            ? "bg-[#0F0F0F] text-white"
-                            : "bg-white text-[#6B6B6B]"
+                            ? "bg-selected text-white"
+                            : "bg-white text-fg-3"
                         )}
                       >
                         {s === "shop" ? "Shop" : "Customer"}
@@ -155,7 +155,7 @@ export default function PiecesEditor({
             </div>
           )}
 
-          <p className="px-4 py-2.5 text-[12px] text-[#7A6020] bg-[#FBF6E8] border-t border-[#EDD98A]">
+          <p className="px-4 py-2.5 text-[12px] text-gold-800 bg-gold-50 border-t border-gold-200">
             {labelPrefix} 1–{safeCount} share this order&apos;s delivery date. Any one of them can
             be handed over on its own day, and the order page keeps the count.
           </p>

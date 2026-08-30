@@ -8,7 +8,7 @@ export default function RevenueTrendChart({ points }: { points: RevenuePoint[] }
     <div className="card">
       <p className="section-label">Revenue Trend</p>
       {points.length === 0 ? (
-        <p className="text-sm text-[#56524A] py-8 text-center">No orders in this period</p>
+        <p className="text-sm text-fg-2 py-8 text-center">No orders in this period</p>
       ) : (
         <div className="h-56">
           <ResponsiveContainer width="100%" height="100%">

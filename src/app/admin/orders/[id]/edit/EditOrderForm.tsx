@@ -304,13 +304,13 @@ export default function EditOrderForm({ order }: { order: Order }) {
         <div>
           <p className="section-label">Garment sketch</p>
           {keepingStoredSketch ? (
-            <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden bg-white">
+            <div className="rounded-2xl border border-border overflow-hidden bg-white">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={sketch!} alt="Current sketch" className="w-full" />
               <button
                 type="button"
                 onClick={() => setSketch(null)}
-                className="w-full flex items-center justify-center gap-2 py-3 text-[13px] font-medium text-[#B04A4A] border-t border-[#F0EDE6] active:bg-[#FBECEC] transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-3 text-[13px] font-medium text-danger border-t border-border-soft active:bg-danger-light transition-colors"
               >
                 <Trash2 size={16} />
                 Remove sketch & redraw
@@ -339,19 +339,19 @@ export default function EditOrderForm({ order }: { order: Order }) {
           <p className="section-label">Payment</p>
           <div className="space-y-3">
             <div>
-              <label className="text-xs text-[#56524A] mb-1 block">Order total (₹)</label>
+              <label className="text-xs text-fg-2 mb-1 block">Order total (₹)</label>
               <input
                 className="input"
                 type="number"
                 value={totalOverride ?? String(computedTotal)}
                 onChange={(e) => setTotalOverride(e.target.value)}
               />
-              <p className="text-xs text-[#56524A] mt-1">
+              <p className="text-xs text-fg-2 mt-1">
                 Follows item changes automatically — adjust here if the fabric cost changed too.
               </p>
             </div>
             <div>
-              <label className="text-xs text-[#56524A] mb-1 block">Advance collected (₹)</label>
+              <label className="text-xs text-fg-2 mb-1 block">Advance collected (₹)</label>
               <input className="input" type="number" value={advance} onChange={(e) => setAdvance(e.target.value)} />
               {parseFloat(advance || "0") > 0 && (
                 <div className="mt-2">
@@ -365,7 +365,7 @@ export default function EditOrderForm({ order }: { order: Order }) {
               )}
             </div>
             <div>
-              <label className="text-xs text-[#56524A] mb-1 block">Delivery date *</label>
+              <label className="text-xs text-fg-2 mb-1 block">Delivery date *</label>
               <input className="input" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
             </div>
           </div>
@@ -394,15 +394,15 @@ export default function EditOrderForm({ order }: { order: Order }) {
         )}
 
         <div className="card-gold">
-          <div className="flex justify-between text-sm font-bold text-[#0F0F0F]">
+          <div className="flex justify-between text-sm font-bold text-fg">
             <span>Total</span>
             <span>{formatCurrency(Number.isFinite(total) ? total : 0)}</span>
           </div>
-          <div className="flex justify-between text-xs text-[#6B6B6B] mt-1">
+          <div className="flex justify-between text-xs text-fg-3 mt-1">
             <span>Advance</span>
             <span>{formatCurrency(parseFloat(advance || "0") || 0)}</span>
           </div>
-          <div className="flex justify-between text-xs font-semibold text-[#6E5518] mt-0.5">
+          <div className="flex justify-between text-xs font-semibold text-accent-ink mt-0.5">
             <span>Balance due</span>
             <span>{formatCurrency(balance > 0 ? balance : 0)}</span>
           </div>

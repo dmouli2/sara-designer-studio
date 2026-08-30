@@ -76,15 +76,15 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
       className={cn(
         "card mb-3.5 block w-full text-left transition-all",
         onClick &&
-          "cursor-pointer active:scale-[0.98] active:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C] focus-visible:ring-offset-2",
-        isNew && "border-l-4 border-l-[#C9A84C]",
-        overdue && "border-l-4 border-l-[#B04A4A]",
+          "cursor-pointer active:scale-[0.98] active:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2",
+        isNew && "border-l-4 border-l-gold",
+        overdue && "border-l-4 border-l-danger",
         className
       )}
     >
       <div className="flex gap-3 items-start">
         {order.mainMaterialImageUrl && (
-          <div className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-xl overflow-hidden border border-[#E5E0D5] shrink-0 bg-[#F0EDE6]">
+          <div className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-xl overflow-hidden border border-border shrink-0 bg-surface-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={order.mainMaterialImageUrl}
@@ -101,20 +101,20 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
             <span className="flex items-center gap-1.5 min-w-0">
               {isNew && (
                 <span className="relative flex h-2 w-2 shrink-0" aria-hidden="true">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#C9A84C] opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[#C9A84C]" />
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-gold" />
                 </span>
               )}
-              <span className="text-[15px] font-semibold text-[#0F0F0F] tabular-nums tracking-tight truncate">
+              <span className="text-[15px] font-semibold text-fg tabular-nums tracking-tight truncate">
                 {order.id}
               </span>
             </span>
             <StatusBadge status={order.status} alterations={order.alterations} />
           </div>
 
-          <p className="text-[15px] font-medium text-[#0F0F0F] truncate mt-0.5">{order.customer}</p>
+          <p className="text-[15px] font-medium text-fg truncate mt-0.5">{order.customer}</p>
 
-          <p className="text-[13px] text-[#6B6B6B] truncate mt-0.5">
+          <p className="text-[13px] text-fg-3 truncate mt-0.5">
             {order.dress} · {order.material}
           </p>
         </div>
@@ -125,7 +125,7 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
       {showChips && (
         <div className="flex items-center gap-1.5 flex-wrap mt-3">
           {multiPiece && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md bg-[#FBF6E8] text-[#5A4715]">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md bg-gold-50 text-gold-900">
               <Shirt size={12} className="shrink-0" aria-hidden="true" />
               <span className="tabular-nums">
                 {deliveredPieceCount(order)} of {order.pieces.length} handed over
@@ -133,13 +133,13 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
             </span>
           )}
           {order.master && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md max-w-full min-w-0 bg-[#F0EDE6] text-[#57534B]">
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md max-w-full min-w-0 bg-surface-2 text-fg-chip">
               <Scissors size={12} className="shrink-0" aria-hidden="true" />
               <span className="truncate">{order.master.name}</span>
             </span>
           )}
           {order.tailor && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md max-w-full min-w-0 bg-[#F0EDE6] text-[#57534B]">
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md max-w-full min-w-0 bg-surface-2 text-fg-chip">
               <Spool size={12} className="shrink-0" aria-hidden="true" />
               <span className="truncate">{order.tailor.name}</span>
             </span>
@@ -147,30 +147,30 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-[#F0EDE6]">
+      <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-border-soft">
         {overdue ? (
-          <span className="text-[12px] font-semibold text-[#B04A4A] min-w-0 truncate">
+          <span className="text-[12px] font-semibold text-danger min-w-0 truncate">
             Overdue · was due {formatDate(due)}
           </span>
         ) : (
-          <span className="text-[12px] text-[#56524A] min-w-0 truncate">Due {formatDate(due)}</span>
+          <span className="text-[12px] text-fg-2 min-w-0 truncate">Due {formatDate(due)}</span>
         )}
         {showPrice && (
           <div className="text-right shrink-0">
             {isCancelled ? (
               <>
-                <p className="text-[13px] text-[#56524A] line-through">{formatCurrency(order.amount)}</p>
-                <p className="text-[13px] font-semibold text-[#B04A4A]">
+                <p className="text-[13px] text-fg-2 line-through">{formatCurrency(order.amount)}</p>
+                <p className="text-[13px] font-semibold text-danger">
                   {formatCurrency(order.cancellationCharge ?? 0)}
                 </p>
               </>
             ) : (
               <>
-                <p className="text-[15px] font-semibold text-[#0F0F0F] tabular-nums leading-none">
+                <p className="text-[15px] font-semibold text-fg tabular-nums leading-none">
                   {formatCurrency(order.amount)}
                 </p>
                 {balance > 0 && (
-                  <p className="text-[11px] text-[#6E5518] font-medium tabular-nums mt-1">
+                  <p className="text-[11px] text-accent-ink font-medium tabular-nums mt-1">
                     Bal {formatCurrency(balance)}
                   </p>
                 )}

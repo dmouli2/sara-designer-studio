@@ -18,9 +18,9 @@ export default function ImageGallery({ images, altPrefix, emptyIcon, emptyText }
 
   if (images.length === 0) {
     return (
-      <div className="border-2 border-dashed border-[#E5E0D5] rounded-2xl p-8 text-center bg-white">
-        <div className="flex justify-center mb-2 text-[#8E8A80]">{emptyIcon}</div>
-        <p className="text-sm text-[#56524A]">{emptyText}</p>
+      <div className="border-2 border-dashed border-border rounded-2xl p-8 text-center bg-white">
+        <div className="flex justify-center mb-2 text-fg-faint">{emptyIcon}</div>
+        <p className="text-sm text-fg-2">{emptyText}</p>
       </div>
     );
   }
@@ -33,7 +33,7 @@ export default function ImageGallery({ images, altPrefix, emptyIcon, emptyText }
             key={i}
             type="button"
             onClick={() => setOpenIndex(i)}
-            className="aspect-square rounded-xl overflow-hidden border border-[#E5E0D5]"
+            className="aspect-square rounded-xl overflow-hidden border border-border"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={src} alt={`${altPrefix} ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />

@@ -20,21 +20,21 @@ export default function NewStaffForm() {
   return (
     <form action={formAction} className="space-y-3">
       <div>
-        <label htmlFor="name" className="text-xs text-[#56524A] mb-1 block">
+        <label htmlFor="name" className="text-xs text-fg-2 mb-1 block">
           Full name
         </label>
         <input id="name" name="name" className="input" />
       </div>
 
       <div>
-        <label htmlFor="username" className="text-xs text-[#56524A] mb-1 block">
+        <label htmlFor="username" className="text-xs text-fg-2 mb-1 block">
           Username
         </label>
         <input id="username" name="username" className="input" autoComplete="username" />
       </div>
 
       <div>
-        <label htmlFor="password" className="text-xs text-[#56524A] mb-1 block">
+        <label htmlFor="password" className="text-xs text-fg-2 mb-1 block">
           Password
         </label>
         <div className="relative">
@@ -49,7 +49,7 @@ export default function NewStaffForm() {
             type="button"
             onClick={() => setShowPassword((v) => !v)}
             aria-label={showPassword ? "Hide password" : "Show password"}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#56524A] active:text-[#0F0F0F]"
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-fg-2 active:text-fg"
           >
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
@@ -57,7 +57,7 @@ export default function NewStaffForm() {
       </div>
 
       <div>
-        <label htmlFor="role" className="text-xs text-[#56524A] mb-1 block">
+        <label htmlFor="role" className="text-xs text-fg-2 mb-1 block">
           Role
         </label>
         <select id="role" name="role" className="input" defaultValue="tailor">

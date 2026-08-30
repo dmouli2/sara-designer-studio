@@ -31,7 +31,7 @@ export default function LoginPage() {
         <div
           aria-hidden="true"
           className={cn(
-            "fixed inset-0 z-50 flex items-center justify-center bg-[#0F0F0F] transition-opacity duration-500",
+            "fixed inset-0 z-50 flex items-center justify-center bg-header transition-opacity duration-500",
             splashLeaving ? "opacity-0 pointer-events-none" : "opacity-100"
           )}
         >
@@ -56,9 +56,9 @@ export default function LoginPage() {
         )}
       >
         {/* Hero */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-[#0F0F0F] via-[#1C1C1E] to-[#0F0F0F] px-6 pt-16 pb-14 text-white flex flex-col items-center text-center">
-          <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-[#C9A84C]/10 blur-3xl" />
-          <div className="absolute -bottom-16 -left-10 w-48 h-48 rounded-full bg-[#C9A84C]/10 blur-3xl" />
+        <div className="relative overflow-hidden bg-gradient-to-br from-header via-ink-soft to-header px-6 pt-16 pb-14 text-white flex flex-col items-center text-center">
+          <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-gold/10 blur-3xl" />
+          <div className="absolute -bottom-16 -left-10 w-48 h-48 rounded-full bg-gold/10 blur-3xl" />
           <Image
             src="/logo-white.png"
             alt="Sara Designer Studio"
@@ -66,17 +66,17 @@ export default function LoginPage() {
             height={135}
             className="mb-4 relative"
           />
-          <p className="text-[#9A9A9A] text-[15px] relative">Sign in to manage orders</p>
+          <p className="text-fg-on-dark text-[15px] relative">Sign in to manage orders</p>
         </div>
 
         <div className="flex-1 px-5 -mt-7 relative z-10">
-        <form action={formAction} className="bg-white rounded-2xl shadow-2xl border border-[#E5E0D5] p-6 space-y-5">
+        <form action={formAction} className="bg-white rounded-2xl shadow-2xl border border-border p-6 space-y-5">
           <div>
-            <label htmlFor="username" className="text-[13px] font-medium text-[#56524A] mb-1.5 block">
+            <label htmlFor="username" className="text-[13px] font-medium text-fg-2 mb-1.5 block">
               Username
             </label>
             <div className="relative">
-              <User size={19} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6E5518]" />
+              <User size={19} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-accent-ink" />
               <input
                 id="username"
                 name="username"
@@ -89,11 +89,11 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="text-[13px] font-medium text-[#56524A] mb-1.5 block">
+            <label htmlFor="password" className="text-[13px] font-medium text-fg-2 mb-1.5 block">
               Password
             </label>
             <div className="relative">
-              <Lock size={19} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6E5518]" />
+              <Lock size={19} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-accent-ink" />
               <input
                 id="password"
                 name="password"
@@ -106,7 +106,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#56524A] active:text-[#0F0F0F]"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-fg-2 active:text-fg"
               >
                 {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
               </button>
@@ -133,7 +133,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-[12px] text-[#56524A] mt-6">
+        <p className="text-center text-[12px] text-fg-2 mt-6">
           Sara Designer Studio · Boutique order management
         </p>
         </div>

@@ -25,7 +25,7 @@ export default function Toast({ message, onDismiss }: ToastProps) {
     <div
       role="alert"
       onClick={onDismiss}
-      className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-[400px] bg-[#B04A4A] text-white text-[13px] font-medium px-4 py-3 rounded-xl shadow-lg text-center cursor-pointer"
+      className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-[400px] bg-danger text-white text-[13px] font-medium px-4 py-3 rounded-xl shadow-lg text-center cursor-pointer"
     >
       {message}
     </div>

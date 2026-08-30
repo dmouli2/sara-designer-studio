@@ -14,10 +14,10 @@ export default function ProgressTracker({ status }: { status: OrderStatus }) {
   if (status === "cancelled") {
     return (
       <div className="flex items-center gap-2 py-1">
-        <span className="w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-bold bg-[#FBECEC] text-[#B04A4A]">
+        <span className="w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-bold bg-danger-light text-danger">
           ✕
         </span>
-        <span className="text-[13px] font-medium text-[#B04A4A]">Order cancelled</span>
+        <span className="text-[13px] font-medium text-danger">Order cancelled</span>
       </div>
     );
   }
@@ -46,9 +46,9 @@ export default function ProgressTracker({ status }: { status: OrderStatus }) {
               <div
                 className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-bold transition-all",
-                  done    && "bg-[#C9A84C] text-[#0F0F0F] shadow-[0_2px_8px_-1px_rgba(201,168,76,0.5)]",
-                  active  && "bg-[#0F0F0F] text-white ring-[5px] ring-[#C9A84C]/30",
-                  !done && !active && "bg-[#E5E0D5] text-[#56524A]"
+                  done    && "bg-gold text-fg shadow-[0_2px_8px_-1px_rgba(201,168,76,0.5)]",
+                  active  && "bg-selected text-white ring-[5px] ring-gold/30",
+                  !done && !active && "bg-border text-fg-2"
                 )}
               >
                 {done ? "✓" : i + 1}
@@ -56,7 +56,7 @@ export default function ProgressTracker({ status }: { status: OrderStatus }) {
               <span
                 className={cn(
                   "text-[10px] mt-2 whitespace-nowrap font-medium",
-                  active ? "text-[#0F0F0F]" : done ? "text-[#6E5518]" : "text-[#56524A]"
+                  active ? "text-fg" : done ? "text-accent-ink" : "text-fg-2"
                 )}
               >
                 {step.label}
@@ -66,7 +66,7 @@ export default function ProgressTracker({ status }: { status: OrderStatus }) {
               <div
                 className={cn(
                   "h-[3px] flex-1 mb-4.5 mx-1 rounded-full transition-all",
-                  i < currentStep ? "bg-[#C9A84C]" : "bg-[#E5E0D5]"
+                  i < currentStep ? "bg-gold" : "bg-border"
                 )}
               />
             )}

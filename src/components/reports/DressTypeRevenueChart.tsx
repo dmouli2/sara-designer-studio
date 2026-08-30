@@ -8,7 +8,7 @@ export default function DressTypeRevenueChart({ dresses }: { dresses: DressReven
     <div className="card">
       <p className="section-label">Revenue by Dress Type</p>
       {dresses.length === 0 ? (
-        <p className="text-sm text-[#56524A] py-8 text-center">No orders in this period</p>
+        <p className="text-sm text-fg-2 py-8 text-center">No orders in this period</p>
       ) : (
         <div style={{ height: Math.max(dresses.length * 44, 120) }}>
           <ResponsiveContainer width="100%" height="100%">

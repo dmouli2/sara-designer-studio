@@ -27,8 +27,8 @@ export default function ReportDateRangeFilter({ value, onChange }: Props) {
             className={cn(
               "flex-none px-4 py-2 rounded-full text-[13px] font-medium active:scale-95 transition-all",
               value.preset === p.id
-                ? "bg-[#0F0F0F] text-white shadow-[0_2px_8px_-1px_rgba(15,15,15,0.3)]"
-                : "bg-white border border-[#E5E0D5] text-[#6B6B6B]"
+                ? "bg-selected text-white shadow-[0_2px_8px_-1px_rgba(15,15,15,0.3)]"
+                : "bg-white border border-border text-fg-3"
             )}
           >
             {p.label}
@@ -42,7 +42,7 @@ export default function ReportDateRangeFilter({ value, onChange }: Props) {
       {value.preset === "custom" && (
         <div className="flex gap-2 mt-2">
           <label className="flex-1 min-w-0 block">
-            <span className="text-[11px] text-[#56524A] mb-1 block">From</span>
+            <span className="text-[11px] text-fg-2 mb-1 block">From</span>
             <input
               type="date"
               aria-label="Custom range from"
@@ -52,7 +52,7 @@ export default function ReportDateRangeFilter({ value, onChange }: Props) {
             />
           </label>
           <label className="flex-1 min-w-0 block">
-            <span className="text-[11px] text-[#56524A] mb-1 block">To</span>
+            <span className="text-[11px] text-fg-2 mb-1 block">To</span>
             <input
               type="date"
               aria-label="Custom range to"

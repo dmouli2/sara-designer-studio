@@ -3,7 +3,7 @@ import Skeleton from "@/components/layout/Skeleton";
 export default function OrderDetailLoader() {
   return (
     <div role="status" aria-label="Loading" className="screen">
-      <div className="bg-[#0F0F0F] px-4 pt-12 pb-5 flex items-center gap-3">
+      <div className="bg-header px-4 pt-12 pb-5 flex items-center gap-3">
         <Skeleton className="h-8 w-8 rounded-full bg-white/15" />
         <div className="space-y-2">
           <Skeleton className="h-4 w-36 bg-white/15" />

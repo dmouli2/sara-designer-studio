@@ -27,13 +27,13 @@ describe("ReportSummaryCards", () => {
   // something, so it is coloured only while there is something to collect.
   it("marks the pending balance as owed only when there is one", () => {
     render(<ReportSummaryCards summary={summary} />);
-    expect(screen.getByText("Pending Balance")).toHaveClass("text-[#8F3A3A]");
+    expect(screen.getByText("Pending Balance")).toHaveClass("text-danger-ink");
   });
 
   it("leaves a settled balance in the neutral colour", () => {
     render(<ReportSummaryCards summary={{ ...summary, pendingBalance: 0 }} />);
     const label = screen.getByText("Pending Balance");
-    expect(label).toHaveClass("text-[#56524A]");
+    expect(label).toHaveClass("text-fg-2");
     expect(label.previousSibling).toHaveTextContent("₹0");
   });
 });

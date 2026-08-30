@@ -22,26 +22,26 @@ export default function ReportSummaryCards({ summary }: { summary: ReportSummary
 
   return (
     <div className="grid grid-cols-2 gap-2.5">
-      <div className="col-span-2 rounded-2xl border border-[#EDD98A] bg-[#FBF6E8] px-4 py-3.5">
-        <p className="text-[26px] font-bold leading-none tracking-tight text-[#0F0F0F] tabular-nums">
+      <div className="col-span-2 rounded-2xl border border-gold-200 bg-gold-50 px-4 py-3.5">
+        <p className="text-[26px] font-bold leading-none tracking-tight text-fg tabular-nums">
           {formatCurrency(summary.totalRevenue)}
         </p>
-        <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-widest text-[#6E5518]">
+        <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-widest text-accent-ink">
           Total Revenue
         </p>
       </div>
 
-      <div className="col-span-2 rounded-2xl border border-[#E5E0D5] bg-white px-4 py-3.5">
+      <div className="col-span-2 rounded-2xl border border-border bg-white px-4 py-3.5">
         <p
           className={`text-[26px] font-bold leading-none tracking-tight tabular-nums ${
-            owed ? "text-[#8F3A3A]" : "text-[#0F0F0F]"
+            owed ? "text-danger-ink" : "text-fg"
           }`}
         >
           {formatCurrency(summary.pendingBalance)}
         </p>
         <p
           className={`mt-1.5 text-[11px] font-semibold uppercase tracking-widest ${
-            owed ? "text-[#8F3A3A]" : "text-[#56524A]"
+            owed ? "text-danger-ink" : "text-fg-2"
           }`}
         >
           Pending Balance
@@ -51,10 +51,10 @@ export default function ReportSummaryCards({ summary }: { summary: ReportSummary
       {counts.map((c) => (
         <div
           key={c.label}
-          className="rounded-2xl border border-[#E5E0D5] bg-white px-3.5 py-3 text-center shadow-[0_1px_2px_rgba(15,15,15,0.04)]"
+          className="rounded-2xl border border-border bg-white px-3.5 py-3 text-center shadow-[0_1px_2px_rgba(15,15,15,0.04)]"
         >
-          <p className="text-[19px] font-bold leading-tight text-[#0F0F0F] tabular-nums">{c.value}</p>
-          <p className="mt-0.5 text-[11px] text-[#56524A]">{c.label}</p>
+          <p className="text-[19px] font-bold leading-tight text-fg tabular-nums">{c.value}</p>
+          <p className="mt-0.5 text-[11px] text-fg-2">{c.label}</p>
         </div>
       ))}
     </div>

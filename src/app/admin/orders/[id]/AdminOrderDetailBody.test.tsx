@@ -176,7 +176,7 @@ describe("AdminOrderDetailBody", () => {
   it("shows the balance in green when the order is fully paid", () => {
     renderBody(order({ status: "new", amount: 1800, advance: 1800 }));
     const balanceValue = screen.getByText("Balance due").parentElement!.querySelector("span:last-child")!;
-    expect(balanceValue).toHaveClass("text-[#1B6B3A]");
+    expect(balanceValue).toHaveClass("text-success");
     expect(balanceValue).toHaveTextContent("₹0");
   });
 

@@ -115,7 +115,7 @@ describe("PublicOrderBody", () => {
       />
     );
     expect(screen.getByText("Lining Blouse ×1")).toBeInTheDocument();
-    expect(container.querySelectorAll(".border-t.border-\\[\\#F0EDE6\\]")).toHaveLength(1);
+    expect(container.querySelectorAll(".border-t.border-border-soft")).toHaveLength(1);
   });
 
   it("multiplies quantity × price for the line value and shows item comments", () => {

@@ -66,8 +66,8 @@ export default function DeliverPieceDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-[2px] p-4">
       <div className="w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl">
-        <p className="text-[16px] font-semibold text-[#0F0F0F]">Hand over {piece.label}</p>
-        <p className="text-[14px] text-[#6B6B6B] mt-2 leading-relaxed">
+        <p className="text-[16px] font-semibold text-fg">Hand over {piece.label}</p>
+        <p className="text-[14px] text-fg-3 mt-2 leading-relaxed">
           {isLast
             ? "This is the last piece — handing it over completes the order."
             : "The rest of the order stays open until its pieces go out."}
@@ -84,18 +84,18 @@ export default function DeliverPieceDialog({
 
         {balance > 0 ? (
           <>
-            <div className="mt-3 rounded-2xl bg-[#FBF6E8] border border-[#EDD98A] px-4 py-3.5 flex items-baseline justify-between">
-              <span className="text-[13px] font-medium text-[#7A6020]">
+            <div className="mt-3 rounded-2xl bg-gold-50 border border-gold-200 px-4 py-3.5 flex items-baseline justify-between">
+              <span className="text-[13px] font-medium text-gold-800">
                 {isLast ? "Balance to collect" : "Balance on the order"}
               </span>
-              <span className="text-[20px] font-bold text-[#7A6020] tabular-nums">
+              <span className="text-[20px] font-bold text-gold-800 tabular-nums">
                 {formatCurrency(balance)}
               </span>
             </div>
 
             {!isLast && (
               <div className="mt-4">
-                <label className="text-xs text-[#56524A] mb-1 block" htmlFor="piece-collect">
+                <label className="text-xs text-fg-2 mb-1 block" htmlFor="piece-collect">
                   Collecting now (₹) — leave blank if nothing
                 </label>
                 <input
@@ -118,7 +118,7 @@ export default function DeliverPieceDialog({
 
             {needsMethod && (
               <>
-                <p className="text-xs text-[#56524A] mt-4 mb-2">
+                <p className="text-xs text-fg-2 mt-4 mb-2">
                   How was the {formatCurrency(collecting)} paid?
                 </p>
                 <PaymentSplitPicker
@@ -131,7 +131,7 @@ export default function DeliverPieceDialog({
             )}
           </>
         ) : (
-          <p className="text-[14px] text-[#1B6B3A] mt-3">Nothing left to collect on this order.</p>
+          <p className="text-[14px] text-success mt-3">Nothing left to collect on this order.</p>
 
         )}
 
@@ -140,7 +140,7 @@ export default function DeliverPieceDialog({
             type="button"
             onClick={onCancel}
             disabled={pending}
-            className="flex-1 py-3 rounded-xl border border-[#E5E0D5] bg-white text-[14px] font-medium text-[#6B6B6B] active:scale-[0.98] transition-all disabled:opacity-40"
+            className="flex-1 py-3 rounded-xl border border-border bg-white text-[14px] font-medium text-fg-3 active:scale-[0.98] transition-all disabled:opacity-40"
           >
             Not yet
           </button>
@@ -148,7 +148,7 @@ export default function DeliverPieceDialog({
             type="button"
             onClick={confirm}
             disabled={!canConfirm}
-            className="flex-1 py-3 rounded-xl bg-[#1B6B3A] text-white text-[14px] font-semibold active:scale-[0.98] transition-all disabled:opacity-40"
+            className="flex-1 py-3 rounded-xl bg-success text-white text-[14px] font-semibold active:scale-[0.98] transition-all disabled:opacity-40"
           >
             {pending ? "Saving…" : collecting > 0 ? "Collect & hand over" : "Hand over"}
           </button>

@@ -7,7 +7,7 @@ import { DEFAULT_REPORT_DATE_RANGE } from "@/lib/reports";
 describe("ReportDateRangeFilter", () => {
   it("highlights the active preset and does not show custom date inputs", () => {
     render(<ReportDateRangeFilter value={DEFAULT_REPORT_DATE_RANGE} onChange={vi.fn()} />);
-    expect(screen.getByText("This Month")).toHaveClass("bg-[#0F0F0F]");
+    expect(screen.getByText("This Month")).toHaveClass("bg-selected");
     expect(screen.queryByLabelText("Custom range from")).not.toBeInTheDocument();
   });
 

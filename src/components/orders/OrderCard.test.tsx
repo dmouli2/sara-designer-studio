@@ -148,14 +148,14 @@ describe("OrderCard", () => {
   it("highlights a new order with a gold accent border and pulsing dot", () => {
     const order: Order = { ...baseOrder, status: "new" };
     const { container } = render(<OrderCard order={order} />);
-    expect(container.firstChild).toHaveClass("border-l-[#C9A84C]");
+    expect(container.firstChild).toHaveClass("border-l-gold");
     expect(container.querySelector(".animate-ping")).toBeInTheDocument();
   });
 
   it("does not show the new-order highlight for other statuses", () => {
     const order: Order = { ...baseOrder, status: "cutting" };
     const { container } = render(<OrderCard order={order} />);
-    expect(container.firstChild).not.toHaveClass("border-l-[#C9A84C]");
+    expect(container.firstChild).not.toHaveClass("border-l-gold");
     expect(container.querySelector(".animate-ping")).not.toBeInTheDocument();
   });
 
@@ -232,7 +232,7 @@ describe("OrderCard", () => {
     const order: Order = { ...baseOrder, due: "2020-01-01" };
     const { container } = render(<OrderCard order={order} />);
     expect(screen.getByText(/Overdue · was due/)).toBeInTheDocument();
-    expect(container.firstChild).toHaveClass("border-l-[#B04A4A]");
+    expect(container.firstChild).toHaveClass("border-l-danger");
   });
 
   it("does not mark a delivered order as overdue even when past its due date", () => {

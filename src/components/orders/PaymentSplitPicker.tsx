@@ -69,8 +69,8 @@ export default function PaymentSplitPicker({ total, value, onChange, idPrefix }:
             className={cn(
               "rounded-xl border px-2 py-3 text-[14px] font-semibold transition-all active:scale-[0.98]",
               mode === m.id
-                ? "border-[#0F0F0F] bg-[#0F0F0F] text-white"
-                : "border-[#E5E0D5] bg-white text-[#0F0F0F]"
+                ? "border-selected bg-selected text-white"
+                : "border-border bg-white text-fg"
             )}
           >
             {m.label}
@@ -84,7 +84,7 @@ export default function PaymentSplitPicker({ total, value, onChange, idPrefix }:
             {(["cash", "upi"] as const).map((method) => (
               <div key={method}>
                 <label
-                  className="text-xs text-[#56524A] mb-1 block"
+                  className="text-xs text-fg-2 mb-1 block"
                   htmlFor={`${idPrefix}-${method}`}
                 >
                   {method === "cash" ? "Cash (₹)" : "UPI (₹)"}

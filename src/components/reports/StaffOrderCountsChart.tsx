@@ -8,7 +8,7 @@ export default function StaffOrderCountsChart({ title, staff }: { title: string;
     <div className="card">
       <p className="section-label">{title}</p>
       {staff.length === 0 ? (
-        <p className="text-sm text-[#56524A] py-8 text-center">No orders in this period</p>
+        <p className="text-sm text-fg-2 py-8 text-center">No orders in this period</p>
       ) : (
         <div style={{ height: Math.max(staff.length * 40, 120) }}>
           <ResponsiveContainer width="100%" height="100%">
