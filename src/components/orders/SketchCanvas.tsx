@@ -37,12 +37,12 @@ function ToolButton({
       aria-label={label}
       aria-pressed={active}
       className={cn(
-        "w-9 h-9 rounded-lg flex items-center justify-center transition-all active:scale-90 disabled:opacity-30 disabled:active:scale-100",
+        "w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 disabled:opacity-30 disabled:active:scale-100",
         active
-          ? "bg-[#C9A84C] text-[#0F0F0F]"
+          ? "bg-gold text-fg"
           : dark
           ? "bg-white/10 text-white"
-          : "bg-[#F0EDE6] text-[#3A3A3C]"
+          : "bg-surface-2 text-ink-muted"
       )}
     >
       {children}
@@ -246,7 +246,7 @@ export default function SketchCanvas({ value, onChange }: Props) {
     <div
       className={
         fullscreen
-          ? "fixed inset-0 z-50 bg-[#0F0F0F] flex flex-col pb-[env(safe-area-inset-bottom)]"
+          ? "fixed inset-0 z-50 bg-header flex flex-col pb-[env(safe-area-inset-bottom)]"
           : "space-y-2"
       }
     >
@@ -257,14 +257,14 @@ export default function SketchCanvas({ value, onChange }: Props) {
         <ToolButton dark={fullscreen} active={tool === "eraser"} onClick={() => setTool("eraser")} label="Eraser">
           <Eraser size={16} />
         </ToolButton>
-        <div className={cn("w-px h-5 mx-0.5", fullscreen ? "bg-white/15" : "bg-[#E5E0D5]")} />
+        <div className={cn("w-px h-5 mx-0.5", fullscreen ? "bg-white/15" : "bg-border")} />
         <ToolButton dark={fullscreen} onClick={undo} disabled={!canUndo} label="Undo">
           <Undo2 size={16} />
         </ToolButton>
         <ToolButton dark={fullscreen} onClick={redo} disabled={!canRedo} label="Redo">
           <Redo2 size={16} />
         </ToolButton>
-        <div className={cn("w-px h-5 mx-0.5", fullscreen ? "bg-white/15" : "bg-[#E5E0D5]")} />
+        <div className={cn("w-px h-5 mx-0.5", fullscreen ? "bg-white/15" : "bg-border")} />
         <ToolButton dark={fullscreen} onClick={clear} disabled={!hasStrokes} label="Clear sketch">
           <Trash2 size={16} />
         </ToolButton>
@@ -283,7 +283,7 @@ export default function SketchCanvas({ value, onChange }: Props) {
         className={
           fullscreen
             ? "flex-1 min-h-0 w-full bg-white overflow-hidden"
-            : "relative rounded-2xl border-2 border-dashed border-[#E5E0D5] bg-white overflow-hidden"
+            : "relative rounded-2xl border-2 border-dashed border-border bg-white overflow-hidden"
         }
         style={fullscreen ? undefined : { aspectRatio: "5/3" }}
       >
@@ -306,9 +306,9 @@ export default function SketchCanvas({ value, onChange }: Props) {
         {!hasStrokes && !fullscreen && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-center">
-              <p className="text-3xl mb-2">✏️</p>
-              <p className="text-sm text-[#9A9A9A]">Draw garment sketch here</p>
-              <p className="text-xs text-[#C9A84C] mt-1">Finger or stylus supported</p>
+              <Pencil size={26} className="mx-auto mb-2 text-fg-faint" aria-hidden="true" />
+              <p className="text-sm text-fg-2">Draw garment sketch here</p>
+              <p className="text-xs text-accent-ink mt-1">Finger or stylus supported</p>
             </div>
           </div>
         )}

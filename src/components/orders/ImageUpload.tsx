@@ -87,7 +87,7 @@ export default function ImageUpload({
 
       <div className="grid grid-cols-3 gap-2">
         {value.map((src, i) => (
-          <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-[#E5E0D5]">
+          <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-border">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={src} alt={`${altPrefix} ${i + 1}`} className="w-full h-full object-cover" />
             <button
@@ -106,15 +106,15 @@ export default function ImageUpload({
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={compressing}
-            className="aspect-square rounded-xl border-2 border-dashed border-[#E5E0D5] bg-white flex flex-col items-center justify-center gap-1 active:bg-[#F9F8F6] transition-colors disabled:opacity-40"
+            className="aspect-square rounded-xl border-2 border-dashed border-border bg-white flex flex-col items-center justify-center gap-1 active:bg-bg transition-colors disabled:opacity-40"
           >
-            <AddIcon size={20} className="text-[#9A9A9A]" />
-            <span className="text-[10px] text-[#9A9A9A]">{compressing ? "Processing…" : addLabel}</span>
+            <AddIcon size={20} className="text-fg-2" />
+            <span className="text-[10px] text-fg-2">{compressing ? "Processing…" : addLabel}</span>
           </button>
         )}
       </div>
 
-      <p className="text-xs text-[#9A9A9A]">
+      <p className="text-xs text-fg-2">
         {value.length}/{max} photos · {remaining > 0 ? `${remaining} more allowed` : "limit reached"}
       </p>
     </div>

@@ -218,7 +218,7 @@ describe("OrdersBody", () => {
     await user.click(screen.getByLabelText("More filters"));
     expect(screen.getByText("Filter orders")).toBeInTheDocument();
 
-    await user.click(screen.getByText("Ramesh K."));
+    await user.click(screen.getByRole("button", { name: "Ramesh K." }));
     expect(screen.getByText("D1")).toBeInTheDocument();
     expect(screen.queryByText("D2")).not.toBeInTheDocument();
   });
@@ -228,7 +228,7 @@ describe("OrdersBody", () => {
     render(<OrdersBody initialOrders={ordersWithStaffAndDates} />);
 
     await user.click(screen.getByLabelText("More filters"));
-    await user.click(screen.getByText("Anitha K."));
+    await user.click(screen.getByRole("button", { name: "Anitha K." }));
     expect(screen.getByText("D2")).toBeInTheDocument();
     expect(screen.queryByText("D1")).not.toBeInTheDocument();
   });
@@ -248,7 +248,7 @@ describe("OrdersBody", () => {
     render(<OrdersBody initialOrders={ordersWithStaffAndDates} />);
 
     await user.click(screen.getByLabelText("More filters"));
-    await user.click(screen.getByText("Ramesh K."));
+    await user.click(screen.getByRole("button", { name: "Ramesh K." }));
     expect(screen.queryByText("D2")).not.toBeInTheDocument();
 
     await user.click(screen.getByText("Clear all"));
@@ -427,7 +427,7 @@ describe("OrdersBody", () => {
 
     it("shows the delivered count on the card without opening it", () => {
       render(<OrdersBody initialOrders={[PARTLY]} />);
-      expect(screen.getByText("👗 1/3 delivered")).toBeInTheDocument();
+      expect(screen.getByText("1 of 3 handed over")).toBeInTheDocument();
     });
 
     it("counts a split order overdue on its earliest waiting garment", () => {

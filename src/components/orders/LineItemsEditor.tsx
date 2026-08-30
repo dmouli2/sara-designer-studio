@@ -42,12 +42,12 @@ export default function LineItemsEditor({ items, presetCount, onChange }: Props)
   const total = items.reduce((sum, li) => sum + li.qty * li.amount, 0);
 
   return (
-    <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden bg-white">
-      <div className={`${GRID} bg-[#F9F8F6] border-b border-[#E5E0D5] px-3 py-2`}>
-        <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide">Item</span>
-        <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide text-center">Qty</span>
-        <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide text-center">Price ₹</span>
-        <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide">Comments</span>
+    <div className="rounded-2xl border border-border overflow-hidden bg-white">
+      <div className={`${GRID} bg-bg border-b border-border px-3 py-2`}>
+        <span className="text-[10px] font-semibold text-fg-2 uppercase tracking-wide">Item</span>
+        <span className="text-[10px] font-semibold text-fg-2 uppercase tracking-wide text-center">Qty</span>
+        <span className="text-[10px] font-semibold text-fg-2 uppercase tracking-wide text-center">Price ₹</span>
+        <span className="text-[10px] font-semibold text-fg-2 uppercase tracking-wide">Comments</span>
         <span />
       </div>
 
@@ -59,23 +59,23 @@ export default function LineItemsEditor({ items, presetCount, onChange }: Props)
         return (
           <div
             key={i}
-            className={`${GRID} items-center px-3 py-2 ${i % 2 === 1 ? "bg-[#FDFCFA]" : "bg-white"} ${
-              i > 0 ? "border-t border-[#F0EDE6]" : ""
+            className={`${GRID} items-center px-3 py-2 ${i % 2 === 1 ? "bg-surface-3" : "bg-white"} ${
+              i > 0 ? "border-t border-border-soft" : ""
             }`}
           >
             {custom ? (
               <input
-                className="w-full min-w-0 text-xs border border-[#E5E0D5] rounded-lg py-1.5 px-2 focus:outline-none focus:border-[#C9A84C] placeholder:text-[#C4C0B6]"
+                className="w-full min-w-0 text-xs border border-border rounded-xl py-1.5 px-2 focus:outline-none focus:border-gold placeholder:text-placeholder"
                 placeholder="Item name"
                 aria-label={`Item ${i + 1} name`}
                 value={li.particulars}
                 onChange={(e) => patch(i, { particulars: e.target.value })}
               />
             ) : (
-              <span className="text-xs text-[#0F0F0F]">{li.particulars}</span>
+              <span className="text-xs text-fg">{li.particulars}</span>
             )}
             <input
-              className="w-full text-center text-sm border border-[#E5E0D5] rounded-lg py-1.5 focus:outline-none focus:border-[#C9A84C]"
+              className="w-full text-center text-sm border border-border rounded-xl py-1.5 focus:outline-none focus:border-gold"
               type="number"
               min="0"
               value={li.qty || ""}
@@ -84,7 +84,7 @@ export default function LineItemsEditor({ items, presetCount, onChange }: Props)
               onChange={(e) => patch(i, { qty: parseInt(e.target.value) || 0 })}
             />
             <input
-              className="w-full text-center text-sm border border-[#E5E0D5] rounded-lg py-1.5 focus:outline-none focus:border-[#C9A84C]"
+              className="w-full text-center text-sm border border-border rounded-xl py-1.5 focus:outline-none focus:border-gold"
               type="number"
               min="0"
               value={li.amount || ""}
@@ -93,7 +93,7 @@ export default function LineItemsEditor({ items, presetCount, onChange }: Props)
               onChange={(e) => patch(i, { amount: parseFloat(e.target.value) || 0 })}
             />
             <input
-              className="w-full min-w-0 text-[13px] border border-[#E5E0D5] rounded-lg py-1.5 px-2 focus:outline-none focus:border-[#C9A84C] placeholder:text-[#C4C0B6]"
+              className="w-full min-w-0 text-[13px] border border-border rounded-xl py-1.5 px-2 focus:outline-none focus:border-gold placeholder:text-placeholder"
               placeholder="(…)"
               aria-label={`${name} comments`}
               value={li.note ?? ""}
@@ -104,7 +104,7 @@ export default function LineItemsEditor({ items, presetCount, onChange }: Props)
                 type="button"
                 aria-label={`Remove ${name}`}
                 onClick={() => removeRow(i)}
-                className="w-6 h-6 flex items-center justify-center rounded-full text-[#B04A4A] bg-[#FBECEC] active:scale-90 transition-transform"
+                className="w-6 h-6 flex items-center justify-center rounded-full text-danger bg-danger-light active:scale-90 transition-transform"
               >
                 <X size={13} />
               </button>
@@ -118,7 +118,7 @@ export default function LineItemsEditor({ items, presetCount, onChange }: Props)
       <button
         type="button"
         onClick={addRow}
-        className="w-full flex items-center justify-center gap-1.5 py-3 text-[13px] font-semibold text-[#7A6020] bg-[#FBF6E8] border-t border-[#EDD98A] active:bg-[#F5E9BB] transition-colors"
+        className="w-full flex items-center justify-center gap-1.5 py-3 text-[13px] font-semibold text-gold-800 bg-gold-50 border-t border-gold-200 active:bg-gold-100 transition-colors"
       >
         <Plus size={15} />
         Add item
@@ -126,9 +126,9 @@ export default function LineItemsEditor({ items, presetCount, onChange }: Props)
 
       {/* Running total, so a long list doesn't need scrolling back to the
           summary card to see what the last edit did. */}
-      <div className="flex justify-between px-3 py-2 border-t border-[#E5E0D5] bg-[#F9F8F6]">
-        <span className="text-[11px] font-semibold text-[#9A9A9A] uppercase tracking-wide">Items total</span>
-        <span className="text-[13px] font-semibold text-[#0F0F0F] tabular-nums">{formatCurrency(total)}</span>
+      <div className="flex justify-between px-3 py-2 border-t border-border bg-bg">
+        <span className="text-[11px] font-semibold text-fg-2 uppercase tracking-wide">Items total</span>
+        <span className="text-[13px] font-semibold text-fg tabular-nums">{formatCurrency(total)}</span>
       </div>
     </div>
   );

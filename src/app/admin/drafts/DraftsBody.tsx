@@ -49,9 +49,9 @@ export default function DraftsBody({ drafts: initialDrafts }: { drafts: DraftOrd
       <PullToRefresh>
         {drafts.length === 0 ? (
           <div className="text-center pt-16">
-            <p className="text-3xl mb-3">📷</p>
-            <p className="text-sm text-[#9A9A9A]">No scanned drafts waiting</p>
-            <p className="text-xs text-[#9A9A9A] mt-1">Scan an order slip to create one.</p>
+            <Camera size={30} className="mx-auto mb-3 text-fg-faint" aria-hidden="true" />
+            <p className="text-sm text-fg-2">No scanned drafts waiting</p>
+            <p className="text-xs text-fg-2 mt-1">Scan an order slip to create one.</p>
           </div>
         ) : (
           drafts.map((d) => (
@@ -69,25 +69,25 @@ export default function DraftsBody({ drafts: initialDrafts }: { drafts: DraftOrd
                   router.push(`/admin/orders/new?draft=${d.id}`);
                 }
               }}
-              className="w-full text-left bg-white rounded-2xl border border-[#E5E0D5] p-4 mb-3 active:scale-[0.98] transition-transform cursor-pointer"
+              className="w-full text-left bg-white rounded-2xl border border-border p-4 mb-3 active:scale-[0.98] transition-transform cursor-pointer"
             >
               <div className="flex items-center justify-between">
-                <p className="text-[15px] font-semibold text-[#0F0F0F]">
+                <p className="text-[15px] font-semibold text-fg">
                   {d.extraction.customerName || "Name not read"}
                 </p>
-                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#FBF6E8] text-[#7A6020]">
+                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-gold-50 text-gold-800">
                   {d.dress || "Type unknown"}
                 </span>
               </div>
-              <p className="text-xs text-[#6B6B6B] mt-0.5">
+              <p className="text-xs text-fg-3 mt-0.5">
                 {d.extraction.phone || "No phone"}
                 {d.extraction.billNo ? ` · Bill No ${d.extraction.billNo}` : ""}
               </p>
               <div className="flex items-center justify-between mt-2">
-                <p className="text-[11px] text-[#9A9A9A]">Scanned {formatScanTime(d.createdAt)}</p>
+                <p className="text-[11px] text-fg-2">Scanned {formatScanTime(d.createdAt)}</p>
                 <div className="flex items-center gap-3">
                   {d.warnings.length > 0 && (
-                    <span className="flex items-center gap-1 text-[11px] font-medium text-[#B45309]">
+                    <span className="flex items-center gap-1 text-[11px] font-medium text-warn">
                       <AlertTriangle size={12} />
                       {d.warnings.length} to verify
                     </span>
@@ -101,7 +101,7 @@ export default function DraftsBody({ drafts: initialDrafts }: { drafts: DraftOrd
                           handleDiscard(d.id);
                         }}
                         disabled={discardingId === d.id}
-                        className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-[11px] font-semibold active:scale-95 transition-transform disabled:opacity-40"
+                        className="px-3 py-1.5 rounded-xl bg-red-600 text-white text-[11px] font-semibold active:scale-95 transition-transform disabled:opacity-40"
                       >
                         {discardingId === d.id ? "Discarding…" : "Discard"}
                       </button>
@@ -112,7 +112,7 @@ export default function DraftsBody({ drafts: initialDrafts }: { drafts: DraftOrd
                           setConfirmingId(null);
                         }}
                         disabled={discardingId === d.id}
-                        className="px-3 py-1.5 rounded-lg border border-[#E5E0D5] bg-white text-[11px] font-medium text-[#6B6B6B] active:scale-95 transition-transform"
+                        className="px-3 py-1.5 rounded-xl border border-border bg-white text-[11px] font-medium text-fg-3 active:scale-95 transition-transform"
                       >
                         Keep
                       </button>
@@ -125,7 +125,7 @@ export default function DraftsBody({ drafts: initialDrafts }: { drafts: DraftOrd
                         e.stopPropagation();
                         setConfirmingId(d.id);
                       }}
-                      className="p-1.5 rounded-lg text-red-600 active:scale-90 transition-transform"
+                      className="p-1.5 rounded-xl text-red-600 active:scale-90 transition-transform"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -143,7 +143,7 @@ export default function DraftsBody({ drafts: initialDrafts }: { drafts: DraftOrd
             type="button"
             aria-label="Scan order slip"
             onClick={() => router.push("/admin/orders/scan")}
-            className="fab-glow pointer-events-auto w-14 h-14 rounded-full bg-[#C9A84C] flex items-center justify-center active:scale-90 transition-transform"
+            className="fab-glow pointer-events-auto w-14 h-14 rounded-full bg-gold flex items-center justify-center active:scale-90 transition-transform"
           >
             <Camera size={24} color="#0F0F0F" strokeWidth={2.5} />
           </button>

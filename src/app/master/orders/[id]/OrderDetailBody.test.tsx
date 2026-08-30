@@ -108,8 +108,8 @@ describe("OrderDetailBody", () => {
 
   it("navigates to the master queue (fresh, not a cached back-nav) when the top bar back button is clicked", async () => {
     const user = userEvent.setup();
-    const { container } = render(<OrderDetailBody order={order({ status: "new" })} />);
-    await user.click(container.querySelector(".rounded-full")!);
+    render(<OrderDetailBody order={order({ status: "new" })} />);
+    await user.click(screen.getByLabelText("Back"));
     expect(mockRouter.push).toHaveBeenCalledWith("/master/queue");
   });
 

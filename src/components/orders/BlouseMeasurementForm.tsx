@@ -44,12 +44,12 @@ export default function BlouseMeasurementForm({ value, onChange }: Props) {
   }
 
   return (
-    <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden bg-white">
+    <div className="rounded-2xl border border-border overflow-hidden bg-white">
       {/* Header — mirrors MeasurementFieldRow's column layout */}
-      <div className="flex items-center bg-[#F9F8F6] border-b border-[#E5E0D5] px-3 py-2 gap-2">
-        <span className="w-[88px] shrink-0 text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide">Field</span>
-        <span className="w-16 shrink-0 text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide text-center">L.B</span>
-        <span className="w-28 shrink-0 text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide">Notes</span>
+      <div className="flex items-center bg-bg border-b border-border px-3 py-2 gap-2">
+        <span className="w-[88px] shrink-0 text-[10px] font-semibold text-fg-2 uppercase tracking-wide">Field</span>
+        <span className="w-16 shrink-0 text-[10px] font-semibold text-fg-2 uppercase tracking-wide text-center">L.B</span>
+        <span className="w-28 shrink-0 text-[10px] font-semibold text-fg-2 uppercase tracking-wide">Notes</span>
       </div>
 
       {MEASUREMENT_FIELDS.map(({ key, label }, i) => (

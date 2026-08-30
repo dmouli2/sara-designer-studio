@@ -51,7 +51,7 @@ export default function AlterationPanel({ order, pending, onStart, onComplete, o
         <button
           type="button"
           onClick={onStart}
-          className="w-full flex items-center justify-center gap-2 py-3.5 text-[14px] font-semibold text-[#6B4FA8] border border-[#D6CBEF] bg-[#F7F4FD] rounded-xl active:scale-[0.98] transition-all"
+          className="w-full flex items-center justify-center gap-2 py-3.5 text-[14px] font-semibold text-violet border border-violet-border bg-violet-25 rounded-xl active:scale-[0.98] transition-all"
         >
           <RefreshCw size={16} />
           Came back for alteration
@@ -59,18 +59,18 @@ export default function AlterationPanel({ order, pending, onStart, onComplete, o
       )}
 
       {closed.length > 0 && (
-        <div className="rounded-2xl border border-[#E5E0D5] bg-white overflow-hidden">
+        <div className="rounded-2xl border border-border bg-white overflow-hidden">
           {closed.map((record, i) => (
-            <div key={record.id} className={cn("px-3 py-2.5", i > 0 && "border-t border-[#F0EDE6]")}>
+            <div key={record.id} className={cn("px-3 py-2.5", i > 0 && "border-t border-border-soft")}>
               <div className="flex items-baseline justify-between gap-3">
-                <span className="text-[13px] font-medium text-[#0F0F0F] min-w-0">
+                <span className="text-[13px] font-medium text-fg min-w-0">
                   {record.pieceLabel ? `${record.pieceLabel} · ` : ""}Altered &amp; returned
                 </span>
-                <span className="text-[12px] text-[#9A9A9A] shrink-0 tabular-nums">
+                <span className="text-[12px] text-fg-2 shrink-0 tabular-nums">
                   {formatDate(record.redeliveredAt!)}
                 </span>
               </div>
-              <p className="text-[12px] text-[#6B6B6B] mt-0.5">
+              <p className="text-[12px] text-fg-3 mt-0.5">
                 {record.reason || "No reason recorded"} · in {formatDate(record.receivedAt)}
               </p>
             </div>
@@ -102,15 +102,15 @@ function OpenAlteration({
   const overdue = !done && !!record.promisedAt && record.promisedAt < shopToday();
 
   return (
-    <div className="rounded-2xl border border-[#D6CBEF] bg-[#F7F4FD] p-4 space-y-3">
+    <div className="rounded-2xl border border-violet-border bg-violet-25 p-4 space-y-3">
       <div>
-        <p className="text-sm font-semibold text-[#4E3585]">
+        <p className="text-sm font-semibold text-violet-ink">
           {done ? "Alteration done — waiting for pickup" : "In alteration"}
           {record.pieceLabel ? ` · ${record.pieceLabel}` : ""}
         </p>
-        {record.reason && <p className="text-[13px] text-[#6B4FA8] mt-1">{record.reason}</p>}
-        <p className={cn("text-[12px] mt-1.5", overdue ? "font-semibold text-[#B04A4A]" : "text-[#6B4FA8]/80")}>
-          {overdue ? "⚠ Was promised" : done ? "Was promised" : "Promised back"} {formatDate(record.promisedAt)}
+        {record.reason && <p className="text-[13px] text-violet mt-1">{record.reason}</p>}
+        <p className={cn("text-[12px] mt-1.5", overdue ? "font-semibold text-danger" : "text-violet/80")}>
+          {overdue ? "Was promised" : done ? "Was promised" : "Promised back"} {formatDate(record.promisedAt)}
           {" · took in "}
           {formatDate(record.receivedAt)}
         </p>
@@ -128,7 +128,7 @@ function OpenAlteration({
           type="button"
           onClick={() => onRedeliver(on)}
           disabled={pending || isInvalidEventDate(on)}
-          className="w-full bg-[#1B6B3A] text-white rounded-xl py-3 text-[14px] font-semibold active:opacity-80 disabled:opacity-40 transition-all"
+          className="w-full bg-success text-white rounded-xl py-3 text-[14px] font-semibold active:opacity-80 disabled:opacity-40 transition-all"
         >
           {pending ? "Saving…" : "✓ Handed back to customer"}
         </button>
@@ -137,7 +137,7 @@ function OpenAlteration({
           type="button"
           onClick={() => onComplete(on)}
           disabled={pending || isInvalidEventDate(on)}
-          className="w-full bg-[#6B4FA8] text-white rounded-xl py-3 text-[14px] font-semibold active:opacity-80 disabled:opacity-40 transition-all"
+          className="w-full bg-violet text-white rounded-xl py-3 text-[14px] font-semibold active:opacity-80 disabled:opacity-40 transition-all"
         >
           {pending ? "Saving…" : "✓ Alteration done"}
         </button>

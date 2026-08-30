@@ -90,19 +90,19 @@ export default function FabricManagerSheet({ open, fabrics, onChange, onClose }:
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4">
       <div className="w-full max-w-sm bg-white rounded-2xl p-5 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-[#0F0F0F]">Manage fabrics</p>
+          <p className="text-sm font-semibold text-fg">Manage fabrics</p>
           <button
             type="button"
             aria-label="Close fabric manager"
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F0EDE6]"
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2"
           >
             <X size={16} />
           </button>
         </div>
 
         {/* Add */}
-        <div className="rounded-xl border border-[#E5E0D5] bg-[#F9F8F6] p-3 space-y-2">
+        <div className="rounded-xl border border-border bg-bg p-3 space-y-2">
           <p className="section-label">Add fabric</p>
           <input
             className="input"
@@ -125,7 +125,7 @@ export default function FabricManagerSheet({ open, fabrics, onChange, onClose }:
               type="button"
               onClick={handleAdd}
               disabled={adding || !newName.trim() || !newPrice}
-              className="px-4 rounded-xl bg-[#C9A84C] text-[#0F0F0F] text-sm font-semibold flex items-center gap-1 active:scale-95 transition-transform disabled:opacity-40"
+              className="px-4 rounded-xl bg-gold text-fg text-sm font-semibold flex items-center gap-1 active:scale-95 transition-transform disabled:opacity-40"
             >
               <Plus size={16} />
               {adding ? "Adding…" : "Add"}
@@ -134,7 +134,7 @@ export default function FabricManagerSheet({ open, fabrics, onChange, onClose }:
         </div>
 
         {error && (
-          <p role="alert" className="text-[13px] text-red-600 bg-red-50 rounded-lg px-3 py-2.5">
+          <p role="alert" className="text-[13px] text-red-600 bg-red-50 rounded-xl px-3 py-2.5">
             {error}
           </p>
         )}
@@ -142,13 +142,13 @@ export default function FabricManagerSheet({ open, fabrics, onChange, onClose }:
         {/* List */}
         <div className="space-y-2">
           {fabrics.length === 0 && (
-            <p className="text-[13px] text-[#9A9A9A] text-center py-4">
+            <p className="text-[13px] text-fg-2 text-center py-4">
               No fabrics yet — add the first one above.
             </p>
           )}
           {fabrics.map((fabric) =>
             editingId === fabric.id ? (
-              <div key={fabric.id} className="rounded-xl border border-[#C9A84C] bg-[#FBF6E8] p-3 space-y-2">
+              <div key={fabric.id} className="rounded-xl border border-gold bg-gold-50 p-3 space-y-2">
                 <input
                   className="input"
                   aria-label={`Edit name for ${fabric.name}`}
@@ -169,7 +169,7 @@ export default function FabricManagerSheet({ open, fabrics, onChange, onClose }:
                     aria-label={`Save ${fabric.name}`}
                     onClick={handleSaveEdit}
                     disabled={savingEdit || !editName.trim() || !editPrice}
-                    className="px-4 rounded-xl bg-[#0F0F0F] text-white text-sm font-semibold flex items-center gap-1 active:scale-95 transition-transform disabled:opacity-40"
+                    className="px-4 rounded-xl bg-selected text-white text-sm font-semibold flex items-center gap-1 active:scale-95 transition-transform disabled:opacity-40"
                   >
                     <Check size={16} />
                     {savingEdit ? "Saving…" : "Save"}
@@ -178,7 +178,7 @@ export default function FabricManagerSheet({ open, fabrics, onChange, onClose }:
                     type="button"
                     aria-label={`Cancel editing ${fabric.name}`}
                     onClick={() => setEditingId(null)}
-                    className="px-3 rounded-xl border border-[#E5E0D5] bg-white text-sm text-[#6B6B6B] active:scale-95 transition-transform"
+                    className="px-3 rounded-xl border border-border bg-white text-sm text-fg-3 active:scale-95 transition-transform"
                   >
                     Cancel
                   </button>
@@ -187,18 +187,18 @@ export default function FabricManagerSheet({ open, fabrics, onChange, onClose }:
             ) : (
               <div
                 key={fabric.id}
-                className="flex items-center justify-between rounded-xl border border-[#E5E0D5] bg-white px-3 py-2.5"
+                className="flex items-center justify-between rounded-xl border border-border bg-white px-3 py-2.5"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-[#0F0F0F] truncate">{fabric.name}</p>
-                  <p className="text-xs text-[#9A9A9A]">{formatCurrency(fabric.price)}/m</p>
+                  <p className="text-sm font-medium text-fg truncate">{fabric.name}</p>
+                  <p className="text-xs text-fg-2">{formatCurrency(fabric.price)}/m</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     type="button"
                     aria-label={`Edit ${fabric.name}`}
                     onClick={() => startEdit(fabric)}
-                    className="w-9 h-9 flex items-center justify-center rounded-lg text-[#6B6B6B] active:bg-[#F0EDE6]"
+                    className="w-9 h-9 flex items-center justify-center rounded-xl text-fg-3 active:bg-surface-2"
                   >
                     <Pencil size={16} />
                   </button>
@@ -206,7 +206,7 @@ export default function FabricManagerSheet({ open, fabrics, onChange, onClose }:
                     type="button"
                     aria-label={`Delete ${fabric.name}`}
                     onClick={() => setDeleteTarget(fabric)}
-                    className="w-9 h-9 flex items-center justify-center rounded-lg text-[#B04A4A] active:bg-[#FBECEC]"
+                    className="w-9 h-9 flex items-center justify-center rounded-xl text-danger active:bg-danger-light"
                   >
                     <Trash2 size={16} />
                   </button>

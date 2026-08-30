@@ -486,24 +486,25 @@ export default function NewOrderWizard({
   const scanPanel = scan && (
     <div className="space-y-3">
       {scan.scanImageUrl && (
-        <details className="rounded-2xl border border-[#E5E0D5] bg-white overflow-hidden">
-          <summary className="px-4 py-3 text-sm font-semibold text-[#0F0F0F] cursor-pointer select-none">
-            📷 View scanned slip
+        <details className="rounded-2xl border border-border bg-white overflow-hidden">
+          <summary className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-fg cursor-pointer select-none">
+            <Camera size={16} className="shrink-0 text-accent-ink" aria-hidden="true" />
+            View scanned slip
           </summary>
           <a href={scan.scanImageUrl} target="_blank" rel="noreferrer">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={scan.scanImageUrl} alt="Scanned order slip" className="w-full border-t border-[#F0EDE6]" />
+            <img src={scan.scanImageUrl} alt="Scanned order slip" className="w-full border-t border-border-soft" />
           </a>
         </details>
       )}
       {scan.warnings.length > 0 && (
-        <details className="rounded-2xl border border-[#F4C978] bg-[#FEF7EA] overflow-hidden">
-          <summary className="px-4 py-3 text-sm font-semibold text-[#B45309] cursor-pointer select-none">
+        <details className="rounded-2xl border border-gold-edge bg-gold-25 overflow-hidden">
+          <summary className="px-4 py-3 text-sm font-semibold text-warn cursor-pointer select-none">
             <span className="inline-flex items-center gap-1.5">
               <AlertTriangle size={14} /> {scan.warnings.length} thing{scan.warnings.length > 1 ? "s" : ""} to verify
             </span>
           </summary>
-          <ul className="px-4 pb-3 text-xs text-[#B45309] space-y-1.5 list-disc list-inside">
+          <ul className="px-4 pb-3 text-xs text-warn space-y-1.5 list-disc list-inside">
             {scan.warnings.map((w, i) => (
               <li key={i}>{w}</li>
             ))}
@@ -527,24 +528,24 @@ export default function NewOrderWizard({
         <div className="scroll-area px-4 pt-6 space-y-4">
           {scanPanel}
           {scan && (
-            <p className="text-xs text-[#B45309]">
+            <p className="text-xs text-warn">
               The book type couldn&apos;t be detected from the slip — choose it below and the scanned
               measurements will be filled in.
             </p>
           )}
           {FEATURE_SCAN_ORDERS && !scan && (
-            <div className="rounded-2xl border-2 border-dashed border-[#C9A84C] bg-white p-4">
+            <div className="rounded-2xl border-2 border-dashed border-gold bg-white p-4">
               <button
                 type="button"
                 onClick={() => router.push("/admin/orders/scan")}
                 className="w-full flex items-center gap-3 text-left active:scale-[0.98] transition-transform"
               >
-                <span className="w-11 h-11 rounded-xl bg-[#FBF6E8] flex items-center justify-center">
-                  <Camera size={20} className="text-[#C9A84C]" />
+                <span className="w-11 h-11 rounded-xl bg-gold-50 flex items-center justify-center">
+                  <Camera size={20} className="text-accent-ink" />
                 </span>
                 <span>
-                  <span className="block text-[15px] font-semibold text-[#0F0F0F]">Scan order slip</span>
-                  <span className="block text-xs text-[#6B6B6B] mt-0.5">
+                  <span className="block text-[15px] font-semibold text-fg">Scan order slip</span>
+                  <span className="block text-xs text-fg-3 mt-0.5">
                     Photograph the book page — details are read automatically
                   </span>
                 </span>
@@ -553,7 +554,7 @@ export default function NewOrderWizard({
                 <button
                   type="button"
                   onClick={() => router.push("/admin/drafts")}
-                  className="mt-3 w-full py-2 rounded-xl bg-[#FBF6E8] text-xs font-semibold text-[#7A6020] active:scale-[0.98] transition-transform"
+                  className="mt-3 w-full py-2 rounded-xl bg-gold-50 text-xs font-semibold text-gold-800 active:scale-[0.98] transition-transform"
                 >
                   {pendingDraftCount} scanned draft{pendingDraftCount > 1 ? "s" : ""} waiting for verification →
                 </button>
@@ -561,23 +562,23 @@ export default function NewOrderWizard({
             </div>
           )}
           {draft && (
-            <div className="rounded-2xl border border-[#EDD98A] bg-[#FBF6E8] p-4">
-              <p className="text-sm font-semibold text-[#7A6020]">
+            <div className="rounded-2xl border border-gold-200 bg-gold-50 p-4">
+              <p className="text-sm font-semibold text-gold-800">
                 Unfinished {draft.dress} order{draft.name ? ` for ${draft.name}` : ""}
               </p>
-              <p className="text-xs text-[#A8882E] mt-0.5">Continue where you left off?</p>
+              <p className="text-xs text-accent-ink mt-0.5">Continue where you left off?</p>
               <div className="flex gap-2 mt-3">
                 <button
                   type="button"
                   onClick={resumeDraft}
-                  className="flex-1 py-2.5 rounded-xl bg-[#C9A84C] text-[#0F0F0F] text-sm font-semibold active:scale-95 transition-transform"
+                  className="flex-1 py-2.5 rounded-xl bg-gold text-fg text-sm font-semibold active:scale-95 transition-transform"
                 >
                   Resume draft
                 </button>
                 <button
                   type="button"
                   onClick={discardDraft}
-                  className="flex-1 py-2.5 rounded-xl border border-[#E5E0D5] bg-white text-sm font-medium text-[#6B6B6B] active:scale-95 transition-transform"
+                  className="flex-1 py-2.5 rounded-xl border border-border bg-white text-sm font-medium text-fg-3 active:scale-95 transition-transform"
                 >
                   Discard
                 </button>
@@ -591,11 +592,11 @@ export default function NewOrderWizard({
               type="button"
               onClick={() => handleDressChange(d)}
               className={`w-full text-left p-5 rounded-2xl border transition-all active:scale-[0.98] ${
-                d === "Salwar" ? "border-[#E5E0D5] bg-white" : "border-[#EDD98A] bg-[#FBF6E8]"
+                d === "Salwar" ? "border-border bg-white" : "border-gold-200 bg-gold-50"
               }`}
             >
-              <p className={`text-lg font-semibold ${d === "Salwar" ? "text-[#0F0F0F]" : "text-[#7A6020]"}`}>{d}</p>
-              <p className={`text-xs mt-1 ${d === "Salwar" ? "text-[#6B6B6B]" : "text-[#A8882E]"}`}>
+              <p className={`text-lg font-semibold ${d === "Salwar" ? "text-fg" : "text-gold-800"}`}>{d}</p>
+              <p className={`text-xs mt-1 ${d === "Salwar" ? "text-fg-3" : "text-accent-ink"}`}>
                 {d === "Salwar" ? "Salwar Kameez & Churidar" : "Blouse & Pattu Saree Blouse"}
               </p>
             </button>
@@ -620,7 +621,7 @@ export default function NewOrderWizard({
         {STEPS.map((_, i) => (
           <div
             key={i}
-            className={`h-1 flex-1 rounded-full transition-all ${i + 1 <= step ? "bg-[#C9A84C]" : "bg-[#E5E0D5]"}`}
+            className={`h-1 flex-1 rounded-full transition-all ${i + 1 <= step ? "bg-gold" : "bg-border"}`}
           />
         ))}
       </div>
@@ -646,9 +647,9 @@ export default function NewOrderWizard({
 
             <div>
               <p className="section-label">Order type</p>
-              <div className="flex items-center justify-between rounded-xl border border-[#E5E0D5] bg-white px-4 py-3.5">
-                <span className="text-[15px] font-semibold text-[#0F0F0F]">{dress}</span>
-                <button type="button" onClick={() => setDress(null)} className="text-xs font-medium text-[#C9A84C]">
+              <div className="flex items-center justify-between rounded-xl border border-border bg-white px-4 py-3.5">
+                <span className="text-[15px] font-semibold text-fg">{dress}</span>
+                <button type="button" onClick={() => setDress(null)} className="text-xs font-medium text-accent-ink">
                   Change
                 </button>
               </div>
@@ -674,10 +675,10 @@ export default function NewOrderWizard({
               <p className="section-label">
                 {uniformMaterial || pieceCount <= 1 ? "Material source" : "Default material source"}
               </p>
-              <div className="flex rounded-xl border border-[#E5E0D5] overflow-hidden bg-white">
+              <div className="flex rounded-xl border border-border overflow-hidden bg-white">
                 {(["customer", "shop"] as const).map((s) => (
                   <button key={s} type="button" onClick={() => setMatSource(s)}
-                    className={`flex-1 py-3 text-sm font-medium transition-all ${matSource === s ? "bg-[#0F0F0F] text-white" : "text-[#6B6B6B]"}`}>
+                    className={`flex-1 py-3 text-sm font-medium transition-all ${matSource === s ? "bg-selected text-white" : "text-fg-3"}`}>
                     {s === "shop" ? "From shop" : "Customer brings"}
                   </button>
                 ))}
@@ -693,7 +694,7 @@ export default function NewOrderWizard({
                   <button
                     type="button"
                     onClick={() => setManageOpen(true)}
-                    className="text-xs font-medium text-[#C9A84C] mb-2"
+                    className="text-xs font-medium text-accent-ink mb-2"
                   >
                     Manage
                   </button>
@@ -701,18 +702,18 @@ export default function NewOrderWizard({
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   {fabricList.map((f) => (
                     <button key={f.id} type="button" onClick={() => setFabric(f)}
-                      className={`p-3 rounded-xl border text-left transition-all ${fabric?.id === f.id ? "border-[#C9A84C] bg-[#FBF6E8]" : "border-[#E5E0D5] bg-white"}`}>
-                      <p className={`text-sm font-semibold ${fabric?.id === f.id ? "text-[#7A6020]" : "text-[#0F0F0F]"}`}>{f.name}</p>
-                      <p className={`text-xs mt-0.5 ${fabric?.id === f.id ? "text-[#C9A84C]" : "text-[#9A9A9A]"}`}>₹{f.price}/m</p>
+                      className={`p-3 rounded-xl border text-left transition-all ${fabric?.id === f.id ? "border-gold bg-gold-50" : "border-border bg-white"}`}>
+                      <p className={`text-sm font-semibold ${fabric?.id === f.id ? "text-gold-800" : "text-fg"}`}>{f.name}</p>
+                      <p className={`text-xs mt-0.5 ${fabric?.id === f.id ? "text-accent-ink" : "text-fg-2"}`}>₹{f.price}/m</p>
                     </button>
                   ))}
                   <button
                     type="button"
                     onClick={() => setManageOpen(true)}
-                    className="p-3 rounded-xl border-2 border-dashed border-[#E5E0D5] bg-white text-left transition-all active:bg-[#F9F8F6]"
+                    className="p-3 rounded-xl border-2 border-dashed border-border bg-white text-left transition-all active:bg-bg"
                   >
-                    <p className="text-sm font-semibold text-[#9A9A9A]">+ Add fabric</p>
-                    <p className="text-xs mt-0.5 text-[#9A9A9A]">name & ₹/m</p>
+                    <p className="text-sm font-semibold text-fg-2">+ Add fabric</p>
+                    <p className="text-xs mt-0.5 text-fg-2">name & ₹/m</p>
                   </button>
                 </div>
                 {fabricList.length === 0 && (
@@ -725,8 +726,8 @@ export default function NewOrderWizard({
                   value={metres}
                   onChange={(e) => setMetres(e.target.value)}
                 />
-                <p className="text-xs text-[#9A9A9A] mt-1.5">
-                  Fabric cost: <span className="text-[#C9A84C] font-medium">{formatCurrency(fabricCost)}</span>
+                <p className="text-xs text-fg-2 mt-1.5">
+                  Fabric cost: <span className="text-accent-ink font-medium">{formatCurrency(fabricCost)}</span>
                 </p>
               </div>
             )}
@@ -747,7 +748,7 @@ export default function NewOrderWizard({
                 // Scanned book orders often have no fabric on hand yet, so
                 // the photo is optional there; manual orders still require it.
                 scan ? (
-                  <p className="text-xs text-[#9A9A9A] mt-1.5">
+                  <p className="text-xs text-fg-2 mt-1.5">
                     Optional for scanned orders — add a fabric photo if handy.
                   </p>
                 ) : (
@@ -820,7 +821,7 @@ export default function NewOrderWizard({
               <p className="section-label">Payment</p>
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs text-[#9A9A9A] mb-1 block">Advance collected (₹)</label>
+                  <label className="text-xs text-fg-2 mb-1 block">Advance collected (₹)</label>
                   <input
                     className="input"
                     type="number"
@@ -831,7 +832,7 @@ export default function NewOrderWizard({
                 {/* Only asked once money has actually changed hands. */}
                 {advanceValue > 0 && (
                   <div>
-                    <label className="text-xs text-[#9A9A9A] mb-1 block">How was the advance paid?</label>
+                    <label className="text-xs text-fg-2 mb-1 block">How was the advance paid?</label>
                     <PaymentSplitPicker
                       idPrefix="advance"
                       total={advanceValue}
@@ -841,7 +842,7 @@ export default function NewOrderWizard({
                   </div>
                 )}
                 <div>
-                  <label className="text-xs text-[#9A9A9A] mb-1 block">Delivery date *</label>
+                  <label className="text-xs text-fg-2 mb-1 block">Delivery date *</label>
                   <input
                     className="input"
                     type="date"
@@ -856,15 +857,15 @@ export default function NewOrderWizard({
 
             {/* Summary */}
             <div className="card-gold">
-              <p className="text-xs font-semibold text-[#7A6020] mb-3">Order summary</p>
+              <p className="text-xs font-semibold text-gold-800 mb-3">Order summary</p>
               {anyShopMaterial && fabric && (
-                <div className="flex justify-between text-xs text-[#A8882E] mb-1.5">
+                <div className="flex justify-between text-xs text-accent-ink mb-1.5">
                   <span>Fabric ({fabric.name} × {metres}m)</span>
                   <span>{formatCurrency(fabricCost)}</span>
                 </div>
               )}
               {canSplitPieces && pieceCount > 1 && (
-                <div className="flex justify-between text-xs text-[#A8882E] mb-1.5">
+                <div className="flex justify-between text-xs text-accent-ink mb-1.5">
                   <span>Pieces</span>
                   <span>
                     {pieceCount} garments
@@ -873,20 +874,20 @@ export default function NewOrderWizard({
                 </div>
               )}
               {lineItems.filter((li) => li.particulars.trim() && li.qty > 0 && li.amount > 0).map((li, i) => (
-                <div key={i} className="flex justify-between text-xs text-[#A8882E] mb-1.5">
+                <div key={i} className="flex justify-between text-xs text-accent-ink mb-1.5">
                   <span>{li.particulars} ×{li.qty} @ {formatCurrency(li.amount)}</span>
                   <span>{formatCurrency(li.qty * li.amount)}</span>
                 </div>
               ))}
-              <div className="flex justify-between text-sm font-bold text-[#0F0F0F] border-t border-[#EDD98A] pt-2 mt-1">
+              <div className="flex justify-between text-sm font-bold text-fg border-t border-gold-200 pt-2 mt-1">
                 <span>Total</span>
                 <span>{formatCurrency(total)}</span>
               </div>
-              <div className="flex justify-between text-xs text-[#6B6B6B] mt-1">
+              <div className="flex justify-between text-xs text-fg-3 mt-1">
                 <span>Advance</span>
                 <span>{formatCurrency(parseFloat(advance || "0"))}</span>
               </div>
-              <div className="flex justify-between text-xs font-semibold text-[#C9A84C] mt-0.5">
+              <div className="flex justify-between text-xs font-semibold text-accent-ink mt-0.5">
                 <span>Balance due</span>
                 <span>{formatCurrency(balance > 0 ? balance : 0)}</span>
               </div>
@@ -919,15 +920,15 @@ export default function NewOrderWizard({
       {placedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm bg-white rounded-2xl p-6 text-center shadow-xl">
-            <CheckCircle2 size={48} className="mx-auto text-[#1B6B3A]" />
-            <p className="text-base font-semibold text-[#0F0F0F] mt-3">Order placed successfully!</p>
-            <p className="text-sm text-[#6B6B6B] mt-1">
-              Order <span className="font-semibold text-[#0F0F0F]">{placedOrder.id}</span> for {name} has been created.
+            <CheckCircle2 size={48} className="mx-auto text-success" />
+            <p className="text-base font-semibold text-fg mt-3">Order placed successfully!</p>
+            <p className="text-sm text-fg-3 mt-1">
+              Order <span className="font-semibold text-fg">{placedOrder.id}</span> for {name} has been created.
             </p>
 
             <button
               onClick={handleShareOnWhatsApp}
-              className="w-full mt-5 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white bg-[#25D366] active:opacity-80"
+              className="w-full mt-5 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white bg-whatsapp active:opacity-80"
             >
               <MessageCircle size={18} />
               Share on WhatsApp

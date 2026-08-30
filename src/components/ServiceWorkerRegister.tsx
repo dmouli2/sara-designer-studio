@@ -63,7 +63,7 @@ export default function ServiceWorkerRegister() {
   if (!updating) return null;
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-[#0F0F0F] text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-lg">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-header text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-lg">
       Updating to the latest version…
     </div>
   );

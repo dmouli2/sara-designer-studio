@@ -62,21 +62,21 @@ export default function InstallBanner() {
   // Android — custom install button
   if (prompt) {
     return (
-      <div className="mx-5 mb-4 bg-[#0F0F0F] rounded-2xl p-4 flex items-center gap-3">
-        <div className="w-9 h-9 bg-[#C9A84C]/20 rounded-xl flex items-center justify-center shrink-0">
+      <div className="mx-5 mb-4 bg-header rounded-2xl p-4 flex items-center gap-3">
+        <div className="w-9 h-9 bg-gold/20 rounded-xl flex items-center justify-center shrink-0">
           <Download size={16} color="#C9A84C" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white text-sm font-semibold">Install App</p>
-          <p className="text-[#9A9A9A] text-xs mt-0.5">Add to home screen for quick access</p>
+          <p className="text-fg-on-dark text-xs mt-0.5">Add to home screen for quick access</p>
         </div>
         <button
           onClick={handleInstall}
-          className="bg-[#C9A84C] text-[#0F0F0F] text-xs font-bold px-3 py-1.5 rounded-lg shrink-0"
+          className="bg-gold text-fg text-xs font-bold px-3 py-1.5 rounded-xl shrink-0"
         >
           Install
         </button>
-        <button onClick={dismiss} className="text-[#6B6B6B] shrink-0">
+        <button onClick={dismiss} className="text-fg-3 shrink-0">
           <X size={16} />
         </button>
       </div>
@@ -86,17 +86,17 @@ export default function InstallBanner() {
   // iOS — manual instructions
   if (showIOS) {
     return (
-      <div className="mx-5 mb-4 bg-[#0F0F0F] rounded-2xl p-4">
+      <div className="mx-5 mb-4 bg-header rounded-2xl p-4">
         <div className="flex items-start justify-between mb-2">
           <p className="text-white text-sm font-semibold">Install on iPhone</p>
-          <button onClick={dismiss} className="text-[#6B6B6B]">
+          <button onClick={dismiss} className="text-fg-3">
             <X size={16} />
           </button>
         </div>
-        <p className="text-[#9A9A9A] text-xs leading-relaxed">
-          Tap the <span className="text-[#C9A84C] font-semibold">Share</span> button{" "}
+        <p className="text-fg-on-dark text-xs leading-relaxed">
+          Tap the <span className="text-gold font-semibold">Share</span> button{" "}
           <span className="text-white">⎋</span> at the bottom of Safari, then tap{" "}
-          <span className="text-[#C9A84C] font-semibold">&quot;Add to Home Screen&quot;</span>
+          <span className="text-gold font-semibold">&quot;Add to Home Screen&quot;</span>
         </p>
       </div>
     );

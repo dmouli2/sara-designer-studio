@@ -8,7 +8,7 @@ export default function DressTypeRevenueChart({ dresses }: { dresses: DressReven
     <div className="card">
       <p className="section-label">Revenue by Dress Type</p>
       {dresses.length === 0 ? (
-        <p className="text-sm text-[#9A9A9A] py-8 text-center">No orders in this period</p>
+        <p className="text-sm text-fg-2 py-8 text-center">No orders in this period</p>
       ) : (
         <div style={{ height: Math.max(dresses.length * 44, 120) }}>
           <ResponsiveContainer width="100%" height="100%">
@@ -16,7 +16,7 @@ export default function DressTypeRevenueChart({ dresses }: { dresses: DressReven
               <CartesianGrid horizontal={false} stroke="#F0EDE6" />
               <XAxis
                 type="number"
-                tick={{ fontSize: 11, fill: "#9A9A9A" }}
+                tick={{ fontSize: 11, fill: "#56524A" }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`)}

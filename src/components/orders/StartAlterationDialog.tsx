@@ -58,16 +58,16 @@ export default function StartAlterationDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-[2px] p-4">
-      <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl">
-        <p className="text-[16px] font-semibold text-[#0F0F0F]">Alteration for {orderId}</p>
-        <p className="text-[14px] text-[#6B6B6B] mt-2 leading-relaxed">
+      <div className="w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl">
+        <p className="text-[16px] font-semibold text-fg">Alteration for {orderId}</p>
+        <p className="text-[14px] text-fg-3 mt-2 leading-relaxed">
           The order stays delivered — this just tracks the garment while it&apos;s back with us.
         </p>
 
         <div className="mt-4 space-y-3">
           {multi && (
             <div>
-              <label className="text-xs text-[#9A9A9A] mb-1 block" htmlFor="alteration-piece">
+              <label className="text-xs text-fg-2 mb-1 block" htmlFor="alteration-piece">
                 Which piece?
               </label>
               <select
@@ -94,7 +94,7 @@ export default function StartAlterationDialog({
           />
 
           <div>
-            <label className="text-xs text-[#9A9A9A] mb-1 block" htmlFor="alteration-reason">
+            <label className="text-xs text-fg-2 mb-1 block" htmlFor="alteration-reason">
               What needs changing?
             </label>
             <textarea
@@ -108,7 +108,7 @@ export default function StartAlterationDialog({
           </div>
 
           <div>
-            <label className="text-xs text-[#9A9A9A] mb-1 block" htmlFor="alteration-promised">
+            <label className="text-xs text-fg-2 mb-1 block" htmlFor="alteration-promised">
               Promised back on *
             </label>
             <input
@@ -126,7 +126,7 @@ export default function StartAlterationDialog({
             type="button"
             onClick={onCancel}
             disabled={pending}
-            className="flex-1 py-3 rounded-xl border border-[#E5E0D5] bg-white text-[14px] font-medium text-[#6B6B6B] active:scale-[0.98] transition-all disabled:opacity-40"
+            className="flex-1 py-3 rounded-xl border border-border bg-white text-[14px] font-medium text-fg-3 active:scale-[0.98] transition-all disabled:opacity-40"
           >
             Cancel
           </button>
@@ -136,7 +136,7 @@ export default function StartAlterationDialog({
             onClick={() =>
               onConfirm({ reason, promisedAt, pieceLabel: pieceLabel || null, receivedAt })
             }
-            className="flex-1 py-3 rounded-xl bg-[#6B4FA8] text-white text-[14px] font-semibold active:scale-[0.98] transition-all disabled:opacity-40"
+            className="flex-1 py-3 rounded-xl bg-violet text-white text-[14px] font-semibold active:scale-[0.98] transition-all disabled:opacity-40"
           >
             {pending ? "Saving…" : "Take it in"}
           </button>

@@ -303,14 +303,14 @@ export default function AdminOrderDetailBody({
         {/* Status + date */}
         <div className="flex items-center gap-3">
           <StatusBadge status={order.status} alterations={order.alterations} />
-          <span className="text-[13px] text-[#9A9A9A]">Due {formatDate(order.due)}</span>
+          <span className="text-[13px] text-fg-2">Due {formatDate(order.due)}</span>
         </div>
 
         {canShareStatus && (
           <button
             type="button"
             onClick={handleShareStatus}
-            className="w-full flex items-center justify-center gap-2 py-3 text-[14px] font-semibold text-[#1B6B3A] border border-[#BFE3CE] bg-[#F4FBF7] rounded-xl active:scale-[0.98] transition-all"
+            className="w-full flex items-center justify-center gap-2 py-3 text-[14px] font-semibold text-success border border-success-border bg-success-25 rounded-xl active:scale-[0.98] transition-all"
           >
             <MessageCircle size={16} />
             Share status with customer
@@ -341,7 +341,7 @@ export default function AdminOrderDetailBody({
         {canEdit && (
           <button
             onClick={() => router.push(`/admin/orders/${order.id}/edit`)}
-            className="w-full flex items-center justify-center gap-2 py-3 text-[14px] font-medium text-[#0F0F0F] border border-[#E5E0D5] bg-white rounded-xl active:scale-[0.98] transition-all"
+            className="w-full flex items-center justify-center gap-2 py-3 text-[14px] font-medium text-fg border border-border bg-white rounded-xl active:scale-[0.98] transition-all"
           >
             <Pencil size={16} />
             Edit order
@@ -364,7 +364,7 @@ export default function AdminOrderDetailBody({
         {order.sketchDataUrl && (
           <div>
             <p className="section-label">Garment sketch</p>
-            <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden bg-white">
+            <div className="rounded-2xl border border-border overflow-hidden bg-white">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={order.sketchDataUrl} alt="Sketch" className="w-full" loading="lazy" />
             </div>
@@ -416,24 +416,24 @@ export default function AdminOrderDetailBody({
           {isCancelled ? (
             <div className="space-y-2">
               <div className="flex justify-between items-start gap-4">
-                <span className="text-[13px] text-[#9A9A9A] shrink-0">Order total</span>
-                <span className="text-[14px] text-[#9A9A9A] line-through text-right">{formatCurrency(order.amount)}</span>
+                <span className="text-[13px] text-fg-2 shrink-0">Order total</span>
+                <span className="text-[14px] text-fg-2 line-through text-right">{formatCurrency(order.amount)}</span>
               </div>
               <Row label="Advance paid" value={formatCurrency(order.advance)} />
-              <div className="flex justify-between pt-2 border-t border-[#F0EDE6] mt-1">
+              <div className="flex justify-between pt-2 border-t border-border-soft mt-1">
                 <span className="text-[15px] font-semibold">Cancellation charge</span>
-                <span className="text-[15px] font-bold text-[#B04A4A]">{formatCurrency(cancellationCharge)}</span>
+                <span className="text-[15px] font-bold text-danger">{formatCurrency(cancellationCharge)}</span>
               </div>
               {cancelBalance > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-[13px] text-[#9A9A9A]">Balance due</span>
-                  <span className="text-[13px] font-semibold text-[#C9A84C]">{formatCurrency(cancelBalance)}</span>
+                  <span className="text-[13px] text-fg-2">Balance due</span>
+                  <span className="text-[13px] font-semibold text-accent-ink">{formatCurrency(cancelBalance)}</span>
                 </div>
               )}
               {cancelBalance < 0 && (
                 <div className="flex justify-between">
-                  <span className="text-[13px] text-[#9A9A9A]">Refund due to customer</span>
-                  <span className="text-[13px] font-semibold text-[#1B6B3A]">{formatCurrency(-cancelBalance)}</span>
+                  <span className="text-[13px] text-fg-2">Refund due to customer</span>
+                  <span className="text-[13px] font-semibold text-success">{formatCurrency(-cancelBalance)}</span>
                 </div>
               )}
             </div>
@@ -443,11 +443,11 @@ export default function AdminOrderDetailBody({
                 <div className="space-y-1.5 mb-3">
                   {order.lineItems.map((li, i) => (
                     <div key={i}>
-                      <div className="flex justify-between text-[13px] text-[#6B6B6B]">
+                      <div className="flex justify-between text-[13px] text-fg-3">
                         <span>{li.particulars} ×{li.qty} @ {formatCurrency(li.amount)}</span>
                         <span>{formatCurrency(li.qty * li.amount)}</span>
                       </div>
-                      {li.note && <p className="text-[12px] text-[#A8882E] italic">({li.note})</p>}
+                      {li.note && <p className="text-[12px] text-accent-ink italic">({li.note})</p>}
                     </div>
                   ))}
                 </div>
@@ -472,9 +472,9 @@ export default function AdminOrderDetailBody({
                     more than one instalment — otherwise the row above already
                     says everything. */}
                 {(order.payments ?? []).length > 1 && (
-                  <div className="pl-3 border-l-2 border-[#F0EDE6] space-y-1 py-0.5">
+                  <div className="pl-3 border-l-2 border-border-soft space-y-1 py-0.5">
                     {order.payments.map((payment) => (
-                      <div key={payment.id} className="flex justify-between text-[12px] text-[#9A9A9A]">
+                      <div key={payment.id} className="flex justify-between text-[12px] text-fg-2">
                         <span className="min-w-0 truncate">
                           {formatDate(payment.at)}
                           {payment.pieceId
@@ -488,9 +488,9 @@ export default function AdminOrderDetailBody({
                     ))}
                   </div>
                 )}
-                <div className="flex justify-between pt-2 border-t border-[#F0EDE6] mt-1">
+                <div className="flex justify-between pt-2 border-t border-border-soft mt-1">
                   <span className="text-[15px] font-semibold">Balance due</span>
-                  <span className={`text-[15px] font-bold ${balance > 0 ? "text-[#C9A84C]" : "text-[#1B6B3A]"}`}>
+                  <span className={`text-[15px] font-bold ${balance > 0 ? "text-accent-ink" : "text-success"}`}>
                     {formatCurrency(balance > 0 ? balance : 0)}
                   </span>
                 </div>
@@ -519,17 +519,17 @@ export default function AdminOrderDetailBody({
         )}
 
         {order.status === "hemming_hook" && (
-          <div className="rounded-2xl border border-[#CFE0F5] bg-[#E3EEFB] p-4 space-y-3">
+          <div className="rounded-2xl border border-info-border bg-info-light p-4 space-y-3">
             <div>
-              <p className="text-sm font-semibold text-[#2E5C99]">Hemming & Hook pending</p>
-              <p className="text-[13px] text-[#2E5C99]/80 mt-0.5">
+              <p className="text-sm font-semibold text-info">Hemming & Hook pending</p>
+              <p className="text-[13px] text-info/80 mt-0.5">
                 Order isn&apos;t ready until this finishing step is marked done.
               </p>
             </div>
             <button
               onClick={handleReleaseToReady}
               disabled={releasingToReady}
-              className="w-full bg-[#2E5C99] text-white rounded-xl py-3 text-[14px] font-semibold active:opacity-80 disabled:opacity-40 transition-all"
+              className="w-full bg-info text-white rounded-xl py-3 text-[14px] font-semibold active:opacity-80 disabled:opacity-40 transition-all"
             >
               {releasingToReady ? "Updating…" : "✓ Mark Hemming & Hook Done → Ready"}
             </button>
@@ -539,7 +539,7 @@ export default function AdminOrderDetailBody({
         {order.status === "delivered" && !openAlteration(order) && (
           <div className="card-gold text-center py-5">
             <p className="text-2xl mb-1">✅</p>
-            <p className="text-sm font-semibold text-[#1B6B3A]">
+            <p className="text-sm font-semibold text-success">
               Order delivered{order.deliveredOn ? ` ${formatDate(order.deliveredOn)}` : ""}
             </p>
           </div>
@@ -556,9 +556,9 @@ export default function AdminOrderDetailBody({
         )}
 
         {isCancelled && (
-          <div className="rounded-2xl border border-[#F0D5D5] bg-[#FBECEC] text-center py-5">
+          <div className="rounded-2xl border border-danger-border bg-danger-light text-center py-5">
             <p className="text-2xl mb-1">🚫</p>
-            <p className="text-sm font-semibold text-[#B04A4A]">Order cancelled</p>
+            <p className="text-sm font-semibold text-danger">Order cancelled</p>
           </div>
         )}
 
@@ -567,15 +567,15 @@ export default function AdminOrderDetailBody({
             the page despite being the only irreversible one. Fencing them
             into a labelled area makes it clear you have left the ordinary
             actions behind, without moving them somewhere they'd be missed. */}
-        <div className="rounded-2xl border border-[#F0D5D5] bg-[#FDF7F7] p-4 space-y-2.5">
-          <p className="text-[12px] font-semibold text-[#B04A4A] uppercase tracking-widest">
+        <div className="rounded-2xl border border-danger-border bg-danger-25 p-4 space-y-2.5">
+          <p className="text-[12px] font-semibold text-danger uppercase tracking-widest">
             Danger zone
           </p>
 
           {!isCancelled && (
             <button
               onClick={() => setCancelOpen(true)}
-              className="w-full flex items-center justify-center gap-2 py-3.5 text-[14px] font-medium text-[#B04A4A] bg-white border border-[#F0D5D5] rounded-xl active:scale-[0.98] transition-all"
+              className="w-full flex items-center justify-center gap-2 py-3.5 text-[14px] font-medium text-danger bg-white border border-danger-border rounded-xl active:scale-[0.98] transition-all"
             >
               <Ban size={18} />
               Cancel order
@@ -584,13 +584,13 @@ export default function AdminOrderDetailBody({
 
           <button
             onClick={() => setDeleteOpen(true)}
-            className="w-full flex items-center justify-center gap-2 py-3.5 text-[14px] font-semibold text-white bg-[#B04A4A] rounded-xl active:scale-[0.98] transition-all"
+            className="w-full flex items-center justify-center gap-2 py-3.5 text-[14px] font-semibold text-white bg-danger rounded-xl active:scale-[0.98] transition-all"
           >
             <Trash2 size={18} />
             Delete order
           </button>
 
-          <p className="text-[12px] text-[#9A9A9A] text-center">
+          <p className="text-[12px] text-fg-2 text-center">
             Deleting removes the order and its photos for good.
           </p>
         </div>
@@ -659,8 +659,8 @@ export default function AdminOrderDetailBody({
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between items-start gap-4">
-      <span className="text-[13px] text-[#9A9A9A] shrink-0">{label}</span>
-      <span className="text-[14px] text-[#0F0F0F] text-right">{value}</span>
+      <span className="text-[13px] text-fg-2 shrink-0">{label}</span>
+      <span className="text-[14px] text-fg text-right">{value}</span>
     </div>
   );
 }

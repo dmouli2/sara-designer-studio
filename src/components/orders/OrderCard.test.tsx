@@ -74,8 +74,9 @@ describe("OrderCard", () => {
 
   it("shows the assigned master when present", () => {
     const order: Order = { ...baseOrder, master: { id: "m1", name: "Ramesh K." } };
-    render(<OrderCard order={order} />);
-    expect(screen.getByText("✂️ Ramesh K.")).toBeInTheDocument();
+    const { container } = render(<OrderCard order={order} />);
+    expect(screen.getByText("Ramesh K.")).toBeInTheDocument();
+    expect(container.querySelector(".lucide-scissors")).toBeInTheDocument();
   });
 
   // This shop never assigns anyone, so "Not assigned" was rendering twice in
@@ -83,28 +84,29 @@ describe("OrderCard", () => {
   // warning. An empty assignment now says nothing at all.
   it("says nothing about an unassigned master", () => {
     const order: Order = { ...baseOrder, master: null };
-    render(<OrderCard order={order} />);
+    const { container } = render(<OrderCard order={order} />);
     expect(screen.queryByText(/Not assigned/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/✂️/)).not.toBeInTheDocument();
+    expect(container.querySelector(".lucide-scissors")).not.toBeInTheDocument();
   });
 
   it("shows the assigned tailor when present", () => {
     const order: Order = { ...baseOrder, tailor: { id: "t1", name: "Anitha K." } };
-    render(<OrderCard order={order} />);
-    expect(screen.getByText("🧵 Anitha K.")).toBeInTheDocument();
+    const { container } = render(<OrderCard order={order} />);
+    expect(screen.getByText("Anitha K.")).toBeInTheDocument();
+    expect(container.querySelector(".lucide-spool")).toBeInTheDocument();
   });
 
   it("says nothing about an unassigned tailor", () => {
     const order: Order = { ...baseOrder, tailor: null };
-    render(<OrderCard order={order} />);
+    const { container } = render(<OrderCard order={order} />);
     expect(screen.queryByText(/Not assigned/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/🧵/)).not.toBeInTheDocument();
+    expect(container.querySelector(".lucide-spool")).not.toBeInTheDocument();
   });
 
   it("drops the chip row entirely when there is nothing to put in it", () => {
     const order: Order = { ...baseOrder, master: null, tailor: null, pieces: null };
     render(<OrderCard order={order} />);
-    expect(screen.queryByText(/delivered/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/handed over/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Not assigned/)).not.toBeInTheDocument();
   });
 
@@ -119,7 +121,7 @@ describe("OrderCard", () => {
       ],
     };
     render(<OrderCard order={order} />);
-    expect(screen.getByText(/0\/2 delivered/)).toBeInTheDocument();
+    expect(screen.getByText(/0 of 2 handed over/)).toBeInTheDocument();
   });
 
   // A card is the only route into an order, so it has to be operable by
@@ -146,14 +148,14 @@ describe("OrderCard", () => {
   it("highlights a new order with a gold accent border and pulsing dot", () => {
     const order: Order = { ...baseOrder, status: "new" };
     const { container } = render(<OrderCard order={order} />);
-    expect(container.firstChild).toHaveClass("border-l-[#C9A84C]");
+    expect(container.firstChild).toHaveClass("border-l-gold");
     expect(container.querySelector(".animate-ping")).toBeInTheDocument();
   });
 
   it("does not show the new-order highlight for other statuses", () => {
     const order: Order = { ...baseOrder, status: "cutting" };
     const { container } = render(<OrderCard order={order} />);
-    expect(container.firstChild).not.toHaveClass("border-l-[#C9A84C]");
+    expect(container.firstChild).not.toHaveClass("border-l-gold");
     expect(container.querySelector(".animate-ping")).not.toBeInTheDocument();
   });
 
@@ -230,7 +232,7 @@ describe("OrderCard", () => {
     const order: Order = { ...baseOrder, due: "2020-01-01" };
     const { container } = render(<OrderCard order={order} />);
     expect(screen.getByText(/Overdue · was due/)).toBeInTheDocument();
-    expect(container.firstChild).toHaveClass("border-l-[#B04A4A]");
+    expect(container.firstChild).toHaveClass("border-l-danger");
   });
 
   it("does not mark a delivered order as overdue even when past its due date", () => {

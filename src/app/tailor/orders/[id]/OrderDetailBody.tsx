@@ -49,14 +49,14 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
         {/* Status */}
         <div className="flex items-center gap-3">
           <StatusBadge status={order.status} />
-          <span className="text-[13px] text-[#9A9A9A]">Due {formatDate(order.due)}</span>
+          <span className="text-[13px] text-fg-2">Due {formatDate(order.due)}</span>
         </div>
 
         {/* Dress info */}
         <div className="card-gold">
-          <p className="text-[16px] font-semibold text-[#7A6020]">{order.dress} · {order.material}</p>
+          <p className="text-[16px] font-semibold text-gold-800">{order.dress} · {order.material}</p>
           {order.notes && (
-            <p className="text-[13px] text-[#A8882E]/80 mt-1.5 italic">&quot;{order.notes}&quot;</p>
+            <p className="text-[13px] text-accent-ink mt-1.5 italic">&quot;{order.notes}&quot;</p>
           )}
         </div>
 
@@ -80,7 +80,7 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
         {order.sketchDataUrl && (
           <div>
             <p className="section-label">Garment sketch</p>
-            <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden bg-white">
+            <div className="rounded-2xl border border-border overflow-hidden bg-white">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={order.sketchDataUrl} alt="Sketch" className="w-full" loading="lazy" />
             </div>
@@ -95,15 +95,15 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
 
         {/* Status update */}
         {isCancelled ? (
-          <div className="rounded-2xl border border-[#F0D5D5] bg-[#FBECEC] text-center py-6">
+          <div className="rounded-2xl border border-danger-border bg-danger-light text-center py-6">
             <p className="text-3xl mb-1.5">🚫</p>
-            <p className="text-[16px] font-semibold text-[#B04A4A]">Order cancelled</p>
+            <p className="text-[16px] font-semibold text-danger">Order cancelled</p>
           </div>
         ) : order.status === "hemming_hook" ? (
-          <div className="rounded-2xl border border-[#CFE0F5] bg-[#E3EEFB] text-center py-6">
+          <div className="rounded-2xl border border-info-border bg-info-light text-center py-6">
             <p className="text-3xl mb-1.5">🪡</p>
-            <p className="text-[16px] font-semibold text-[#2E5C99]">Sent for Hemming & Hook</p>
-            <p className="text-[13px] text-[#2E5C99]/80 mt-1">Admin will release it to Ready once finishing is done</p>
+            <p className="text-[16px] font-semibold text-info">Sent for Hemming & Hook</p>
+            <p className="text-[13px] text-info/80 mt-1">Admin will release it to Ready once finishing is done</p>
           </div>
         ) : !isHandedOff ? (
           <button onClick={handleMarkStitchingDone} disabled={marking} className="btn-gold disabled:opacity-40">
@@ -112,8 +112,8 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
         ) : (
           <div className="card-gold text-center py-6">
             <p className="text-3xl mb-1.5">🎉</p>
-            <p className="text-[16px] font-semibold text-[#1B6B3A]">Order is ready for pickup!</p>
-            <p className="text-[13px] text-[#6B6B6B] mt-1">Customer will be notified</p>
+            <p className="text-[16px] font-semibold text-success">Order is ready for pickup!</p>
+            <p className="text-[13px] text-fg-3 mt-1">Customer will be notified</p>
           </div>
         )}
 

@@ -3,7 +3,7 @@ import Skeleton from "./Skeleton";
 export default function PageLoader() {
   return (
     <div role="status" aria-label="Loading" className="screen">
-      <div className="bg-[#0F0F0F] px-4 pt-12 pb-5 space-y-2">
+      <div className="bg-header px-4 pt-12 pb-5 space-y-2">
         <Skeleton className="h-4 w-40 bg-white/15" />
         <Skeleton className="h-3 w-24 bg-white/10" />
       </div>

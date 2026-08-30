@@ -176,7 +176,7 @@ describe("AdminOrderDetailBody", () => {
   it("shows the balance in green when the order is fully paid", () => {
     renderBody(order({ status: "new", amount: 1800, advance: 1800 }));
     const balanceValue = screen.getByText("Balance due").parentElement!.querySelector("span:last-child")!;
-    expect(balanceValue).toHaveClass("text-[#1B6B3A]");
+    expect(balanceValue).toHaveClass("text-success");
     expect(balanceValue).toHaveTextContent("₹0");
   });
 
@@ -328,8 +328,8 @@ describe("AdminOrderDetailBody", () => {
 
   it("navigates to the admin orders list (fresh, not a cached back-nav) when the top bar back button is clicked", async () => {
     const user = userEvent.setup();
-    const { container } = renderBody(order({ status: "new" }));
-    await user.click(container.querySelector(".rounded-full")!);
+    renderBody(order({ status: "new" }));
+    await user.click(screen.getByLabelText("Back"));
     expect(mockRouter.push).toHaveBeenCalledWith("/admin/orders");
   });
 

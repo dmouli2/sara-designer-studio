@@ -49,8 +49,8 @@ export default function DeliverOrderDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-[2px] p-4">
-      <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl">
-        <p className="text-[16px] font-semibold text-[#0F0F0F]">Deliver order {orderId}</p>
+      <div className="w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl">
+        <p className="text-[16px] font-semibold text-fg">Deliver order {orderId}</p>
 
         <div className="mt-4">
           <EventDateField
@@ -62,23 +62,23 @@ export default function DeliverOrderDialog({
         </div>
 
         {nothingToCollect ? (
-          <p className="text-[14px] text-[#6B6B6B] mt-3 leading-relaxed">
+          <p className="text-[14px] text-fg-3 mt-3 leading-relaxed">
             This order is already paid in full — nothing left to collect. Confirm to hand it over.
           </p>
         ) : (
           <>
-            <p className="text-[14px] text-[#6B6B6B] mt-2 leading-relaxed">
+            <p className="text-[14px] text-fg-3 mt-2 leading-relaxed">
               Collect the balance before handing the order over.
             </p>
 
-            <div className="mt-4 rounded-2xl bg-[#FBF6E8] border border-[#EDD98A] px-4 py-3.5 flex items-baseline justify-between">
-              <span className="text-[13px] font-medium text-[#7A6020]">Balance to collect</span>
-              <span className="text-[20px] font-bold text-[#7A6020] tabular-nums">
+            <div className="mt-4 rounded-2xl bg-gold-50 border border-gold-200 px-4 py-3.5 flex items-baseline justify-between">
+              <span className="text-[13px] font-medium text-gold-800">Balance to collect</span>
+              <span className="text-[20px] font-bold text-gold-800 tabular-nums">
                 {formatCurrency(balance)}
               </span>
             </div>
 
-            <p className="text-xs text-[#9A9A9A] mt-4 mb-2">How was it paid?</p>
+            <p className="text-xs text-fg-2 mt-4 mb-2">How was it paid?</p>
             <PaymentSplitPicker
               idPrefix="deliver-order"
               total={balance}
@@ -93,7 +93,7 @@ export default function DeliverOrderDialog({
             type="button"
             onClick={onCancel}
             disabled={pending}
-            className="flex-1 py-3 rounded-xl border border-[#E5E0D5] bg-white text-[14px] font-medium text-[#6B6B6B] active:scale-[0.98] transition-all disabled:opacity-40"
+            className="flex-1 py-3 rounded-xl border border-border bg-white text-[14px] font-medium text-fg-3 active:scale-[0.98] transition-all disabled:opacity-40"
           >
             Not yet
           </button>
@@ -101,7 +101,7 @@ export default function DeliverOrderDialog({
             type="button"
             onClick={() => canConfirm && onConfirm(collected, deliveredOn)}
             disabled={!canConfirm}
-            className="flex-1 py-3 rounded-xl bg-[#1B6B3A] text-white text-[14px] font-semibold active:scale-[0.98] transition-all disabled:opacity-40"
+            className="flex-1 py-3 rounded-xl bg-success text-white text-[14px] font-semibold active:scale-[0.98] transition-all disabled:opacity-40"
           >
             {pending ? "Saving…" : nothingToCollect ? "Mark delivered" : "Collect & deliver"}
           </button>

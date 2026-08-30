@@ -60,14 +60,14 @@ export default function SalwarMeasurementForm({ value, onChange }: Props) {
   return (
     <div className="space-y-4">
       {/* Section tabs */}
-      <div className="flex rounded-xl border border-[#E5E0D5] overflow-hidden bg-white">
+      <div className="flex rounded-xl border border-border overflow-hidden bg-white">
         {(["top", "pant"] as const).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
             className={`flex-1 py-2.5 text-sm font-medium transition-all ${
-              tab === t ? "bg-[#0F0F0F] text-white" : "text-[#6B6B6B]"
+              tab === t ? "bg-selected text-white" : "text-fg-3"
             }`}
           >
             {t === "top" ? "M. Top" : "M. Pant"}
@@ -76,7 +76,7 @@ export default function SalwarMeasurementForm({ value, onChange }: Props) {
       </div>
 
       {tab === "top" && (
-        <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden bg-white">
+        <div className="rounded-2xl border border-border overflow-hidden bg-white">
           {TOP_FIELDS.map(({ key, label }, i) => (
             <MeasurementFieldRow
               key={key}
@@ -94,7 +94,7 @@ export default function SalwarMeasurementForm({ value, onChange }: Props) {
 
       {tab === "pant" && (
         <div className="space-y-4">
-          <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden bg-white">
+          <div className="rounded-2xl border border-border overflow-hidden bg-white">
             {PANT_FIELDS.map(({ key, label }, i) => (
               <MeasurementFieldRow
                 key={key}
@@ -110,7 +110,7 @@ export default function SalwarMeasurementForm({ value, onChange }: Props) {
           </div>
 
           <div>
-            <label className="text-xs text-[#9A9A9A] mb-1 block">Shawl</label>
+            <label className="text-xs text-fg-2 mb-1 block">Shawl</label>
             <input
               className="input"
               placeholder="Given / details"

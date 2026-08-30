@@ -11,7 +11,7 @@ export default async function EditOrderPage({ params }: { params: Promise<{ id: 
   if (!order) {
     return (
       <div className="screen items-center justify-center">
-        <p className="text-[#9A9A9A]">Order not found</p>
+        <p className="text-fg-2">Order not found</p>
       </div>
     );
   }

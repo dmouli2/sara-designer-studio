@@ -43,7 +43,7 @@ describe("MeasurementFieldRow", () => {
   it("applies zebra striping and the divider border when asked", () => {
     renderRow({ striped: true, bordered: true });
     const row = screen.getByText("Bust").parentElement!;
-    expect(row.className).toContain("bg-[#FDFCFA]");
+    expect(row.className).toContain("bg-surface-3");
     expect(row.className).toContain("border-t");
   });
 

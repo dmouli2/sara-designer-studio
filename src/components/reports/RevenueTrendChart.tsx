@@ -8,14 +8,14 @@ export default function RevenueTrendChart({ points }: { points: RevenuePoint[] }
     <div className="card">
       <p className="section-label">Revenue Trend</p>
       {points.length === 0 ? (
-        <p className="text-sm text-[#9A9A9A] py-8 text-center">No orders in this period</p>
+        <p className="text-sm text-fg-2 py-8 text-center">No orders in this period</p>
       ) : (
         <div className="h-56">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#9A9A9A" }} axisLine={{ stroke: "#E5E0D5" }} tickLine={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#56524A" }} axisLine={{ stroke: "#E5E0D5" }} tickLine={false} />
               <YAxis
-                tick={{ fontSize: 11, fill: "#9A9A9A" }}
+                tick={{ fontSize: 11, fill: "#56524A" }}
                 axisLine={false}
                 tickLine={false}
                 width={44}
