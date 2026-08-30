@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Ban, Pencil, MessageCircle } from "lucide-react";
+import { Trash2, Ban, CircleCheck, Pencil, MessageCircle } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/orders/StatusBadge";
 import MeasurementGrid from "@/components/orders/MeasurementGrid";
@@ -538,7 +538,7 @@ export default function AdminOrderDetailBody({
 
         {order.status === "delivered" && !openAlteration(order) && (
           <div className="card-gold text-center py-5">
-            <p className="text-2xl mb-1">✅</p>
+            <CircleCheck size={24} className="mx-auto mb-1 text-success" aria-hidden="true" />
             <p className="text-sm font-semibold text-success">
               Order delivered{order.deliveredOn ? ` ${formatDate(order.deliveredOn)}` : ""}
             </p>
@@ -557,7 +557,7 @@ export default function AdminOrderDetailBody({
 
         {isCancelled && (
           <div className="rounded-2xl border border-danger-border bg-danger-light text-center py-5">
-            <p className="text-2xl mb-1">🚫</p>
+            <Ban size={24} className="mx-auto mb-1 text-danger" aria-hidden="true" />
             <p className="text-sm font-semibold text-danger">Order cancelled</p>
           </div>
         )}

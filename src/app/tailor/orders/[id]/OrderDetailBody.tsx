@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Ban, PartyPopper, Spool } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import Toast from "@/components/layout/Toast";
 import StatusBadge from "@/components/orders/StatusBadge";
@@ -96,12 +97,12 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
         {/* Status update */}
         {isCancelled ? (
           <div className="rounded-2xl border border-danger-border bg-danger-light text-center py-6">
-            <p className="text-3xl mb-1.5">🚫</p>
+            <Ban size={26} className="mx-auto mb-1.5 text-danger" aria-hidden="true" />
             <p className="text-[16px] font-semibold text-danger">Order cancelled</p>
           </div>
         ) : order.status === "hemming_hook" ? (
           <div className="rounded-2xl border border-info-border bg-info-light text-center py-6">
-            <p className="text-3xl mb-1.5">🪡</p>
+            <Spool size={26} className="mx-auto mb-1.5 text-accent-ink" aria-hidden="true" />
             <p className="text-[16px] font-semibold text-info">Sent for Hemming & Hook</p>
             <p className="text-[13px] text-info/80 mt-1">Admin will release it to Ready once finishing is done</p>
           </div>
@@ -111,7 +112,7 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
           </button>
         ) : (
           <div className="card-gold text-center py-6">
-            <p className="text-3xl mb-1.5">🎉</p>
+            <PartyPopper size={26} className="mx-auto mb-1.5 text-success" aria-hidden="true" />
             <p className="text-[16px] font-semibold text-success">Order is ready for pickup!</p>
             <p className="text-[13px] text-fg-3 mt-1">Customer will be notified</p>
           </div>

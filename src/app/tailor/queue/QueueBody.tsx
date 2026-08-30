@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, Search, Spool, CheckCheck } from "lucide-react";
+import { LogOut, Search, SearchX, Spool, CheckCheck } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import BottomNav from "@/components/layout/BottomNav";
 import PullToRefresh from "@/components/layout/PullToRefresh";
@@ -68,45 +68,50 @@ export default function QueueBody({ myOrders, readyOrders }: Props) {
             </div>
           ) : visibleMy.length === 0 && searching ? (
             <div className="text-center pt-16">
-              <p className="text-3xl mb-3">🔍</p>
+              <SearchX size={30} className="mx-auto mb-3 text-fg-faint" aria-hidden="true" />
               <p className="text-sm text-fg-2">No jobs match your search</p>
             </div>
           ) : (
             <>
               <p className="section-label">In progress</p>
-              {visibleMy.map((o) => (
-                <OrderCard
-                  key={o.id}
-                  order={o}
-                  onClick={() => router.push(`/tailor/orders/${o.id}`)}
-                  showPrice={false}
-                />
-              ))}
+              <div className="grid grid-cols-1 md:grid-cols-2 md:gap-3.5">
+                {visibleMy.map((o) => (
+                  <OrderCard
+                    key={o.id}
+                    order={o}
+                    className="md:mb-0"
+                    onClick={() => router.push(`/tailor/orders/${o.id}`)}
+                    showPrice={false}
+                  />
+                ))}
+              </div>
             </>
           )
         ) : readyOrders.length === 0 ? (
           <div className="text-center pt-16">
-            <p className="text-4xl mb-3">✓</p>
+            <CheckCheck size={34} className="mx-auto mb-3 text-fg-faint" aria-hidden="true" />
             <p className="text-sm font-medium text-fg">No completed jobs yet</p>
             <p className="text-xs text-fg-2 mt-1">Orders you finish stitching will appear here</p>
           </div>
         ) : visibleReady.length === 0 && searching ? (
           <div className="text-center pt-16">
-            <p className="text-3xl mb-3">🔍</p>
+            <SearchX size={30} className="mx-auto mb-3 text-fg-faint" aria-hidden="true" />
             <p className="text-sm text-fg-2">No jobs match your search</p>
           </div>
         ) : (
           <>
             <p className="section-label">Ready for pickup</p>
-            {visibleReady.map((o) => (
-              <OrderCard
-                key={o.id}
-                order={o}
-                onClick={() => router.push(`/tailor/orders/${o.id}`)}
-                className="opacity-70"
-                showPrice={false}
-              />
-            ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 md:gap-3.5">
+              {visibleReady.map((o) => (
+                <OrderCard
+                  key={o.id}
+                  order={o}
+                  onClick={() => router.push(`/tailor/orders/${o.id}`)}
+                  className="opacity-70 md:mb-0"
+                  showPrice={false}
+                />
+              ))}
+            </div>
           </>
         )}
       </PullToRefresh>

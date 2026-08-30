@@ -50,7 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ServiceWorkerRegister />
         <div className="min-h-dvh bg-canvas flex justify-center">
-          <div className="w-full max-w-[430px] sm:max-w-[600px] md:max-w-[700px] lg:max-w-[820px] min-h-dvh bg-bg shadow-2xl relative">
+          <div className="app-width min-h-dvh bg-bg shadow-2xl relative">
             {children}
           </div>
         </div>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import { requireRole } from "@/lib/dal";
 import { listStaff } from "@/app/actions/staff";
 import TopBar from "@/components/layout/TopBar";
@@ -29,7 +29,7 @@ export default async function StaffListPage() {
       <div className="scroll-area px-4 pt-4 space-y-2">
         {staff.length === 0 ? (
           <div className="text-center pt-16">
-            <p className="text-3xl mb-3">🧑‍🤝‍🧑</p>
+            <Users size={30} className="mx-auto mb-3 text-fg-faint" aria-hidden="true" />
             <p className="text-sm text-fg-2">No staff accounts yet</p>
           </div>
         ) : (
