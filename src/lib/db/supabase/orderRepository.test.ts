@@ -675,13 +675,26 @@ describe("createSupabaseOrderRepository", () => {
   it("findByPublicToken returns null when the token doesn't match any order", async () => {
     mockTables({ data: null, error: null });
     const repo = createSupabaseOrderRepository();
-    expect(await repo.findByPublicToken("missing-token")).toBeNull();
+    expect(await repo.findByPublicToken("2f1c4b6e-3a5d-4e7f-8a9b-0c1d2e3f4a5b")).toBeNull();
+  });
+
+  // public_token is a uuid column, so a token that isn't one made Postgres
+  // raise "invalid input syntax for type uuid" instead of matching no rows.
+  // Every crawler and mistyped tracking link became a logged server error.
+  it("findByPublicToken returns null for a token that cannot be a uuid, without querying", async () => {
+    mockTables({ data: null, error: null });
+    from.mockClear();
+    const repo = createSupabaseOrderRepository();
+    expect(await repo.findByPublicToken("bogus")).toBeNull();
+    expect(from).not.toHaveBeenCalled();
   });
 
   it("findByPublicToken throws on db error", async () => {
     mockTables({ data: null, error: { message: "token lookup failed" } });
     const repo = createSupabaseOrderRepository();
-    await expect(repo.findByPublicToken("bad")).rejects.toThrow("token lookup failed");
+    await expect(
+      repo.findByPublicToken("2f1c4b6e-3a5d-4e7f-8a9b-0c1d2e3f4a5b")
+    ).rejects.toThrow("token lookup failed");
   });
 
   it("nextOrderId calls the next_order_id RPC with the dress type and returns the generated id", async () => {

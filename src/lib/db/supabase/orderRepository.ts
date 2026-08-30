@@ -260,6 +260,9 @@ function toUpdateRow(patch: OrderUpdateInput): Record<string, unknown> {
   return row;
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function createSupabaseOrderRepository(): OrderRepository {
   return {
     async list(filter?: OrderListFilter) {
@@ -356,6 +359,14 @@ export function createSupabaseOrderRepository(): OrderRepository {
     // fetched, then strips them (and measurements, which customers don't
     // need to see) from the response as defense in depth.
     async findByPublicToken(token: string) {
+      // `public_token` is a uuid column (migration 0002), so Postgres rejects
+      // anything that is not one with "invalid input syntax for type uuid"
+      // rather than simply matching no rows. That turned every crawler and
+      // mistyped tracking link into a thrown server error -- the visitor
+      // still got the not-found page, but each hit was logged as a runtime
+      // failure. A token that cannot be a uuid is just a token nobody has.
+      if (!UUID_RE.test(token)) return null;
+
       const { data, error } = await getSupabaseClient()
         .from("orders")
         .select("*")
