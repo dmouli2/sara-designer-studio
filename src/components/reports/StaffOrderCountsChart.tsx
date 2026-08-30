@@ -17,7 +17,7 @@ export default function StaffOrderCountsChart({ title, staff }: { title: string;
               <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "#9A9A9A" }} axisLine={false} tickLine={false} />
               <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12, fill: "#0F0F0F" }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ borderRadius: 12, borderColor: "#E5E0D5" }} />
-              <Bar dataKey="count" fill="#0F0F0F" radius={[0, 6, 6, 0]} />
+              <Bar dataKey="count" fill="#0F0F0F" radius={[0, 6, 6, 0]} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         </div>

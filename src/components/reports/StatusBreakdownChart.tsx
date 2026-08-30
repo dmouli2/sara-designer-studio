@@ -1,6 +1,7 @@
 "use client";
 
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { legendLabel } from "./legendLabel";
 import type { OrderStatus } from "@/types";
 import type { StatusCount } from "@/lib/reports";
 
@@ -26,13 +27,21 @@ export default function StatusBreakdownChart({ statuses }: { statuses: StatusCou
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              <Pie data={statuses} dataKey="count" nameKey="label" innerRadius={50} outerRadius={80} paddingAngle={2}>
+              <Pie
+                data={statuses}
+                dataKey="count"
+                nameKey="label"
+                innerRadius={50}
+                outerRadius={80}
+                paddingAngle={2}
+                isAnimationActive={false}
+              >
                 {statuses.map((s) => (
                   <Cell key={s.status} fill={STATUS_COLORS[s.status]} />
                 ))}
               </Pie>
               <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Legend wrapperStyle={{ fontSize: 12 }} formatter={legendLabel} />
             </PieChart>
           </ResponsiveContainer>
         </div>

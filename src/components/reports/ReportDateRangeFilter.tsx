@@ -36,22 +36,31 @@ export default function ReportDateRangeFilter({ value, onChange }: Props) {
         ))}
       </div>
 
+      {/* `flex-1 min-w-0` on each half, not just `.input`'s `w-full`: two
+          date boxes are the narrowest place in the app, and without the
+          shrink permission they run off the right edge on a phone. */}
       {value.preset === "custom" && (
         <div className="flex gap-2 mt-2">
-          <input
-            type="date"
-            aria-label="Custom range from"
-            className="input py-2.5 text-[14px]"
-            value={value.customFrom}
-            onChange={(e) => onChange({ ...value, customFrom: e.target.value })}
-          />
-          <input
-            type="date"
-            aria-label="Custom range to"
-            className="input py-2.5 text-[14px]"
-            value={value.customTo}
-            onChange={(e) => onChange({ ...value, customTo: e.target.value })}
-          />
+          <label className="flex-1 min-w-0 block">
+            <span className="text-[11px] text-[#9A9A9A] mb-1 block">From</span>
+            <input
+              type="date"
+              aria-label="Custom range from"
+              className="input px-3 py-2.5 text-[14px]"
+              value={value.customFrom}
+              onChange={(e) => onChange({ ...value, customFrom: e.target.value })}
+            />
+          </label>
+          <label className="flex-1 min-w-0 block">
+            <span className="text-[11px] text-[#9A9A9A] mb-1 block">To</span>
+            <input
+              type="date"
+              aria-label="Custom range to"
+              className="input px-3 py-2.5 text-[14px]"
+              value={value.customTo}
+              onChange={(e) => onChange({ ...value, customTo: e.target.value })}
+            />
+          </label>
         </div>
       )}
     </div>

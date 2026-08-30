@@ -24,8 +24,8 @@ interface OrderCardProps {
 //   │ 64 │  Shanmuga Priya                 ← customer, own line, truncated
 //   │ px │  Blouse · Customer fabric       ← dress + material, truncated
 //   └────┘
-//   ✂ Not assigned   🧵 Not assigned       ← full card width, wraps cleanly
-//   ─────────────────────────────────
+//   👗 0/3 delivered  ✂ Kasim              ← only what exists; omitted entirely
+//   ─────────────────────────────────        when there is nothing to say
 //   Due 30 Aug 2026            ₹4,400 / Bal
 //
 // Two rules keep it aligned at every width from a 390pt iPhone to an iPad:
@@ -46,12 +46,36 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
   const due = nextDueDate(order);
   const overdue = isOrderOverdue(due, order.status);
   const multiPiece = isMultiPiece(order);
+  // This shop does not use the master/tailor assignment, so on almost every
+  // card both of these are empty. Rendering "Not assigned" twice in alarm-red
+  // on every row turned the normal state into a page full of warnings and
+  // pushed the due date and balance further down. The row now appears only
+  // when there is a real name (or a piece count) to show.
+  const showChips = multiPiece || !!order.master || !!order.tailor;
+
+  // A card is the only way into an order, so it has to be reachable by
+  // keyboard and announced as a control — as a bare div it was invisible to
+  // tab navigation and to screen readers. `Card` stays a plain div when it is
+  // not clickable, so read-only usages gain no phantom button semantics.
+  const Card = onClick ? "button" : "div";
 
   return (
-    <div
-      onClick={onClick}
+    <Card
+      {...(onClick
+        ? {
+            type: "button" as const,
+            onClick,
+            // Without this the button's accessible name is the card's entire
+            // text run together — id, customer, dress, chips, dates and
+            // amounts in one breath. The detail is still reachable inside the
+            // card; the name just has to identify which order this is.
+            "aria-label": `Order ${order.id}, ${order.customer}`,
+          }
+        : {})}
       className={cn(
-        "card mb-3.5 cursor-pointer active:scale-[0.98] transition-all active:shadow-none",
+        "card mb-3.5 block w-full text-left transition-all",
+        onClick &&
+          "cursor-pointer active:scale-[0.98] active:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A84C] focus-visible:ring-offset-2",
         isNew && "border-l-4 border-l-[#C9A84C]",
         overdue && "border-l-4 border-l-[#B04A4A]",
         className
@@ -97,29 +121,25 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
 
       {/* Below the photo column so the chips line up whether or not an order
           has a material photo. */}
-      <div className="flex items-center gap-1.5 flex-wrap mt-3">
-        {multiPiece && (
-          <span className="text-[11px] font-semibold px-2 py-1 rounded-md bg-[#FBF6E8] text-[#7A6020] tabular-nums">
-            👗 {deliveredPieceCount(order)}/{order.pieces.length} delivered
-          </span>
-        )}
-        <span
-          className={cn(
-            "text-[11px] font-medium px-2 py-1 rounded-md max-w-full truncate",
-            order.master ? "bg-[#F0EDE6] text-[#6B6B6B]" : "bg-[#FBECEC] text-[#B04A4A]"
+      {showChips && (
+        <div className="flex items-center gap-1.5 flex-wrap mt-3">
+          {multiPiece && (
+            <span className="text-[11px] font-semibold px-2 py-1 rounded-md bg-[#FBF6E8] text-[#7A6020] tabular-nums">
+              👗 {deliveredPieceCount(order)}/{order.pieces.length} delivered
+            </span>
           )}
-        >
-          ✂️ {order.master ? order.master.name : "Not assigned"}
-        </span>
-        <span
-          className={cn(
-            "text-[11px] font-medium px-2 py-1 rounded-md max-w-full truncate",
-            order.tailor ? "bg-[#F0EDE6] text-[#6B6B6B]" : "bg-[#FBECEC] text-[#B04A4A]"
+          {order.master && (
+            <span className="text-[11px] font-medium px-2 py-1 rounded-md max-w-full truncate bg-[#F0EDE6] text-[#6B6B6B]">
+              ✂️ {order.master.name}
+            </span>
           )}
-        >
-          🧵 {order.tailor ? order.tailor.name : "Not assigned"}
-        </span>
-      </div>
+          {order.tailor && (
+            <span className="text-[11px] font-medium px-2 py-1 rounded-md max-w-full truncate bg-[#F0EDE6] text-[#6B6B6B]">
+              🧵 {order.tailor.name}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-[#F0EDE6]">
         {overdue ? (
@@ -153,6 +173,6 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

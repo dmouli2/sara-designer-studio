@@ -30,6 +30,36 @@ describe("ReportDateRangeFilter", () => {
     expect(screen.getByLabelText("Custom range to")).toBeInTheDocument();
   });
 
+  // Two date boxes side by side is the narrowest spot in the app. A flex item
+  // defaults to min-width:auto, so without an explicit shrink each box held
+  // its intrinsic width and the second one ran off the right edge of a phone
+  // (measured: right edge at 328px in a 320px viewport).
+  it("lets each half of the custom range shrink inside the row", () => {
+    render(
+      <ReportDateRangeFilter
+        value={{ preset: "custom", customFrom: "", customTo: "" }}
+        onChange={vi.fn()}
+      />
+    );
+
+    for (const label of ["Custom range from", "Custom range to"]) {
+      const wrapper = screen.getByLabelText(label).closest("label");
+      expect(wrapper).toHaveClass("flex-1");
+      expect(wrapper).toHaveClass("min-w-0");
+    }
+  });
+
+  it("labels each half of the custom range", () => {
+    render(
+      <ReportDateRangeFilter
+        value={{ preset: "custom", customFrom: "", customTo: "" }}
+        onChange={vi.fn()}
+      />
+    );
+    expect(screen.getByText("From")).toBeInTheDocument();
+    expect(screen.getByText("To")).toBeInTheDocument();
+  });
+
   it("reports custom from/to changes", () => {
     const onChange = vi.fn();
     const value = { preset: "custom" as const, customFrom: "", customTo: "" };

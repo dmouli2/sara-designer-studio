@@ -30,6 +30,51 @@
     color: #0F0F0F;
     -webkit-font-smoothing: antialiased;
   }
+
+  /* Date inputs, on a phone, do not behave like other inputs.
+
+     Mobile Safari gives `input[type=date]` an intrinsic width from its
+     rendered "dd/mm/yyyy" plus a calendar glyph, and that width wins over
+     `width:100%` in two situations we actually have: inside a flex row (a
+     flex item's default `min-width:auto` refuses to shrink below intrinsic
+     size, so two date boxes side by side push straight out of the card),
+     and inside any container narrower than that intrinsic width. The result
+     is the field hanging off the right edge of the screen.
+
+     Fixing it per-component would mean remembering it at eight call sites
+     and at every future one, so it is stated once here: drop the native
+     appearance that carries the intrinsic width, allow the box to shrink,
+     and never let it exceed its container. */
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="month"],
+  input[type="time"] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Without this iOS centres the value inside the (now full-width) box, so
+     a date field reads differently from every text field beside it. */
+  input[type="date"]::-webkit-date-and-time-value,
+  input[type="datetime-local"]::-webkit-date-and-time-value,
+  input[type="month"]::-webkit-date-and-time-value,
+  input[type="time"]::-webkit-date-and-time-value {
+    text-align: left;
+    margin: 0;
+  }
+
+  /* Removing the native appearance also removes iOS's own tap target for
+     the picker, so the indicator is restored explicitly and pinned to the
+     right-hand edge where a phone user expects it. */
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+  input[type="month"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator {
+    margin-inline-start: auto;
+    opacity: 0.55;
+  }
 }
 
 @layer components {
@@ -45,8 +90,11 @@
            shadow-[0_1px_2px_rgba(122,96,32,0.05),0_4px_16px_-4px_rgba(122,96,32,0.08)];
   }
 
+  /* `min-w-0` is load-bearing: an .input used as a flex child (the report's
+     custom range, a piece's inline date) would otherwise refuse to shrink
+     below its content width and overflow the row. */
   .input {
-    @apply w-full bg-white border border-[#E5E0D5] rounded-xl px-4 py-3.5 text-[15px] text-[#0F0F0F]
+    @apply w-full min-w-0 bg-white border border-[#E5E0D5] rounded-xl px-4 py-3.5 text-[15px] text-[#0F0F0F]
            focus:outline-none focus:ring-2 focus:ring-[#C9A84C]/40 focus:border-[#C9A84C]
            placeholder:text-[#9A9A9A] transition-all;
   }

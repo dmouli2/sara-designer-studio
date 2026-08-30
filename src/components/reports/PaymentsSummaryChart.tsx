@@ -1,6 +1,7 @@
 "use client";
 
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { legendLabel } from "./legendLabel";
 import { formatChartCurrency, type PaymentsSummary } from "@/lib/reports";
 
 export default function PaymentsSummaryChart({ payments }: { payments: PaymentsSummary }) {
@@ -26,9 +27,9 @@ export default function PaymentsSummaryChart({ payments }: { payments: PaymentsS
               />
               <YAxis type="category" dataKey="name" hide />
               <Tooltip formatter={formatChartCurrency} contentStyle={{ borderRadius: 12, borderColor: "#E5E0D5" }} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="Collected" stackId="a" fill="#1B6B3A" radius={[6, 0, 0, 6]} />
-              <Bar dataKey="Pending" stackId="a" fill="#C9A84C" radius={[0, 6, 6, 0]} />
+              <Legend wrapperStyle={{ fontSize: 12 }} formatter={legendLabel} />
+              <Bar dataKey="Collected" stackId="a" fill="#1B6B3A" radius={[6, 0, 0, 6]} isAnimationActive={false} />
+              <Bar dataKey="Pending" stackId="a" fill="#C9A84C" radius={[0, 6, 6, 0]} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         </div>

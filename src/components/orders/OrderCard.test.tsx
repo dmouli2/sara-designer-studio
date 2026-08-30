@@ -78,10 +78,14 @@ describe("OrderCard", () => {
     expect(screen.getByText("✂️ Ramesh K.")).toBeInTheDocument();
   });
 
-  it("shows 'Not assigned' for master when not set", () => {
+  // This shop never assigns anyone, so "Not assigned" was rendering twice in
+  // alarm-red on every card in the list — the normal state dressed as a
+  // warning. An empty assignment now says nothing at all.
+  it("says nothing about an unassigned master", () => {
     const order: Order = { ...baseOrder, master: null };
     render(<OrderCard order={order} />);
-    expect(screen.getByText("✂️ Not assigned")).toBeInTheDocument();
+    expect(screen.queryByText(/Not assigned/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/✂️/)).not.toBeInTheDocument();
   });
 
   it("shows the assigned tailor when present", () => {
@@ -90,10 +94,53 @@ describe("OrderCard", () => {
     expect(screen.getByText("🧵 Anitha K.")).toBeInTheDocument();
   });
 
-  it("shows 'Not assigned' for tailor when not set", () => {
+  it("says nothing about an unassigned tailor", () => {
     const order: Order = { ...baseOrder, tailor: null };
     render(<OrderCard order={order} />);
-    expect(screen.getByText("🧵 Not assigned")).toBeInTheDocument();
+    expect(screen.queryByText(/Not assigned/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/🧵/)).not.toBeInTheDocument();
+  });
+
+  it("drops the chip row entirely when there is nothing to put in it", () => {
+    const order: Order = { ...baseOrder, master: null, tailor: null, pieces: null };
+    render(<OrderCard order={order} />);
+    expect(screen.queryByText(/delivered/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Not assigned/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the chip row for a split order even with nobody assigned", () => {
+    const order: Order = {
+      ...baseOrder,
+      master: null,
+      tailor: null,
+      pieces: [
+        { id: "p1", label: "Blouse 1", due: "2026-09-09", status: "pending", deliveredAt: null },
+        { id: "p2", label: "Blouse 2", due: "2026-09-09", status: "pending", deliveredAt: null },
+      ],
+    };
+    render(<OrderCard order={order} />);
+    expect(screen.getByText(/0\/2 delivered/)).toBeInTheDocument();
+  });
+
+  // A card is the only route into an order, so it has to be operable by
+  // keyboard — as a bare div it was skipped by tab entirely.
+  it("is a real button when clickable, so it can be tabbed to and activated", async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+    render(<OrderCard order={baseOrder} onClick={onClick} />);
+
+    const card = screen.getByRole("button");
+    await user.tab();
+    expect(card).toHaveFocus();
+
+    await user.keyboard("{Enter}");
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays a plain div when it is not clickable", () => {
+    const { container } = render(<OrderCard order={baseOrder} />);
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect((container.firstChild as HTMLElement).tagName).toBe("DIV");
   });
 
   it("highlights a new order with a gold accent border and pulsing dot", () => {

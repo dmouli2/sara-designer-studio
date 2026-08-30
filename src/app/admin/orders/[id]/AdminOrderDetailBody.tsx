@@ -562,23 +562,38 @@ export default function AdminOrderDetailBody({
           </div>
         )}
 
-        {!isCancelled && (
-          <button
-            onClick={() => setCancelOpen(true)}
-            className="w-full flex items-center justify-center gap-2 py-3.5 text-[14px] font-medium text-[#B04A4A] border border-[#F0D5D5] rounded-xl active:scale-[0.98] transition-all"
-          >
-            <Ban size={18} />
-            Cancel order
-          </button>
-        )}
+        {/* Cancel and Delete used to sit loose at the bottom of a long scroll,
+            Delete as borderless red text — visually the quietest control on
+            the page despite being the only irreversible one. Fencing them
+            into a labelled area makes it clear you have left the ordinary
+            actions behind, without moving them somewhere they'd be missed. */}
+        <div className="rounded-2xl border border-[#F0D5D5] bg-[#FDF7F7] p-4 space-y-2.5">
+          <p className="text-[12px] font-semibold text-[#B04A4A] uppercase tracking-widest">
+            Danger zone
+          </p>
 
-        <button
-          onClick={() => setDeleteOpen(true)}
-          className="w-full flex items-center justify-center gap-2 py-3.5 text-[14px] font-medium text-[#B04A4A] active:scale-[0.98] transition-all"
-        >
-          <Trash2 size={18} />
-          Delete order
-        </button>
+          {!isCancelled && (
+            <button
+              onClick={() => setCancelOpen(true)}
+              className="w-full flex items-center justify-center gap-2 py-3.5 text-[14px] font-medium text-[#B04A4A] bg-white border border-[#F0D5D5] rounded-xl active:scale-[0.98] transition-all"
+            >
+              <Ban size={18} />
+              Cancel order
+            </button>
+          )}
+
+          <button
+            onClick={() => setDeleteOpen(true)}
+            className="w-full flex items-center justify-center gap-2 py-3.5 text-[14px] font-semibold text-white bg-[#B04A4A] rounded-xl active:scale-[0.98] transition-all"
+          >
+            <Trash2 size={18} />
+            Delete order
+          </button>
+
+          <p className="text-[12px] text-[#9A9A9A] text-center">
+            Deleting removes the order and its photos for good.
+          </p>
+        </div>
 
         <div className="h-4" />
       </div>

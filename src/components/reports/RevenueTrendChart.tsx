@@ -22,7 +22,20 @@ export default function RevenueTrendChart({ points }: { points: RevenuePoint[] }
                 tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`)}
               />
               <Tooltip formatter={formatChartCurrency} contentStyle={{ borderRadius: 12, borderColor: "#E5E0D5" }} />
-              <Line type="monotone" dataKey="revenue" stroke="#C9A84C" strokeWidth={2.5} dot={{ r: 3, fill: "#C9A84C" }} />
+              {/* Every series on this page draws immediately.
+                  Recharts' mount animation grows each series from nothing over
+                  ~1.5s, which on a phone reads as a card that failed to load —
+                  convincingly enough that this page has twice been reported as
+                  broken when the data was fine all along. On six small charts
+                  the animation buys nothing worth that. */}
+              <Line
+                type="monotone"
+                dataKey="revenue"
+                stroke="#C9A84C"
+                strokeWidth={2.5}
+                dot={{ r: 3, fill: "#C9A84C" }}
+                isAnimationActive={false}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>

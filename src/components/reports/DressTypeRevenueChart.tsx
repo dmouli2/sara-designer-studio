@@ -23,7 +23,7 @@ export default function DressTypeRevenueChart({ dresses }: { dresses: DressReven
               />
               <YAxis type="category" dataKey="dress" width={80} tick={{ fontSize: 12, fill: "#0F0F0F" }} axisLine={false} tickLine={false} />
               <Tooltip formatter={formatChartCurrency} contentStyle={{ borderRadius: 12, borderColor: "#E5E0D5" }} />
-              <Bar dataKey="revenue" fill="#C9A84C" radius={[0, 6, 6, 0]} />
+              <Bar dataKey="revenue" fill="#C9A84C" radius={[0, 6, 6, 0]} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         </div>
