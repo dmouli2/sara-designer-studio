@@ -59,7 +59,7 @@ export default function AlterationPanel({ order, pending, onStart, onComplete, o
       )}
 
       {closed.length > 0 && (
-        <div className="rounded-2xl border border-border bg-white overflow-hidden">
+        <div className="rounded-2xl border border-border bg-surface overflow-hidden">
           {closed.map((record, i) => (
             <div key={record.id} className={cn("px-3 py-2.5", i > 0 && "border-t border-border-soft")}>
               <div className="flex items-baseline justify-between gap-3">
@@ -128,7 +128,7 @@ function OpenAlteration({
           type="button"
           onClick={() => onRedeliver(on)}
           disabled={pending || isInvalidEventDate(on)}
-          className="w-full bg-success text-white rounded-xl py-3 text-[14px] font-semibold active:opacity-80 disabled:opacity-40 transition-all"
+          className="w-full bg-success-fill text-white rounded-xl py-3 text-[14px] font-semibold active:opacity-80 disabled:opacity-40 transition-all"
         >
           {pending ? "Saving…" : "✓ Handed back to customer"}
         </button>
@@ -137,7 +137,7 @@ function OpenAlteration({
           type="button"
           onClick={() => onComplete(on)}
           disabled={pending || isInvalidEventDate(on)}
-          className="w-full bg-violet text-white rounded-xl py-3 text-[14px] font-semibold active:opacity-80 disabled:opacity-40 transition-all"
+          className="w-full bg-violet-fill text-white rounded-xl py-3 text-[14px] font-semibold active:opacity-80 disabled:opacity-40 transition-all"
         >
           {pending ? "Saving…" : "✓ Alteration done"}
         </button>

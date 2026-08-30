@@ -50,7 +50,7 @@ function StaffChipRow({
           onClick={() => onSelect("")}
           className={cn(
             "flex-none px-4 py-2 rounded-full text-[13px] font-medium active:scale-95 transition-all",
-            selectedId === "" ? "bg-selected text-white" : "bg-white border border-border text-fg-3"
+            selectedId === "" ? "bg-selected text-on-selected" : "bg-surface border border-border text-fg-3"
           )}
         >
           All
@@ -62,7 +62,7 @@ function StaffChipRow({
             onClick={() => onSelect(s.id)}
             className={cn(
               "flex-none px-4 py-2 rounded-full text-[13px] font-medium active:scale-95 transition-all",
-              selectedId === s.id ? "bg-selected text-white" : "bg-white border border-border text-fg-3"
+              selectedId === s.id ? "bg-selected text-on-selected" : "bg-surface border border-border text-fg-3"
             )}
           >
             {s.name}
@@ -82,7 +82,7 @@ export default function OrderFiltersSheet({ open, values, masters, tailors, onCh
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl p-5 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
+      <div className="w-full max-w-sm bg-surface rounded-2xl p-5 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-fg">Filter orders</p>
           <button

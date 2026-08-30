@@ -31,7 +31,7 @@ export default function ReportSummaryCards({ summary }: { summary: ReportSummary
         </p>
       </div>
 
-      <div className="col-span-2 rounded-2xl border border-border bg-white px-4 py-3.5">
+      <div className="col-span-2 rounded-2xl border border-border bg-surface px-4 py-3.5">
         <p
           className={`text-[26px] font-bold leading-none tracking-tight tabular-nums ${
             owed ? "text-danger-ink" : "text-fg"
@@ -51,7 +51,7 @@ export default function ReportSummaryCards({ summary }: { summary: ReportSummary
       {counts.map((c) => (
         <div
           key={c.label}
-          className="rounded-2xl border border-border bg-white px-3.5 py-3 text-center shadow-[0_1px_2px_rgba(15,15,15,0.04)]"
+          className="rounded-2xl border border-border bg-surface px-3.5 py-3 text-center shadow-[0_1px_2px_rgba(15,15,15,0.04)]"
         >
           <p className="text-[19px] font-bold leading-tight text-fg tabular-nums">{c.value}</p>
           <p className="mt-0.5 text-[11px] text-fg-2">{c.label}</p>

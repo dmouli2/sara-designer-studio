@@ -29,7 +29,7 @@ export default function CancelOrderDialog({ open, orderId, pending, onConfirm, o
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-[2px] p-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl">
+      <div className="w-full max-w-sm bg-surface rounded-2xl p-6 shadow-2xl">
         <p className="text-[16px] font-semibold text-fg">Cancel order {orderId}?</p>
         <p className="text-[14px] text-fg-3 mt-2 leading-relaxed">
           Enter the cancellation charge to collect from the customer. The order&apos;s original amount will be
@@ -59,7 +59,7 @@ export default function CancelOrderDialog({ open, orderId, pending, onConfirm, o
             type="button"
             onClick={handleConfirm}
             disabled={pending || !valid}
-            className="flex-1 rounded-xl py-4 text-[15px] font-semibold transition-all active:scale-[0.98] disabled:opacity-40 bg-danger text-white shadow-[0_4px_14px_-2px_rgba(176,74,74,0.5)] active:opacity-80"
+            className="flex-1 rounded-xl py-4 text-[15px] font-semibold transition-all active:scale-[0.98] disabled:opacity-40 bg-danger-fill text-white shadow-[0_4px_14px_-2px_rgba(176,74,74,0.5)] active:opacity-80"
           >
             {pending ? "Cancelling…" : "Cancel order"}
           </button>

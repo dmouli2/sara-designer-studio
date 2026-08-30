@@ -69,8 +69,8 @@ export default function PaymentSplitPicker({ total, value, onChange, idPrefix }:
             className={cn(
               "rounded-xl border px-2 py-3 text-[14px] font-semibold transition-all active:scale-[0.98]",
               mode === m.id
-                ? "border-selected bg-selected text-white"
-                : "border-border bg-white text-fg"
+                ? "border-selected bg-selected text-on-selected"
+                : "border-border bg-surface text-fg"
             )}
           >
             {m.label}

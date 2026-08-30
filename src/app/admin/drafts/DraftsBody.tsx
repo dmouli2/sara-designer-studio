@@ -69,7 +69,7 @@ export default function DraftsBody({ drafts: initialDrafts }: { drafts: DraftOrd
                   router.push(`/admin/orders/new?draft=${d.id}`);
                 }
               }}
-              className="w-full text-left bg-white rounded-2xl border border-border p-4 mb-3 active:scale-[0.98] transition-transform cursor-pointer"
+              className="w-full text-left bg-surface rounded-2xl border border-border p-4 mb-3 active:scale-[0.98] transition-transform cursor-pointer"
             >
               <div className="flex items-center justify-between">
                 <p className="text-[15px] font-semibold text-fg">
@@ -112,7 +112,7 @@ export default function DraftsBody({ drafts: initialDrafts }: { drafts: DraftOrd
                           setConfirmingId(null);
                         }}
                         disabled={discardingId === d.id}
-                        className="px-3 py-1.5 rounded-xl border border-border bg-white text-[11px] font-medium text-fg-3 active:scale-95 transition-transform"
+                        className="px-3 py-1.5 rounded-xl border border-border bg-surface text-[11px] font-medium text-fg-3 active:scale-95 transition-transform"
                       >
                         Keep
                       </button>

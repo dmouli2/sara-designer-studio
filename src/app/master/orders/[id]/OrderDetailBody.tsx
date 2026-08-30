@@ -81,7 +81,7 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
         {order.sketchDataUrl && (
           <div>
             <p className="section-label">Garment sketch</p>
-            <div className="rounded-2xl border border-border overflow-hidden bg-white">
+            <div className="rounded-2xl border border-border overflow-hidden bg-surface">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={order.sketchDataUrl} alt="Sketch" className="w-full" loading="lazy" />
             </div>

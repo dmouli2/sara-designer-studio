@@ -49,7 +49,7 @@ export default function DeliverOrderDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-[2px] p-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl">
+      <div className="w-full max-w-sm bg-surface rounded-2xl p-6 shadow-2xl">
         <p className="text-[16px] font-semibold text-fg">Deliver order {orderId}</p>
 
         <div className="mt-4">
@@ -93,7 +93,7 @@ export default function DeliverOrderDialog({
             type="button"
             onClick={onCancel}
             disabled={pending}
-            className="flex-1 py-3 rounded-xl border border-border bg-white text-[14px] font-medium text-fg-3 active:scale-[0.98] transition-all disabled:opacity-40"
+            className="flex-1 py-3 rounded-xl border border-border bg-surface text-[14px] font-medium text-fg-3 active:scale-[0.98] transition-all disabled:opacity-40"
           >
             Not yet
           </button>
@@ -101,7 +101,7 @@ export default function DeliverOrderDialog({
             type="button"
             onClick={() => canConfirm && onConfirm(collected, deliveredOn)}
             disabled={!canConfirm}
-            className="flex-1 py-3 rounded-xl bg-success text-white text-[14px] font-semibold active:scale-[0.98] transition-all disabled:opacity-40"
+            className="flex-1 py-3 rounded-xl bg-success-fill text-white text-[14px] font-semibold active:scale-[0.98] transition-all disabled:opacity-40"
           >
             {pending ? "Saving…" : nothingToCollect ? "Mark delivered" : "Collect & deliver"}
           </button>

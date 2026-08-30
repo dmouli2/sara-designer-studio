@@ -70,7 +70,7 @@ export default function LoginPage() {
         </div>
 
         <div className="flex-1 px-5 -mt-7 relative z-10">
-        <form action={formAction} className="bg-white rounded-2xl shadow-2xl border border-border p-6 space-y-5">
+        <form action={formAction} className="bg-surface rounded-2xl shadow-2xl border border-border p-6 space-y-5">
           <div>
             <label htmlFor="username" className="text-[13px] font-medium text-fg-2 mb-1.5 block">
               Username

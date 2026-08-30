@@ -106,7 +106,7 @@ export default function ImageUpload({
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={compressing}
-            className="aspect-square rounded-xl border-2 border-dashed border-border bg-white flex flex-col items-center justify-center gap-1 active:bg-bg transition-colors disabled:opacity-40"
+            className="aspect-square rounded-xl border-2 border-dashed border-border bg-surface flex flex-col items-center justify-center gap-1 active:bg-bg transition-colors disabled:opacity-40"
           >
             <AddIcon size={20} className="text-fg-2" />
             <span className="text-[10px] text-fg-2">{compressing ? "Processing…" : addLabel}</span>

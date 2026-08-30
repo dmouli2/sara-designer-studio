@@ -50,7 +50,7 @@ export default function PublicOrderBody({ order }: { order: PublicOrder }) {
         {order.sketchDataUrl && (
           <div>
             <p className="section-label">Garment sketch</p>
-            <div className="rounded-2xl border border-border overflow-hidden bg-white">
+            <div className="rounded-2xl border border-border overflow-hidden bg-surface">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={order.sketchDataUrl} alt="Sketch" className="w-full" loading="lazy" />
             </div>
@@ -65,7 +65,7 @@ export default function PublicOrderBody({ order }: { order: PublicOrder }) {
         {order.lineItems.length > 0 && (
           <div>
             <p className="section-label">Order items</p>
-            <div className="rounded-2xl border border-border overflow-hidden bg-white">
+            <div className="rounded-2xl border border-border overflow-hidden bg-surface">
               {order.lineItems.map((li, i) => (
                 <div key={i} className={`px-3 py-2.5 ${i > 0 ? "border-t border-border-soft" : ""}`}>
                   <div className="flex justify-between text-sm">

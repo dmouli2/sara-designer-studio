@@ -88,7 +88,7 @@ export default function FabricManagerSheet({ open, fabrics, onChange, onClose }:
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl p-5 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
+      <div className="w-full max-w-sm bg-surface rounded-2xl p-5 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-fg">Manage fabrics</p>
           <button
@@ -125,7 +125,7 @@ export default function FabricManagerSheet({ open, fabrics, onChange, onClose }:
               type="button"
               onClick={handleAdd}
               disabled={adding || !newName.trim() || !newPrice}
-              className="px-4 rounded-xl bg-gold text-fg text-sm font-semibold flex items-center gap-1 active:scale-95 transition-transform disabled:opacity-40"
+              className="px-4 rounded-xl bg-gold text-on-accent text-sm font-semibold flex items-center gap-1 active:scale-95 transition-transform disabled:opacity-40"
             >
               <Plus size={16} />
               {adding ? "Adding…" : "Add"}
@@ -169,7 +169,7 @@ export default function FabricManagerSheet({ open, fabrics, onChange, onClose }:
                     aria-label={`Save ${fabric.name}`}
                     onClick={handleSaveEdit}
                     disabled={savingEdit || !editName.trim() || !editPrice}
-                    className="px-4 rounded-xl bg-selected text-white text-sm font-semibold flex items-center gap-1 active:scale-95 transition-transform disabled:opacity-40"
+                    className="px-4 rounded-xl bg-selected text-on-selected text-sm font-semibold flex items-center gap-1 active:scale-95 transition-transform disabled:opacity-40"
                   >
                     <Check size={16} />
                     {savingEdit ? "Saving…" : "Save"}
@@ -178,7 +178,7 @@ export default function FabricManagerSheet({ open, fabrics, onChange, onClose }:
                     type="button"
                     aria-label={`Cancel editing ${fabric.name}`}
                     onClick={() => setEditingId(null)}
-                    className="px-3 rounded-xl border border-border bg-white text-sm text-fg-3 active:scale-95 transition-transform"
+                    className="px-3 rounded-xl border border-border bg-surface text-sm text-fg-3 active:scale-95 transition-transform"
                   >
                     Cancel
                   </button>
@@ -187,7 +187,7 @@ export default function FabricManagerSheet({ open, fabrics, onChange, onClose }:
             ) : (
               <div
                 key={fabric.id}
-                className="flex items-center justify-between rounded-xl border border-border bg-white px-3 py-2.5"
+                className="flex items-center justify-between rounded-xl border border-border bg-surface px-3 py-2.5"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-fg truncate">{fabric.name}</p>

@@ -25,7 +25,7 @@ export default function MeasurementFieldRow({
 }: Props) {
   return (
     <div
-      className={`flex items-center px-3 py-2.5 gap-2 ${striped ? "bg-surface-3" : "bg-white"} ${bordered ? "border-t border-border-soft" : ""}`}
+      className={`flex items-center px-3 py-2.5 gap-2 ${striped ? "bg-surface-3" : "bg-surface"} ${bordered ? "border-t border-border-soft" : ""}`}
     >
       <span className="w-[88px] shrink-0 text-sm font-semibold text-fg leading-tight">
         {label}

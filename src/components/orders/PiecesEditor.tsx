@@ -55,7 +55,7 @@ export default function PiecesEditor({
   const noun = labelPrefix.toLowerCase();
 
   return (
-    <div className="rounded-2xl border border-border bg-white overflow-hidden">
+    <div className="rounded-2xl border border-border bg-surface overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3">
         <div className="min-w-0">
           <p className="text-[14px] font-medium text-fg">How many {noun}s?</p>
@@ -142,8 +142,8 @@ export default function PiecesEditor({
                         className={cn(
                           "px-2.5 py-1.5 text-[12px] font-medium transition-all",
                           (sources[i] ?? orderSource) === s
-                            ? "bg-selected text-white"
-                            : "bg-white text-fg-3"
+                            ? "bg-selected text-on-selected"
+                            : "bg-surface text-fg-3"
                         )}
                       >
                         {s === "shop" ? "Shop" : "Customer"}

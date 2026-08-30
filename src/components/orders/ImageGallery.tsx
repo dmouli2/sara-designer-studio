@@ -18,7 +18,7 @@ export default function ImageGallery({ images, altPrefix, emptyIcon, emptyText }
 
   if (images.length === 0) {
     return (
-      <div className="border-2 border-dashed border-border rounded-2xl p-8 text-center bg-white">
+      <div className="border-2 border-dashed border-border rounded-2xl p-8 text-center bg-surface">
         <div className="flex justify-center mb-2 text-fg-faint">{emptyIcon}</div>
         <p className="text-sm text-fg-2">{emptyText}</p>
       </div>

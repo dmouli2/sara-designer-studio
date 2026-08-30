@@ -34,6 +34,9 @@ describe("RootLayout", () => {
   it("still pins width and the initial scale", () => {
     expect(viewport.width).toBe("device-width");
     expect(viewport.initialScale).toBe(1);
-    expect(viewport.themeColor).toBe("#0F0F0F");
+    expect(viewport.themeColor).toEqual([
+      { media: "(prefers-color-scheme: light)", color: "#0F0F0F" },
+      { media: "(prefers-color-scheme: dark)", color: "#0B0A06" },
+    ]);
   });
 });

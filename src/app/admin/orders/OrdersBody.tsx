@@ -186,7 +186,7 @@ export default function OrdersBody({ initialOrders }: { initialOrders: Order[] }
               className={cn(
                 "flex-1 py-2 rounded-xl text-[13px] font-semibold transition-all active:scale-[0.98]",
                 dressTab === t.id
-                  ? "bg-white text-fg shadow-[0_1px_3px_rgba(15,15,15,0.10)]"
+                  ? "bg-surface text-fg shadow-[0_1px_3px_rgba(15,15,15,0.10)]"
                   : "text-fg-3"
               )}
             >
@@ -212,7 +212,7 @@ export default function OrdersBody({ initialOrders }: { initialOrders: Order[] }
           onClick={() => setFiltersOpen(true)}
           className={cn(
             "relative flex-none w-9 h-9 rounded-full flex items-center justify-center border active:scale-95 transition-all",
-            filtersActive ? "bg-selected border-selected text-white" : "bg-white border-border text-fg-3"
+            filtersActive ? "bg-selected border-selected text-on-selected" : "bg-surface border-border text-fg-3"
           )}
         >
           <SlidersHorizontal size={16} />
@@ -226,8 +226,8 @@ export default function OrdersBody({ initialOrders }: { initialOrders: Order[] }
               onClick={() => setFilter(f.id)}
               className={`flex-none px-4 py-2 rounded-full text-[13px] font-medium active:scale-95 transition-all ${
                 filter === f.id
-                  ? "bg-selected text-white shadow-[0_2px_8px_-1px_rgba(15,15,15,0.3)]"
-                  : "bg-white border border-border text-fg-3"
+                  ? "bg-selected text-on-selected shadow-[0_2px_8px_-1px_rgba(15,15,15,0.3)]"
+                  : "bg-surface border border-border text-fg-3"
               }`}
             >
               {f.label}
@@ -267,7 +267,7 @@ export default function OrdersBody({ initialOrders }: { initialOrders: Order[] }
             type="button"
             onClick={loadOlder}
             disabled={loadingMore}
-            className="w-full py-3 mt-3.5 mb-3 text-[13px] font-medium text-fg-3 border border-border rounded-xl bg-white active:scale-[0.98] transition-all disabled:opacity-40"
+            className="w-full py-3 mt-3.5 mb-3 text-[13px] font-medium text-fg-3 border border-border rounded-xl bg-surface active:scale-[0.98] transition-all disabled:opacity-40"
           >
             {loadingMore ? "Loading…" : "Load older orders"}
           </button>

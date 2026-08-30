@@ -304,7 +304,7 @@ export default function EditOrderForm({ order }: { order: Order }) {
         <div>
           <p className="section-label">Garment sketch</p>
           {keepingStoredSketch ? (
-            <div className="rounded-2xl border border-border overflow-hidden bg-white">
+            <div className="rounded-2xl border border-border overflow-hidden bg-surface">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={sketch!} alt="Current sketch" className="w-full" />
               <button

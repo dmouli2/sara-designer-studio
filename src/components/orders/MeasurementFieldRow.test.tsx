@@ -50,7 +50,7 @@ describe("MeasurementFieldRow", () => {
   it("uses a plain background and no divider on the first row", () => {
     renderRow({ striped: false, bordered: false });
     const row = screen.getByText("Bust").parentElement!;
-    expect(row.className).toContain("bg-white");
+    expect(row.className).toContain("bg-surface");
     expect(row.className).not.toContain("border-t");
   });
 });
