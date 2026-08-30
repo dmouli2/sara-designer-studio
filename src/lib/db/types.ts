@@ -158,9 +158,28 @@ export interface DraftOrderRepository {
   delete(id: string): Promise<void>;
 }
 
+// Failed-login bookkeeping for the rate limit. It lives in the database
+// rather than in memory because the app runs on serverless functions: an
+// in-process counter resets whenever a request lands on a fresh instance, so
+// it would not limit anything.
+export interface LoginAttemptState {
+  failedCount: number;
+  // ISO timestamp, or null when the account is not currently locked out.
+  lockedUntil: string | null;
+}
+
+export interface LoginAttemptRepository {
+  get(username: string): Promise<LoginAttemptState | null>;
+  // Records one failure and returns the state after it, including any lockout
+  // the failure just triggered.
+  recordFailure(username: string, lockAfter: number, lockForMs: number): Promise<LoginAttemptState>;
+  clear(username: string): Promise<void>;
+}
+
 export interface Database {
   staff: StaffRepository;
   orders: OrderRepository;
   fabrics: FabricRepository;
   drafts: DraftOrderRepository;
+  loginAttempts: LoginAttemptRepository;
 }

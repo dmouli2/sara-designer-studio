@@ -61,6 +61,30 @@ describe("GET /api/cleanup-images", () => {
     expect(res.status).toBe(401);
   });
 
+  // The comparison is constant-time now, which means it must still behave
+  // correctly for the shapes a naive === handled: a secret that is a prefix of
+  // what was presented, and one that is longer than it.
+  it("rejects a secret that is only a prefix of the real one", async () => {
+    const res = await GET(makeRequest("Bearer cron-sec"));
+    expect(res.status).toBe(401);
+  });
+
+  it("rejects a token longer than the real one", async () => {
+    const res = await GET(makeRequest("Bearer cron-secret-and-then-some"));
+    expect(res.status).toBe(401);
+  });
+
+  it("rejects a correct secret sent without the Bearer scheme", async () => {
+    const res = await GET(makeRequest("cron-secret"));
+    expect(res.status).toBe(401);
+  });
+
+  it("accepts the exact secret", async () => {
+    listImageCleanupCandidates.mockResolvedValue([]);
+    const res = await GET(makeRequest("Bearer cron-secret"));
+    expect(res.status).toBe(200);
+  });
+
   it("deletes stored images for old finished orders and blanks their columns", async () => {
     listImageCleanupCandidates.mockResolvedValue([
       {

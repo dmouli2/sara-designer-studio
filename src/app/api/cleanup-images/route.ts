@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/db";
 import { getImageStorage } from "@/lib/storage";
+import { safeCompare } from "@/lib/safeCompare";
 
 // Daily cron (vercel.json): frees Supabase Storage by deleting sketch and
 // reference images of orders that were delivered/cancelled more than
@@ -17,8 +18,11 @@ function isStoragePath(value: string): boolean {
 }
 
 export async function GET(request: Request) {
+  // Constant-time: a plain !== on the header leaks, through response timing,
+  // how much of CRON_SECRET a caller has guessed correctly.
   const secret = process.env.CRON_SECRET;
-  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+  const presented = request.headers.get("authorization") ?? "";
+  if (!secret || !safeCompare(presented, `Bearer ${secret}`)) {
     return new Response("Unauthorized", { status: 401 });
   }
 
