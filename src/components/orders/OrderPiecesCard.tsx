@@ -48,7 +48,7 @@ export default function OrderPiecesCard({ order, onDeliver, onChangeDue, busyPie
               key={piece.id}
               className={cn(
                 "rounded-xl border px-3 py-2.5",
-                isDelivered ? "border-border-soft bg-surface-muted" : "border-border bg-white"
+                isDelivered ? "border-border-soft bg-surface-muted" : "border-border bg-surface"
               )}
             >
               <div className="flex items-center gap-2">
@@ -130,7 +130,7 @@ export default function OrderPiecesCard({ order, onDeliver, onChangeDue, busyPie
                     type="button"
                     disabled={busy}
                     onClick={() => onDeliver(piece)}
-                    className="shrink-0 px-3 py-1.5 rounded-xl bg-success text-white text-[12px] font-semibold active:scale-95 transition-transform disabled:opacity-40"
+                    className="shrink-0 px-3 py-1.5 rounded-xl bg-success-fill text-white text-[12px] font-semibold active:scale-95 transition-transform disabled:opacity-40"
                   >
                     {busy ? "Saving…" : "Hand over"}
                   </button>

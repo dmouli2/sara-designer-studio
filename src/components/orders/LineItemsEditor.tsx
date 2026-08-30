@@ -42,7 +42,7 @@ export default function LineItemsEditor({ items, presetCount, onChange }: Props)
   const total = items.reduce((sum, li) => sum + li.qty * li.amount, 0);
 
   return (
-    <div className="rounded-2xl border border-border overflow-hidden bg-white">
+    <div className="rounded-2xl border border-border overflow-hidden bg-surface">
       <div className={`${GRID} bg-bg border-b border-border px-3 py-2`}>
         <span className="text-[10px] font-semibold text-fg-2 uppercase tracking-wide">Item</span>
         <span className="text-[10px] font-semibold text-fg-2 uppercase tracking-wide text-center">Qty</span>
@@ -59,7 +59,7 @@ export default function LineItemsEditor({ items, presetCount, onChange }: Props)
         return (
           <div
             key={i}
-            className={`${GRID} items-center px-3 py-2 ${i % 2 === 1 ? "bg-surface-3" : "bg-white"} ${
+            className={`${GRID} items-center px-3 py-2 ${i % 2 === 1 ? "bg-surface-3" : "bg-surface"} ${
               i > 0 ? "border-t border-border-soft" : ""
             }`}
           >

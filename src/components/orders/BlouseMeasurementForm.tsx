@@ -44,7 +44,7 @@ export default function BlouseMeasurementForm({ value, onChange }: Props) {
   }
 
   return (
-    <div className="rounded-2xl border border-border overflow-hidden bg-white">
+    <div className="rounded-2xl border border-border overflow-hidden bg-surface">
       {/* Header — mirrors MeasurementFieldRow's column layout */}
       <div className="flex items-center bg-bg border-b border-border px-3 py-2 gap-2">
         <span className="w-[88px] shrink-0 text-[10px] font-semibold text-fg-2 uppercase tracking-wide">Field</span>

@@ -27,8 +27,8 @@ export default function ReportDateRangeFilter({ value, onChange }: Props) {
             className={cn(
               "flex-none px-4 py-2 rounded-full text-[13px] font-medium active:scale-95 transition-all",
               value.preset === p.id
-                ? "bg-selected text-white shadow-[0_2px_8px_-1px_rgba(15,15,15,0.3)]"
-                : "bg-white border border-border text-fg-3"
+                ? "bg-selected text-on-selected shadow-[0_2px_8px_-1px_rgba(15,15,15,0.3)]"
+                : "bg-surface border border-border text-fg-3"
             )}
           >
             {p.label}

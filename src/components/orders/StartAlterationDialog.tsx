@@ -58,7 +58,7 @@ export default function StartAlterationDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-[2px] p-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl">
+      <div className="w-full max-w-sm bg-surface rounded-2xl p-6 shadow-2xl">
         <p className="text-[16px] font-semibold text-fg">Alteration for {orderId}</p>
         <p className="text-[14px] text-fg-3 mt-2 leading-relaxed">
           The order stays delivered — this just tracks the garment while it&apos;s back with us.
@@ -126,7 +126,7 @@ export default function StartAlterationDialog({
             type="button"
             onClick={onCancel}
             disabled={pending}
-            className="flex-1 py-3 rounded-xl border border-border bg-white text-[14px] font-medium text-fg-3 active:scale-[0.98] transition-all disabled:opacity-40"
+            className="flex-1 py-3 rounded-xl border border-border bg-surface text-[14px] font-medium text-fg-3 active:scale-[0.98] transition-all disabled:opacity-40"
           >
             Cancel
           </button>
@@ -136,7 +136,7 @@ export default function StartAlterationDialog({
             onClick={() =>
               onConfirm({ reason, promisedAt, pieceLabel: pieceLabel || null, receivedAt })
             }
-            className="flex-1 py-3 rounded-xl bg-violet text-white text-[14px] font-semibold active:scale-[0.98] transition-all disabled:opacity-40"
+            className="flex-1 py-3 rounded-xl bg-violet-fill text-white text-[14px] font-semibold active:scale-[0.98] transition-all disabled:opacity-40"
           >
             {pending ? "Saving…" : "Take it in"}
           </button>

@@ -39,7 +39,7 @@ function ToolButton({
       className={cn(
         "w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 disabled:opacity-30 disabled:active:scale-100",
         active
-          ? "bg-gold text-fg"
+          ? "bg-gold text-on-accent"
           : dark
           ? "bg-white/10 text-white"
           : "bg-surface-2 text-ink-muted"
@@ -282,8 +282,8 @@ export default function SketchCanvas({ value, onChange }: Props) {
         ref={boxRef}
         className={
           fullscreen
-            ? "flex-1 min-h-0 w-full bg-white overflow-hidden"
-            : "relative rounded-2xl border-2 border-dashed border-border bg-white overflow-hidden"
+            ? "flex-1 min-h-0 w-full bg-surface overflow-hidden"
+            : "relative rounded-2xl border-2 border-dashed border-border bg-surface overflow-hidden"
         }
         style={fullscreen ? undefined : { aspectRatio: "5/3" }}
       >

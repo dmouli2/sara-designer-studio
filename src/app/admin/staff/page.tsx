@@ -37,7 +37,7 @@ export default async function StaffListPage() {
             <Link
               key={s.id}
               href={`/admin/staff/${s.id}`}
-              className="flex items-center justify-between bg-white rounded-xl border border-border p-3"
+              className="flex items-center justify-between bg-surface rounded-xl border border-border p-3"
             >
               <div>
                 <p className="text-sm font-semibold text-fg">{s.name}</p>

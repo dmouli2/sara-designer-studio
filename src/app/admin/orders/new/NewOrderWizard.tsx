@@ -486,7 +486,7 @@ export default function NewOrderWizard({
   const scanPanel = scan && (
     <div className="space-y-3">
       {scan.scanImageUrl && (
-        <details className="rounded-2xl border border-border bg-white overflow-hidden">
+        <details className="rounded-2xl border border-border bg-surface overflow-hidden">
           <summary className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-fg cursor-pointer select-none">
             <Camera size={16} className="shrink-0 text-accent-ink" aria-hidden="true" />
             View scanned slip
@@ -534,7 +534,7 @@ export default function NewOrderWizard({
             </p>
           )}
           {FEATURE_SCAN_ORDERS && !scan && (
-            <div className="rounded-2xl border-2 border-dashed border-gold bg-white p-4">
+            <div className="rounded-2xl border-2 border-dashed border-gold bg-surface p-4">
               <button
                 type="button"
                 onClick={() => router.push("/admin/orders/scan")}
@@ -571,14 +571,14 @@ export default function NewOrderWizard({
                 <button
                   type="button"
                   onClick={resumeDraft}
-                  className="flex-1 py-2.5 rounded-xl bg-gold text-fg text-sm font-semibold active:scale-95 transition-transform"
+                  className="flex-1 py-2.5 rounded-xl bg-gold text-on-accent text-sm font-semibold active:scale-95 transition-transform"
                 >
                   Resume draft
                 </button>
                 <button
                   type="button"
                   onClick={discardDraft}
-                  className="flex-1 py-2.5 rounded-xl border border-border bg-white text-sm font-medium text-fg-3 active:scale-95 transition-transform"
+                  className="flex-1 py-2.5 rounded-xl border border-border bg-surface text-sm font-medium text-fg-3 active:scale-95 transition-transform"
                 >
                   Discard
                 </button>
@@ -592,7 +592,7 @@ export default function NewOrderWizard({
               type="button"
               onClick={() => handleDressChange(d)}
               className={`w-full text-left p-5 rounded-2xl border transition-all active:scale-[0.98] ${
-                d === "Salwar" ? "border-border bg-white" : "border-gold-200 bg-gold-50"
+                d === "Salwar" ? "border-border bg-surface" : "border-gold-200 bg-gold-50"
               }`}
             >
               <p className={`text-lg font-semibold ${d === "Salwar" ? "text-fg" : "text-gold-800"}`}>{d}</p>
@@ -647,7 +647,7 @@ export default function NewOrderWizard({
 
             <div>
               <p className="section-label">Order type</p>
-              <div className="flex items-center justify-between rounded-xl border border-border bg-white px-4 py-3.5">
+              <div className="flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3.5">
                 <span className="text-[15px] font-semibold text-fg">{dress}</span>
                 <button type="button" onClick={() => setDress(null)} className="text-xs font-medium text-accent-ink">
                   Change
@@ -675,10 +675,10 @@ export default function NewOrderWizard({
               <p className="section-label">
                 {uniformMaterial || pieceCount <= 1 ? "Material source" : "Default material source"}
               </p>
-              <div className="flex rounded-xl border border-border overflow-hidden bg-white">
+              <div className="flex rounded-xl border border-border overflow-hidden bg-surface">
                 {(["customer", "shop"] as const).map((s) => (
                   <button key={s} type="button" onClick={() => setMatSource(s)}
-                    className={`flex-1 py-3 text-sm font-medium transition-all ${matSource === s ? "bg-selected text-white" : "text-fg-3"}`}>
+                    className={`flex-1 py-3 text-sm font-medium transition-all ${matSource === s ? "bg-selected text-on-selected" : "text-fg-3"}`}>
                     {s === "shop" ? "From shop" : "Customer brings"}
                   </button>
                 ))}
@@ -702,7 +702,7 @@ export default function NewOrderWizard({
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   {fabricList.map((f) => (
                     <button key={f.id} type="button" onClick={() => setFabric(f)}
-                      className={`p-3 rounded-xl border text-left transition-all ${fabric?.id === f.id ? "border-gold bg-gold-50" : "border-border bg-white"}`}>
+                      className={`p-3 rounded-xl border text-left transition-all ${fabric?.id === f.id ? "border-gold bg-gold-50" : "border-border bg-surface"}`}>
                       <p className={`text-sm font-semibold ${fabric?.id === f.id ? "text-gold-800" : "text-fg"}`}>{f.name}</p>
                       <p className={`text-xs mt-0.5 ${fabric?.id === f.id ? "text-accent-ink" : "text-fg-2"}`}>₹{f.price}/m</p>
                     </button>
@@ -710,7 +710,7 @@ export default function NewOrderWizard({
                   <button
                     type="button"
                     onClick={() => setManageOpen(true)}
-                    className="p-3 rounded-xl border-2 border-dashed border-border bg-white text-left transition-all active:bg-bg"
+                    className="p-3 rounded-xl border-2 border-dashed border-border bg-surface text-left transition-all active:bg-bg"
                   >
                     <p className="text-sm font-semibold text-fg-2">+ Add fabric</p>
                     <p className="text-xs mt-0.5 text-fg-2">name & ₹/m</p>
@@ -932,7 +932,7 @@ export default function NewOrderWizard({
 
       {placedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm bg-white rounded-2xl p-6 text-center shadow-xl">
+          <div className="w-full max-w-sm bg-surface rounded-2xl p-6 text-center shadow-xl">
             <CheckCircle2 size={48} className="mx-auto text-success" />
             <p className="text-base font-semibold text-fg mt-3">Order placed successfully!</p>
             <p className="text-sm text-fg-3 mt-1">

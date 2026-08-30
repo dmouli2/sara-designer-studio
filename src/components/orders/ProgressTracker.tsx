@@ -46,8 +46,8 @@ export default function ProgressTracker({ status }: { status: OrderStatus }) {
               <div
                 className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-bold transition-all",
-                  done    && "bg-gold text-fg shadow-[0_2px_8px_-1px_rgba(201,168,76,0.5)]",
-                  active  && "bg-selected text-white ring-[5px] ring-gold/30",
+                  done    && "bg-gold text-on-accent shadow-[0_2px_8px_-1px_rgba(201,168,76,0.5)]",
+                  active  && "bg-selected text-on-selected ring-[5px] ring-gold/30",
                   !done && !active && "bg-border text-fg-2"
                 )}
               >

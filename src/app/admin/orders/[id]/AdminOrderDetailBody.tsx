@@ -353,7 +353,7 @@ export default function AdminOrderDetailBody({
         {canEdit && (
           <button
             onClick={() => router.push(`/admin/orders/${order.id}/edit`)}
-            className="w-full flex items-center justify-center gap-2 py-3 text-[14px] font-medium text-fg border border-border bg-white rounded-xl active:scale-[0.98] transition-all"
+            className="w-full flex items-center justify-center gap-2 py-3 text-[14px] font-medium text-fg border border-border bg-surface rounded-xl active:scale-[0.98] transition-all"
           >
             <Pencil size={16} />
             Edit order
@@ -379,7 +379,7 @@ export default function AdminOrderDetailBody({
         {order.sketchDataUrl && (
           <div>
             <p className="section-label">Garment sketch</p>
-            <div className="rounded-2xl border border-border overflow-hidden bg-white">
+            <div className="rounded-2xl border border-border overflow-hidden bg-surface">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={order.sketchDataUrl} alt="Sketch" className="w-full" loading="lazy" />
             </div>
@@ -547,7 +547,7 @@ export default function AdminOrderDetailBody({
             <button
               onClick={handleReleaseToReady}
               disabled={releasingToReady}
-              className="w-full bg-info text-white rounded-xl py-3 text-[14px] font-semibold active:opacity-80 disabled:opacity-40 transition-all"
+              className="w-full bg-info-fill text-white rounded-xl py-3 text-[14px] font-semibold active:opacity-80 disabled:opacity-40 transition-all"
             >
               {releasingToReady ? "Updating…" : "✓ Mark Hemming & Hook Done → Ready"}
             </button>
@@ -593,7 +593,7 @@ export default function AdminOrderDetailBody({
           {!isCancelled && (
             <button
               onClick={() => setCancelOpen(true)}
-              className="w-full flex items-center justify-center gap-2 py-3.5 text-[14px] font-medium text-danger bg-white border border-danger-border rounded-xl active:scale-[0.98] transition-all"
+              className="w-full flex items-center justify-center gap-2 py-3.5 text-[14px] font-medium text-danger bg-surface border border-danger-border rounded-xl active:scale-[0.98] transition-all"
             >
               <Ban size={18} />
               Cancel order
@@ -602,7 +602,7 @@ export default function AdminOrderDetailBody({
 
           <button
             onClick={() => setDeleteOpen(true)}
-            className="w-full flex items-center justify-center gap-2 py-3.5 text-[14px] font-semibold text-white bg-danger rounded-xl active:scale-[0.98] transition-all"
+            className="w-full flex items-center justify-center gap-2 py-3.5 text-[14px] font-semibold text-white bg-danger-fill rounded-xl active:scale-[0.98] transition-all"
           >
             <Trash2 size={18} />
             Delete order

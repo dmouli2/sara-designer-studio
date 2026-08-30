@@ -39,7 +39,12 @@ export const metadata: Metadata = {
 // `.input` is now 16px, as are the search and date fields — so the zoom
 // no longer fires and pinch-zoom is available again.
 export const viewport: Viewport = {
-  themeColor: "#0F0F0F",
+  // Matches the TopBar in each theme, so the phone's status bar sits flush
+  // with the header instead of butting a light strip against a dark one.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#0F0F0F" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B0A06" },
+  ],
   width: "device-width",
   initialScale: 1,
 };
