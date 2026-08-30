@@ -159,14 +159,14 @@ export default function OrdersBody({ initialOrders }: { initialOrders: Order[] }
       {/* Search */}
       <div className="px-4 pt-4 pb-2">
         <div className="relative">
-          <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9A9A9A]" />
+          <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#56524A]" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by customer name or mobile number"
             aria-label="Search orders"
-            className="input pl-10 py-2.5 text-[14px]"
+            className="input pl-10 py-2.5 text-[16px]"
           />
         </div>
       </div>
@@ -194,7 +194,7 @@ export default function OrdersBody({ initialOrders }: { initialOrders: Order[] }
               <span
                 className={cn(
                   "ml-1.5 text-[11px] font-medium tabular-nums",
-                  dressTab === t.id ? "text-[#C9A84C]" : "text-[#9A9A9A]"
+                  dressTab === t.id ? "text-[#6E5518]" : "text-[#56524A]"
                 )}
               >
                 {dressCounts[t.id]}
@@ -241,7 +241,7 @@ export default function OrdersBody({ initialOrders }: { initialOrders: Order[] }
         {filtered.length === 0 ? (
           <div className="text-center pt-16">
             <p className="text-3xl mb-3">📋</p>
-            <p className="text-sm text-[#9A9A9A]">
+            <p className="text-sm text-[#56524A]">
               {dressTab === "all" ? "No orders found" : `No ${dressTab} orders found`}
             </p>
           </div>

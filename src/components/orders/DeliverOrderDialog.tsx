@@ -78,7 +78,7 @@ export default function DeliverOrderDialog({
               </span>
             </div>
 
-            <p className="text-xs text-[#9A9A9A] mt-4 mb-2">How was it paid?</p>
+            <p className="text-xs text-[#56524A] mt-4 mb-2">How was it paid?</p>
             <PaymentSplitPicker
               idPrefix="deliver-order"
               total={balance}

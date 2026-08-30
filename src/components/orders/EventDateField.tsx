@@ -26,7 +26,7 @@ export default function EventDateField({ id, label, value, onChange }: Props) {
   const future = !!value && value > shopToday();
   return (
     <div>
-      <label className="text-xs text-[#9A9A9A] mb-1 block" htmlFor={id}>
+      <label className="text-xs text-[#56524A] mb-1 block" htmlFor={id}>
         {label}
       </label>
       <input

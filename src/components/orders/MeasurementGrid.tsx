@@ -4,16 +4,16 @@ function Cell({ label, value, note }: { label: string; value?: string; note?: st
   if (!value && !note) return null;
   return (
     <div className="bg-[#F9F8F6] border border-[#E5E0D5] rounded-xl p-3 text-center">
-      <p className="text-[10px] text-[#9A9A9A] mb-1">{label}</p>
+      <p className="text-[10px] text-[#56524A] mb-1">{label}</p>
       <p className="text-sm font-semibold text-[#0F0F0F]">{value ? `${value} in` : "—"}</p>
-      {note && <p className="text-[11px] text-[#A8882E] italic mt-0.5">({note})</p>}
+      {note && <p className="text-[11px] text-[#6E5518] italic mt-0.5">({note})</p>}
     </div>
   );
 }
 
 function SectionLabel({ children }: { children: string }) {
   return (
-    <p className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide mt-3 mb-1.5">{children}</p>
+    <p className="text-[10px] font-semibold text-[#56524A] uppercase tracking-wide mt-3 mb-1.5">{children}</p>
   );
 }
 

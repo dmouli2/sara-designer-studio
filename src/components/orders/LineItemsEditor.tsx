@@ -44,10 +44,10 @@ export default function LineItemsEditor({ items, presetCount, onChange }: Props)
   return (
     <div className="rounded-2xl border border-[#E5E0D5] overflow-hidden bg-white">
       <div className={`${GRID} bg-[#F9F8F6] border-b border-[#E5E0D5] px-3 py-2`}>
-        <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide">Item</span>
-        <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide text-center">Qty</span>
-        <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide text-center">Price ₹</span>
-        <span className="text-[10px] font-semibold text-[#9A9A9A] uppercase tracking-wide">Comments</span>
+        <span className="text-[10px] font-semibold text-[#56524A] uppercase tracking-wide">Item</span>
+        <span className="text-[10px] font-semibold text-[#56524A] uppercase tracking-wide text-center">Qty</span>
+        <span className="text-[10px] font-semibold text-[#56524A] uppercase tracking-wide text-center">Price ₹</span>
+        <span className="text-[10px] font-semibold text-[#56524A] uppercase tracking-wide">Comments</span>
         <span />
       </div>
 
@@ -127,7 +127,7 @@ export default function LineItemsEditor({ items, presetCount, onChange }: Props)
       {/* Running total, so a long list doesn't need scrolling back to the
           summary card to see what the last edit did. */}
       <div className="flex justify-between px-3 py-2 border-t border-[#E5E0D5] bg-[#F9F8F6]">
-        <span className="text-[11px] font-semibold text-[#9A9A9A] uppercase tracking-wide">Items total</span>
+        <span className="text-[11px] font-semibold text-[#56524A] uppercase tracking-wide">Items total</span>
         <span className="text-[13px] font-semibold text-[#0F0F0F] tabular-nums">{formatCurrency(total)}</span>
       </div>
     </div>

@@ -22,7 +22,7 @@ export default function PublicOrderBody({ order }: { order: PublicOrder }) {
 
         <div className="flex items-center gap-3">
           <StatusBadge status={order.status} alterations={order.alterations} />
-          <span className="text-[13px] text-[#9A9A9A]">Due {formatDate(order.due)}</span>
+          <span className="text-[13px] text-[#56524A]">Due {formatDate(order.due)}</span>
         </div>
 
         {/* On a split order the customer's real question is "which of mine is
@@ -31,9 +31,9 @@ export default function PublicOrderBody({ order }: { order: PublicOrder }) {
 
         <div className="card-gold">
           <p className="text-[16px] font-semibold text-[#7A6020]">{order.dress}</p>
-          <p className="text-[14px] text-[#A8882E] mt-0.5">{order.material}</p>
+          <p className="text-[14px] text-[#6E5518] mt-0.5">{order.material}</p>
           {order.notes && (
-            <p className="text-[13px] text-[#A8882E]/80 mt-2 italic">&quot;{order.notes}&quot;</p>
+            <p className="text-[13px] text-[#6E5518] mt-2 italic">&quot;{order.notes}&quot;</p>
           )}
         </div>
 
@@ -67,7 +67,7 @@ export default function PublicOrderBody({ order }: { order: PublicOrder }) {
                     <span className="text-[#0F0F0F]">{li.particulars} ×{li.qty}</span>
                     <span className="text-[#0F0F0F] font-medium">{formatCurrency(li.qty * li.amount)}</span>
                   </div>
-                  {li.note && <p className="text-xs text-[#A8882E] italic mt-0.5">({li.note})</p>}
+                  {li.note && <p className="text-xs text-[#6E5518] italic mt-0.5">({li.note})</p>}
                 </div>
               ))}
             </div>
@@ -80,7 +80,7 @@ export default function PublicOrderBody({ order }: { order: PublicOrder }) {
             <>
               <div className="flex justify-between text-sm font-bold text-[#0F0F0F]">
                 <span>Order total</span>
-                <span className="line-through text-[#A8882E]">{formatCurrency(order.amount)}</span>
+                <span className="line-through text-[#6E5518]">{formatCurrency(order.amount)}</span>
               </div>
               <div className="flex justify-between text-xs text-[#6B6B6B] mt-1">
                 <span>Advance paid</span>
@@ -91,7 +91,7 @@ export default function PublicOrderBody({ order }: { order: PublicOrder }) {
                 <span>{formatCurrency(cancellationCharge)}</span>
               </div>
               {cancelBalance > 0 && (
-                <div className="flex justify-between text-xs font-semibold text-[#C9A84C] mt-0.5">
+                <div className="flex justify-between text-xs font-semibold text-[#6E5518] mt-0.5">
                   <span>Balance due</span>
                   <span>{formatCurrency(cancelBalance)}</span>
                 </div>
@@ -113,7 +113,7 @@ export default function PublicOrderBody({ order }: { order: PublicOrder }) {
                 <span>Advance paid</span>
                 <span>{formatCurrency(order.advance)}</span>
               </div>
-              <div className="flex justify-between text-xs font-semibold text-[#C9A84C] mt-0.5">
+              <div className="flex justify-between text-xs font-semibold text-[#6E5518] mt-0.5">
                 <span>Balance due</span>
                 <span>{formatCurrency(balance > 0 ? balance : 0)}</span>
               </div>

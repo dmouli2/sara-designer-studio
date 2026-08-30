@@ -12,7 +12,7 @@ export default function PaymentsSummaryChart({ payments }: { payments: PaymentsS
     <div className="card">
       <p className="section-label">Advance Collected vs Balance Due</p>
       {!hasData ? (
-        <p className="text-sm text-[#9A9A9A] py-8 text-center">No orders in this period</p>
+        <p className="text-sm text-[#56524A] py-8 text-center">No orders in this period</p>
       ) : (
         <div className="h-40">
           <ResponsiveContainer width="100%" height="100%">
@@ -20,7 +20,7 @@ export default function PaymentsSummaryChart({ payments }: { payments: PaymentsS
               <CartesianGrid horizontal={false} stroke="#F0EDE6" />
               <XAxis
                 type="number"
-                tick={{ fontSize: 11, fill: "#9A9A9A" }}
+                tick={{ fontSize: 11, fill: "#56524A" }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`)}

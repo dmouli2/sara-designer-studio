@@ -22,19 +22,19 @@ export default function EditStaffForm({ staff }: { staff: StaffListItem }) {
       <input type="hidden" name="id" value={staff.id} />
 
       <div>
-        <label className="text-xs text-[#9A9A9A] mb-1 block">Username</label>
+        <label className="text-xs text-[#56524A] mb-1 block">Username</label>
         <p className="text-sm text-[#0F0F0F] py-2">{staff.username}</p>
       </div>
 
       <div>
-        <label htmlFor="name" className="text-xs text-[#9A9A9A] mb-1 block">
+        <label htmlFor="name" className="text-xs text-[#56524A] mb-1 block">
           Full name
         </label>
         <input id="name" name="name" className="input" defaultValue={staff.name} />
       </div>
 
       <div>
-        <label htmlFor="role" className="text-xs text-[#9A9A9A] mb-1 block">
+        <label htmlFor="role" className="text-xs text-[#56524A] mb-1 block">
           Role
         </label>
         <select id="role" name="role" className="input" defaultValue={staff.role}>
@@ -47,7 +47,7 @@ export default function EditStaffForm({ staff }: { staff: StaffListItem }) {
       </div>
 
       <div>
-        <label htmlFor="active" className="text-xs text-[#9A9A9A] mb-1 block">
+        <label htmlFor="active" className="text-xs text-[#56524A] mb-1 block">
           Status
         </label>
         <select id="active" name="active" className="input" defaultValue={staff.active ? "true" : "false"}>
@@ -57,7 +57,7 @@ export default function EditStaffForm({ staff }: { staff: StaffListItem }) {
       </div>
 
       <div>
-        <label htmlFor="password" className="text-xs text-[#9A9A9A] mb-1 block">
+        <label htmlFor="password" className="text-xs text-[#56524A] mb-1 block">
           New password (leave blank to keep current)
         </label>
         <div className="relative">
@@ -72,7 +72,7 @@ export default function EditStaffForm({ staff }: { staff: StaffListItem }) {
             type="button"
             onClick={() => setShowPassword((v) => !v)}
             aria-label={showPassword ? "Hide password" : "Show password"}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9A9A9A] active:text-[#0F0F0F]"
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#56524A] active:text-[#0F0F0F]"
           >
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>

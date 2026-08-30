@@ -20,7 +20,7 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
   if (!order) {
     return (
       <div className="screen items-center justify-center">
-        <p className="text-[#9A9A9A]">Order not found</p>
+        <p className="text-[#56524A]">Order not found</p>
       </div>
     );
   }

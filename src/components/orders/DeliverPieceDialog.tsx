@@ -95,7 +95,7 @@ export default function DeliverPieceDialog({
 
             {!isLast && (
               <div className="mt-4">
-                <label className="text-xs text-[#9A9A9A] mb-1 block" htmlFor="piece-collect">
+                <label className="text-xs text-[#56524A] mb-1 block" htmlFor="piece-collect">
                   Collecting now (₹) — leave blank if nothing
                 </label>
                 <input
@@ -118,7 +118,7 @@ export default function DeliverPieceDialog({
 
             {needsMethod && (
               <>
-                <p className="text-xs text-[#9A9A9A] mt-4 mb-2">
+                <p className="text-xs text-[#56524A] mt-4 mb-2">
                   How was the {formatCurrency(collecting)} paid?
                 </p>
                 <PaymentSplitPicker

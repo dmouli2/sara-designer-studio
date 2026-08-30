@@ -22,7 +22,7 @@ export default function StatusBreakdownChart({ statuses }: { statuses: StatusCou
     <div className="card">
       <p className="section-label">Orders by Status</p>
       {statuses.length === 0 ? (
-        <p className="text-sm text-[#9A9A9A] py-8 text-center">No orders in this period</p>
+        <p className="text-sm text-[#56524A] py-8 text-center">No orders in this period</p>
       ) : (
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">

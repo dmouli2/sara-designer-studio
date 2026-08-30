@@ -49,14 +49,14 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
         {/* Status */}
         <div className="flex items-center gap-3">
           <StatusBadge status={order.status} />
-          <span className="text-[13px] text-[#9A9A9A]">Due {formatDate(order.due)}</span>
+          <span className="text-[13px] text-[#56524A]">Due {formatDate(order.due)}</span>
         </div>
 
         {/* Dress info */}
         <div className="card-gold">
           <p className="text-[16px] font-semibold text-[#7A6020]">{order.dress} · {order.material}</p>
           {order.notes && (
-            <p className="text-[13px] text-[#A8882E]/80 mt-1.5 italic">&quot;{order.notes}&quot;</p>
+            <p className="text-[13px] text-[#6E5518] mt-1.5 italic">&quot;{order.notes}&quot;</p>
           )}
         </div>
 

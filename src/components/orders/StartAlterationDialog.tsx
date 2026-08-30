@@ -67,7 +67,7 @@ export default function StartAlterationDialog({
         <div className="mt-4 space-y-3">
           {multi && (
             <div>
-              <label className="text-xs text-[#9A9A9A] mb-1 block" htmlFor="alteration-piece">
+              <label className="text-xs text-[#56524A] mb-1 block" htmlFor="alteration-piece">
                 Which piece?
               </label>
               <select
@@ -94,7 +94,7 @@ export default function StartAlterationDialog({
           />
 
           <div>
-            <label className="text-xs text-[#9A9A9A] mb-1 block" htmlFor="alteration-reason">
+            <label className="text-xs text-[#56524A] mb-1 block" htmlFor="alteration-reason">
               What needs changing?
             </label>
             <textarea
@@ -108,7 +108,7 @@ export default function StartAlterationDialog({
           </div>
 
           <div>
-            <label className="text-xs text-[#9A9A9A] mb-1 block" htmlFor="alteration-promised">
+            <label className="text-xs text-[#56524A] mb-1 block" htmlFor="alteration-promised">
               Promised back on *
             </label>
             <input

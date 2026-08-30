@@ -307,8 +307,8 @@ export default function SketchCanvas({ value, onChange }: Props) {
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-center">
               <p className="text-3xl mb-2">✏️</p>
-              <p className="text-sm text-[#9A9A9A]">Draw garment sketch here</p>
-              <p className="text-xs text-[#C9A84C] mt-1">Finger or stylus supported</p>
+              <p className="text-sm text-[#56524A]">Draw garment sketch here</p>
+              <p className="text-xs text-[#6E5518] mt-1">Finger or stylus supported</p>
             </div>
           </div>
         )}

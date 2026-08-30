@@ -540,7 +540,7 @@ export default function NewOrderWizard({
                 className="w-full flex items-center gap-3 text-left active:scale-[0.98] transition-transform"
               >
                 <span className="w-11 h-11 rounded-xl bg-[#FBF6E8] flex items-center justify-center">
-                  <Camera size={20} className="text-[#C9A84C]" />
+                  <Camera size={20} className="text-[#6E5518]" />
                 </span>
                 <span>
                   <span className="block text-[15px] font-semibold text-[#0F0F0F]">Scan order slip</span>
@@ -565,7 +565,7 @@ export default function NewOrderWizard({
               <p className="text-sm font-semibold text-[#7A6020]">
                 Unfinished {draft.dress} order{draft.name ? ` for ${draft.name}` : ""}
               </p>
-              <p className="text-xs text-[#A8882E] mt-0.5">Continue where you left off?</p>
+              <p className="text-xs text-[#6E5518] mt-0.5">Continue where you left off?</p>
               <div className="flex gap-2 mt-3">
                 <button
                   type="button"
@@ -595,7 +595,7 @@ export default function NewOrderWizard({
               }`}
             >
               <p className={`text-lg font-semibold ${d === "Salwar" ? "text-[#0F0F0F]" : "text-[#7A6020]"}`}>{d}</p>
-              <p className={`text-xs mt-1 ${d === "Salwar" ? "text-[#6B6B6B]" : "text-[#A8882E]"}`}>
+              <p className={`text-xs mt-1 ${d === "Salwar" ? "text-[#6B6B6B]" : "text-[#6E5518]"}`}>
                 {d === "Salwar" ? "Salwar Kameez & Churidar" : "Blouse & Pattu Saree Blouse"}
               </p>
             </button>
@@ -648,7 +648,7 @@ export default function NewOrderWizard({
               <p className="section-label">Order type</p>
               <div className="flex items-center justify-between rounded-xl border border-[#E5E0D5] bg-white px-4 py-3.5">
                 <span className="text-[15px] font-semibold text-[#0F0F0F]">{dress}</span>
-                <button type="button" onClick={() => setDress(null)} className="text-xs font-medium text-[#C9A84C]">
+                <button type="button" onClick={() => setDress(null)} className="text-xs font-medium text-[#6E5518]">
                   Change
                 </button>
               </div>
@@ -693,7 +693,7 @@ export default function NewOrderWizard({
                   <button
                     type="button"
                     onClick={() => setManageOpen(true)}
-                    className="text-xs font-medium text-[#C9A84C] mb-2"
+                    className="text-xs font-medium text-[#6E5518] mb-2"
                   >
                     Manage
                   </button>
@@ -703,7 +703,7 @@ export default function NewOrderWizard({
                     <button key={f.id} type="button" onClick={() => setFabric(f)}
                       className={`p-3 rounded-xl border text-left transition-all ${fabric?.id === f.id ? "border-[#C9A84C] bg-[#FBF6E8]" : "border-[#E5E0D5] bg-white"}`}>
                       <p className={`text-sm font-semibold ${fabric?.id === f.id ? "text-[#7A6020]" : "text-[#0F0F0F]"}`}>{f.name}</p>
-                      <p className={`text-xs mt-0.5 ${fabric?.id === f.id ? "text-[#C9A84C]" : "text-[#9A9A9A]"}`}>₹{f.price}/m</p>
+                      <p className={`text-xs mt-0.5 ${fabric?.id === f.id ? "text-[#6E5518]" : "text-[#56524A]"}`}>₹{f.price}/m</p>
                     </button>
                   ))}
                   <button
@@ -711,8 +711,8 @@ export default function NewOrderWizard({
                     onClick={() => setManageOpen(true)}
                     className="p-3 rounded-xl border-2 border-dashed border-[#E5E0D5] bg-white text-left transition-all active:bg-[#F9F8F6]"
                   >
-                    <p className="text-sm font-semibold text-[#9A9A9A]">+ Add fabric</p>
-                    <p className="text-xs mt-0.5 text-[#9A9A9A]">name & ₹/m</p>
+                    <p className="text-sm font-semibold text-[#56524A]">+ Add fabric</p>
+                    <p className="text-xs mt-0.5 text-[#56524A]">name & ₹/m</p>
                   </button>
                 </div>
                 {fabricList.length === 0 && (
@@ -725,8 +725,8 @@ export default function NewOrderWizard({
                   value={metres}
                   onChange={(e) => setMetres(e.target.value)}
                 />
-                <p className="text-xs text-[#9A9A9A] mt-1.5">
-                  Fabric cost: <span className="text-[#C9A84C] font-medium">{formatCurrency(fabricCost)}</span>
+                <p className="text-xs text-[#56524A] mt-1.5">
+                  Fabric cost: <span className="text-[#6E5518] font-medium">{formatCurrency(fabricCost)}</span>
                 </p>
               </div>
             )}
@@ -747,7 +747,7 @@ export default function NewOrderWizard({
                 // Scanned book orders often have no fabric on hand yet, so
                 // the photo is optional there; manual orders still require it.
                 scan ? (
-                  <p className="text-xs text-[#9A9A9A] mt-1.5">
+                  <p className="text-xs text-[#56524A] mt-1.5">
                     Optional for scanned orders — add a fabric photo if handy.
                   </p>
                 ) : (
@@ -820,7 +820,7 @@ export default function NewOrderWizard({
               <p className="section-label">Payment</p>
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs text-[#9A9A9A] mb-1 block">Advance collected (₹)</label>
+                  <label className="text-xs text-[#56524A] mb-1 block">Advance collected (₹)</label>
                   <input
                     className="input"
                     type="number"
@@ -831,7 +831,7 @@ export default function NewOrderWizard({
                 {/* Only asked once money has actually changed hands. */}
                 {advanceValue > 0 && (
                   <div>
-                    <label className="text-xs text-[#9A9A9A] mb-1 block">How was the advance paid?</label>
+                    <label className="text-xs text-[#56524A] mb-1 block">How was the advance paid?</label>
                     <PaymentSplitPicker
                       idPrefix="advance"
                       total={advanceValue}
@@ -841,7 +841,7 @@ export default function NewOrderWizard({
                   </div>
                 )}
                 <div>
-                  <label className="text-xs text-[#9A9A9A] mb-1 block">Delivery date *</label>
+                  <label className="text-xs text-[#56524A] mb-1 block">Delivery date *</label>
                   <input
                     className="input"
                     type="date"
@@ -858,13 +858,13 @@ export default function NewOrderWizard({
             <div className="card-gold">
               <p className="text-xs font-semibold text-[#7A6020] mb-3">Order summary</p>
               {anyShopMaterial && fabric && (
-                <div className="flex justify-between text-xs text-[#A8882E] mb-1.5">
+                <div className="flex justify-between text-xs text-[#6E5518] mb-1.5">
                   <span>Fabric ({fabric.name} × {metres}m)</span>
                   <span>{formatCurrency(fabricCost)}</span>
                 </div>
               )}
               {canSplitPieces && pieceCount > 1 && (
-                <div className="flex justify-between text-xs text-[#A8882E] mb-1.5">
+                <div className="flex justify-between text-xs text-[#6E5518] mb-1.5">
                   <span>Pieces</span>
                   <span>
                     {pieceCount} garments
@@ -873,7 +873,7 @@ export default function NewOrderWizard({
                 </div>
               )}
               {lineItems.filter((li) => li.particulars.trim() && li.qty > 0 && li.amount > 0).map((li, i) => (
-                <div key={i} className="flex justify-between text-xs text-[#A8882E] mb-1.5">
+                <div key={i} className="flex justify-between text-xs text-[#6E5518] mb-1.5">
                   <span>{li.particulars} ×{li.qty} @ {formatCurrency(li.amount)}</span>
                   <span>{formatCurrency(li.qty * li.amount)}</span>
                 </div>
@@ -886,7 +886,7 @@ export default function NewOrderWizard({
                 <span>Advance</span>
                 <span>{formatCurrency(parseFloat(advance || "0"))}</span>
               </div>
-              <div className="flex justify-between text-xs font-semibold text-[#C9A84C] mt-0.5">
+              <div className="flex justify-between text-xs font-semibold text-[#6E5518] mt-0.5">
                 <span>Balance due</span>
                 <span>{formatCurrency(balance > 0 ? balance : 0)}</span>
               </div>

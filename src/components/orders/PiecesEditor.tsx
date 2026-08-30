@@ -59,7 +59,7 @@ export default function PiecesEditor({
       <div className="flex items-center justify-between px-4 py-3">
         <div className="min-w-0">
           <p className="text-[14px] font-medium text-[#0F0F0F]">How many {noun}s?</p>
-          <p className="text-[12px] text-[#9A9A9A] mt-0.5">
+          <p className="text-[12px] text-[#56524A] mt-0.5">
             {safeCount === 1
               ? "One garment, delivered in one go."
               : "Same measurements. Each one tracked as it's collected."}
@@ -91,7 +91,7 @@ export default function PiecesEditor({
       </div>
 
       {minCountReason && safeCount <= floor && (
-        <p className="px-4 pb-3 -mt-1 text-[12px] text-[#9A9A9A]">{minCountReason}</p>
+        <p className="px-4 pb-3 -mt-1 text-[12px] text-[#56524A]">{minCountReason}</p>
       )}
 
       {safeCount > 1 && (
@@ -109,7 +109,7 @@ export default function PiecesEditor({
               <span className="block text-[13px] text-[#0F0F0F]">
                 All {safeCount} use the same material ({SOURCE_LABEL[orderSource].toLowerCase()})
               </span>
-              <span className="block text-[12px] text-[#9A9A9A] mt-0.5">
+              <span className="block text-[12px] text-[#56524A] mt-0.5">
                 Untick if the customer brought cloth for some and is buying the rest.
               </span>
             </span>

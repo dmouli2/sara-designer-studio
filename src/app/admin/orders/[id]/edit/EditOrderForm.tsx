@@ -339,19 +339,19 @@ export default function EditOrderForm({ order }: { order: Order }) {
           <p className="section-label">Payment</p>
           <div className="space-y-3">
             <div>
-              <label className="text-xs text-[#9A9A9A] mb-1 block">Order total (₹)</label>
+              <label className="text-xs text-[#56524A] mb-1 block">Order total (₹)</label>
               <input
                 className="input"
                 type="number"
                 value={totalOverride ?? String(computedTotal)}
                 onChange={(e) => setTotalOverride(e.target.value)}
               />
-              <p className="text-xs text-[#9A9A9A] mt-1">
+              <p className="text-xs text-[#56524A] mt-1">
                 Follows item changes automatically — adjust here if the fabric cost changed too.
               </p>
             </div>
             <div>
-              <label className="text-xs text-[#9A9A9A] mb-1 block">Advance collected (₹)</label>
+              <label className="text-xs text-[#56524A] mb-1 block">Advance collected (₹)</label>
               <input className="input" type="number" value={advance} onChange={(e) => setAdvance(e.target.value)} />
               {parseFloat(advance || "0") > 0 && (
                 <div className="mt-2">
@@ -365,7 +365,7 @@ export default function EditOrderForm({ order }: { order: Order }) {
               )}
             </div>
             <div>
-              <label className="text-xs text-[#9A9A9A] mb-1 block">Delivery date *</label>
+              <label className="text-xs text-[#56524A] mb-1 block">Delivery date *</label>
               <input className="input" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
             </div>
           </div>
@@ -402,7 +402,7 @@ export default function EditOrderForm({ order }: { order: Order }) {
             <span>Advance</span>
             <span>{formatCurrency(parseFloat(advance || "0") || 0)}</span>
           </div>
-          <div className="flex justify-between text-xs font-semibold text-[#C9A84C] mt-0.5">
+          <div className="flex justify-between text-xs font-semibold text-[#6E5518] mt-0.5">
             <span>Balance due</span>
             <span>{formatCurrency(balance > 0 ? balance : 0)}</span>
           </div>

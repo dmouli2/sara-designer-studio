@@ -63,7 +63,7 @@ export default function OrderPiecesCard({ order, onDeliver, onChangeDue, busyPie
                 <span
                   className={cn(
                     "text-[14px] font-medium min-w-0 truncate",
-                    isDelivered ? "text-[#9A9A9A]" : "text-[#0F0F0F]"
+                    isDelivered ? "text-[#56524A]" : "text-[#0F0F0F]"
                   )}
                 >
                   {piece.label}
@@ -108,7 +108,7 @@ export default function OrderPiecesCard({ order, onDeliver, onChangeDue, busyPie
                   <span
                     className={cn(
                       "text-[12px] inline-flex items-center gap-1.5",
-                      overdue ? "font-semibold text-[#B04A4A]" : "text-[#9A9A9A]"
+                      overdue ? "font-semibold text-[#B04A4A]" : "text-[#56524A]"
                     )}
                   >
                     {overdue ? "⚠ Overdue · was due" : "Due"} {formatDate(piece.due)}
@@ -117,7 +117,7 @@ export default function OrderPiecesCard({ order, onDeliver, onChangeDue, busyPie
                         type="button"
                         aria-label={`Change ${piece.label} delivery date`}
                         onClick={() => setEditing(piece.id)}
-                        className="text-[#9A9A9A] active:scale-90 transition-transform"
+                        className="text-[#56524A] active:scale-90 transition-transform"
                       >
                         <Pencil size={12} />
                       </button>

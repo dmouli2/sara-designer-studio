@@ -72,11 +72,11 @@ export default function LoginPage() {
         <div className="flex-1 px-5 -mt-7 relative z-10">
         <form action={formAction} className="bg-white rounded-3xl shadow-2xl border border-[#E5E0D5] p-6 space-y-5">
           <div>
-            <label htmlFor="username" className="text-[13px] font-medium text-[#9A9A9A] mb-1.5 block">
+            <label htmlFor="username" className="text-[13px] font-medium text-[#56524A] mb-1.5 block">
               Username
             </label>
             <div className="relative">
-              <User size={19} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#C9A84C]" />
+              <User size={19} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6E5518]" />
               <input
                 id="username"
                 name="username"
@@ -89,11 +89,11 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="text-[13px] font-medium text-[#9A9A9A] mb-1.5 block">
+            <label htmlFor="password" className="text-[13px] font-medium text-[#56524A] mb-1.5 block">
               Password
             </label>
             <div className="relative">
-              <Lock size={19} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#C9A84C]" />
+              <Lock size={19} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6E5518]" />
               <input
                 id="password"
                 name="password"
@@ -106,7 +106,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9A9A9A] active:text-[#0F0F0F]"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#56524A] active:text-[#0F0F0F]"
               >
                 {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
               </button>
@@ -133,7 +133,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-[12px] text-[#9A9A9A] mt-6">
+        <p className="text-center text-[12px] text-[#56524A] mt-6">
           Sara Designer Studio · Boutique order management
         </p>
         </div>

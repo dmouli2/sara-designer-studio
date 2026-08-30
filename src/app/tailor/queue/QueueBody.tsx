@@ -46,14 +46,14 @@ export default function QueueBody({ myOrders, readyOrders }: Props) {
 
       <div className="px-4 pt-4 pb-1">
         <div className="relative">
-          <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9A9A9A]" />
+          <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#56524A]" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by customer, order id or mobile"
             aria-label="Search orders"
-            className="input pl-10 py-2.5 text-[14px]"
+            className="input pl-10 py-2.5 text-[16px]"
           />
         </div>
       </div>
@@ -64,12 +64,12 @@ export default function QueueBody({ myOrders, readyOrders }: Props) {
             <div className="text-center pt-16">
               <p className="text-4xl mb-3">🧵</p>
               <p className="text-sm font-medium text-[#0F0F0F]">No jobs assigned yet</p>
-              <p className="text-xs text-[#9A9A9A] mt-1">Admin will assign jobs after cutting is done</p>
+              <p className="text-xs text-[#56524A] mt-1">Admin will assign jobs after cutting is done</p>
             </div>
           ) : visibleMy.length === 0 && searching ? (
             <div className="text-center pt-16">
               <p className="text-3xl mb-3">🔍</p>
-              <p className="text-sm text-[#9A9A9A]">No jobs match your search</p>
+              <p className="text-sm text-[#56524A]">No jobs match your search</p>
             </div>
           ) : (
             <>
@@ -88,12 +88,12 @@ export default function QueueBody({ myOrders, readyOrders }: Props) {
           <div className="text-center pt-16">
             <p className="text-4xl mb-3">✓</p>
             <p className="text-sm font-medium text-[#0F0F0F]">No completed jobs yet</p>
-            <p className="text-xs text-[#9A9A9A] mt-1">Orders you finish stitching will appear here</p>
+            <p className="text-xs text-[#56524A] mt-1">Orders you finish stitching will appear here</p>
           </div>
         ) : visibleReady.length === 0 && searching ? (
           <div className="text-center pt-16">
             <p className="text-3xl mb-3">🔍</p>
-            <p className="text-sm text-[#9A9A9A]">No jobs match your search</p>
+            <p className="text-sm text-[#56524A]">No jobs match your search</p>
           </div>
         ) : (
           <>

@@ -303,7 +303,7 @@ export default function AdminOrderDetailBody({
         {/* Status + date */}
         <div className="flex items-center gap-3">
           <StatusBadge status={order.status} alterations={order.alterations} />
-          <span className="text-[13px] text-[#9A9A9A]">Due {formatDate(order.due)}</span>
+          <span className="text-[13px] text-[#56524A]">Due {formatDate(order.due)}</span>
         </div>
 
         {canShareStatus && (
@@ -416,8 +416,8 @@ export default function AdminOrderDetailBody({
           {isCancelled ? (
             <div className="space-y-2">
               <div className="flex justify-between items-start gap-4">
-                <span className="text-[13px] text-[#9A9A9A] shrink-0">Order total</span>
-                <span className="text-[14px] text-[#9A9A9A] line-through text-right">{formatCurrency(order.amount)}</span>
+                <span className="text-[13px] text-[#56524A] shrink-0">Order total</span>
+                <span className="text-[14px] text-[#56524A] line-through text-right">{formatCurrency(order.amount)}</span>
               </div>
               <Row label="Advance paid" value={formatCurrency(order.advance)} />
               <div className="flex justify-between pt-2 border-t border-[#F0EDE6] mt-1">
@@ -426,13 +426,13 @@ export default function AdminOrderDetailBody({
               </div>
               {cancelBalance > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-[13px] text-[#9A9A9A]">Balance due</span>
-                  <span className="text-[13px] font-semibold text-[#C9A84C]">{formatCurrency(cancelBalance)}</span>
+                  <span className="text-[13px] text-[#56524A]">Balance due</span>
+                  <span className="text-[13px] font-semibold text-[#6E5518]">{formatCurrency(cancelBalance)}</span>
                 </div>
               )}
               {cancelBalance < 0 && (
                 <div className="flex justify-between">
-                  <span className="text-[13px] text-[#9A9A9A]">Refund due to customer</span>
+                  <span className="text-[13px] text-[#56524A]">Refund due to customer</span>
                   <span className="text-[13px] font-semibold text-[#1B6B3A]">{formatCurrency(-cancelBalance)}</span>
                 </div>
               )}
@@ -447,7 +447,7 @@ export default function AdminOrderDetailBody({
                         <span>{li.particulars} ×{li.qty} @ {formatCurrency(li.amount)}</span>
                         <span>{formatCurrency(li.qty * li.amount)}</span>
                       </div>
-                      {li.note && <p className="text-[12px] text-[#A8882E] italic">({li.note})</p>}
+                      {li.note && <p className="text-[12px] text-[#6E5518] italic">({li.note})</p>}
                     </div>
                   ))}
                 </div>
@@ -474,7 +474,7 @@ export default function AdminOrderDetailBody({
                 {(order.payments ?? []).length > 1 && (
                   <div className="pl-3 border-l-2 border-[#F0EDE6] space-y-1 py-0.5">
                     {order.payments.map((payment) => (
-                      <div key={payment.id} className="flex justify-between text-[12px] text-[#9A9A9A]">
+                      <div key={payment.id} className="flex justify-between text-[12px] text-[#56524A]">
                         <span className="min-w-0 truncate">
                           {formatDate(payment.at)}
                           {payment.pieceId
@@ -490,7 +490,7 @@ export default function AdminOrderDetailBody({
                 )}
                 <div className="flex justify-between pt-2 border-t border-[#F0EDE6] mt-1">
                   <span className="text-[15px] font-semibold">Balance due</span>
-                  <span className={`text-[15px] font-bold ${balance > 0 ? "text-[#C9A84C]" : "text-[#1B6B3A]"}`}>
+                  <span className={`text-[15px] font-bold ${balance > 0 ? "text-[#6E5518]" : "text-[#1B6B3A]"}`}>
                     {formatCurrency(balance > 0 ? balance : 0)}
                   </span>
                 </div>
@@ -590,7 +590,7 @@ export default function AdminOrderDetailBody({
             Delete order
           </button>
 
-          <p className="text-[12px] text-[#9A9A9A] text-center">
+          <p className="text-[12px] text-[#56524A] text-center">
             Deleting removes the order and its photos for good.
           </p>
         </div>
@@ -659,7 +659,7 @@ export default function AdminOrderDetailBody({
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between items-start gap-4">
-      <span className="text-[13px] text-[#9A9A9A] shrink-0">{label}</span>
+      <span className="text-[13px] text-[#56524A] shrink-0">{label}</span>
       <span className="text-[14px] text-[#0F0F0F] text-right">{value}</span>
     </div>
   );

@@ -110,7 +110,7 @@ export default function SalwarMeasurementForm({ value, onChange }: Props) {
           </div>
 
           <div>
-            <label className="text-xs text-[#9A9A9A] mb-1 block">Shawl</label>
+            <label className="text-xs text-[#56524A] mb-1 block">Shawl</label>
             <input
               className="input"
               placeholder="Given / details"

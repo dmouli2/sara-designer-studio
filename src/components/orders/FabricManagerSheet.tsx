@@ -142,7 +142,7 @@ export default function FabricManagerSheet({ open, fabrics, onChange, onClose }:
         {/* List */}
         <div className="space-y-2">
           {fabrics.length === 0 && (
-            <p className="text-[13px] text-[#9A9A9A] text-center py-4">
+            <p className="text-[13px] text-[#56524A] text-center py-4">
               No fabrics yet — add the first one above.
             </p>
           )}
@@ -191,7 +191,7 @@ export default function FabricManagerSheet({ open, fabrics, onChange, onClose }:
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-[#0F0F0F] truncate">{fabric.name}</p>
-                  <p className="text-xs text-[#9A9A9A]">{formatCurrency(fabric.price)}/m</p>
+                  <p className="text-xs text-[#56524A]">{formatCurrency(fabric.price)}/m</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button

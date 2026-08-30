@@ -66,7 +66,7 @@ export default function AlterationPanel({ order, pending, onStart, onComplete, o
                 <span className="text-[13px] font-medium text-[#0F0F0F] min-w-0">
                   {record.pieceLabel ? `${record.pieceLabel} · ` : ""}Altered &amp; returned
                 </span>
-                <span className="text-[12px] text-[#9A9A9A] shrink-0 tabular-nums">
+                <span className="text-[12px] text-[#56524A] shrink-0 tabular-nums">
                   {formatDate(record.redeliveredAt!)}
                 </span>
               </div>

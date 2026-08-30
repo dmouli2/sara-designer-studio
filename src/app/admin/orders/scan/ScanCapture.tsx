@@ -63,7 +63,7 @@ export default function ScanCapture() {
       <div className="scroll-area px-4 pt-5 space-y-5">
         <div className="rounded-2xl border border-[#EDD98A] bg-[#FBF6E8] p-4">
           <p className="text-sm font-semibold text-[#7A6020]">For an accurate read</p>
-          <ul className="text-xs text-[#A8882E] mt-1.5 space-y-1 list-disc list-inside">
+          <ul className="text-xs text-[#6E5518] mt-1.5 space-y-1 list-disc list-inside">
             <li>Lay the book flat and fill the frame with the whole spread</li>
             <li>Include both the measurement slip and the bill side</li>
             <li>Good light, no shadows across the handwriting</li>
@@ -94,7 +94,7 @@ export default function ScanCapture() {
           <ScanLine size={18} />
           {reading ? "Reading slip…" : "Read slip"}
         </button>
-        <p className="text-xs text-[#9A9A9A] text-center -mt-2">
+        <p className="text-xs text-[#56524A] text-center -mt-2">
           The order type (Blouse/Salwar) is detected automatically. Everything is saved as a
           draft for you to verify — no order is placed yet.
         </p>

@@ -19,7 +19,7 @@ export default function ReportSummaryCards({ summary }: { summary: ReportSummary
           className="bg-white rounded-xl border border-[#E5E0D5] p-3.5 text-center shadow-[0_1px_2px_rgba(15,15,15,0.04)]"
         >
           <p className="text-lg font-bold text-[#0F0F0F] leading-tight">{c.value}</p>
-          <p className="text-[11px] text-[#9A9A9A] mt-0.5">{c.label}</p>
+          <p className="text-[11px] text-[#56524A] mt-0.5">{c.label}</p>
         </div>
       ))}
     </div>

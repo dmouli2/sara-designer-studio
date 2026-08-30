@@ -38,12 +38,18 @@ export const metadata: Metadata = {
   },
 };
 
+// `maximumScale: 1` + `userScalable: false` used to sit here. They fail
+// WCAG 1.4.4 (Resize Text), and they do it in the app where it matters
+// most: measurement grids are 12-13px, read off a phone, in shop light.
+//
+// The usual reason to set them is stopping iOS from zooming in when a
+// field under 16px takes focus. That is addressed at the cause instead —
+// `.input` is now 16px, as are the search and date fields — so the zoom
+// no longer fires and pinch-zoom is available again.
 export const viewport: Viewport = {
   themeColor: "#0F0F0F",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -51,8 +57,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <body>
         <ServiceWorkerRegister />
-        <div className="min-h-screen bg-[#E8E4DA] flex justify-center">
-          <div className="w-full max-w-[430px] sm:max-w-[600px] md:max-w-[700px] lg:max-w-[820px] min-h-screen bg-[#F9F8F6] shadow-2xl relative">
+        <div className="min-h-dvh bg-[#E8E4DA] flex justify-center">
+          <div className="w-full max-w-[430px] sm:max-w-[600px] md:max-w-[700px] lg:max-w-[820px] min-h-dvh bg-[#F9F8F6] shadow-2xl relative">
             {children}
           </div>
         </div>

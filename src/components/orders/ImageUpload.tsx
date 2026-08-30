@@ -108,13 +108,13 @@ export default function ImageUpload({
             disabled={compressing}
             className="aspect-square rounded-xl border-2 border-dashed border-[#E5E0D5] bg-white flex flex-col items-center justify-center gap-1 active:bg-[#F9F8F6] transition-colors disabled:opacity-40"
           >
-            <AddIcon size={20} className="text-[#9A9A9A]" />
-            <span className="text-[10px] text-[#9A9A9A]">{compressing ? "Processing…" : addLabel}</span>
+            <AddIcon size={20} className="text-[#56524A]" />
+            <span className="text-[10px] text-[#56524A]">{compressing ? "Processing…" : addLabel}</span>
           </button>
         )}
       </div>
 
-      <p className="text-xs text-[#9A9A9A]">
+      <p className="text-xs text-[#56524A]">
         {value.length}/{max} photos · {remaining > 0 ? `${remaining} more allowed` : "limit reached"}
       </p>
     </div>

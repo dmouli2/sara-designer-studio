@@ -147,13 +147,13 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
             ⚠ Overdue · was due {formatDate(due)}
           </span>
         ) : (
-          <span className="text-[12px] text-[#9A9A9A] min-w-0 truncate">Due {formatDate(due)}</span>
+          <span className="text-[12px] text-[#56524A] min-w-0 truncate">Due {formatDate(due)}</span>
         )}
         {showPrice && (
           <div className="text-right shrink-0">
             {isCancelled ? (
               <>
-                <p className="text-[13px] text-[#9A9A9A] line-through">{formatCurrency(order.amount)}</p>
+                <p className="text-[13px] text-[#56524A] line-through">{formatCurrency(order.amount)}</p>
                 <p className="text-[13px] font-semibold text-[#B04A4A]">
                   {formatCurrency(order.cancellationCharge ?? 0)}
                 </p>
@@ -164,7 +164,7 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
                   {formatCurrency(order.amount)}
                 </p>
                 {balance > 0 && (
-                  <p className="text-[11px] text-[#C9A84C] font-medium tabular-nums mt-1">
+                  <p className="text-[11px] text-[#6E5518] font-medium tabular-nums mt-1">
                     Bal {formatCurrency(balance)}
                   </p>
                 )}

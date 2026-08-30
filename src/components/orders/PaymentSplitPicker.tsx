@@ -84,7 +84,7 @@ export default function PaymentSplitPicker({ total, value, onChange, idPrefix }:
             {(["cash", "upi"] as const).map((method) => (
               <div key={method}>
                 <label
-                  className="text-xs text-[#9A9A9A] mb-1 block"
+                  className="text-xs text-[#56524A] mb-1 block"
                   htmlFor={`${idPrefix}-${method}`}
                 >
                   {method === "cash" ? "Cash (₹)" : "UPI (₹)"}

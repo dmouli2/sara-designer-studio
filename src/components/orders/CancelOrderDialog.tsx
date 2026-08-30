@@ -37,7 +37,7 @@ export default function CancelOrderDialog({ open, orderId, pending, onConfirm, o
         </p>
 
         <div className="mt-4">
-          <label htmlFor="cancellation-charge" className="text-xs text-[#9A9A9A] mb-1 block">
+          <label htmlFor="cancellation-charge" className="text-xs text-[#56524A] mb-1 block">
             Cancellation charge (₹)
           </label>
           <input

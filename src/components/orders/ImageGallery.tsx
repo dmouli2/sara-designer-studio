@@ -20,7 +20,7 @@ export default function ImageGallery({ images, altPrefix, emptyIcon, emptyText }
     return (
       <div className="border-2 border-dashed border-[#E5E0D5] rounded-2xl p-8 text-center bg-white">
         <p className="text-3xl mb-2">{emptyIcon}</p>
-        <p className="text-sm text-[#9A9A9A]">{emptyText}</p>
+        <p className="text-sm text-[#56524A]">{emptyText}</p>
       </div>
     );
   }

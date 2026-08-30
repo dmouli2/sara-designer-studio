@@ -31,7 +31,7 @@ export default function GenericMeasurementForm({ value, onChange }: Props) {
     <div className="grid grid-cols-2 gap-3">
       {FIELDS.map(({ key, label }) => (
         <div key={key}>
-          <label className="text-xs text-[#9A9A9A] mb-1 block">{label}</label>
+          <label className="text-xs text-[#56524A] mb-1 block">{label}</label>
           <input
             className="input"
             placeholder="in"

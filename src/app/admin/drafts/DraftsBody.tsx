@@ -50,8 +50,8 @@ export default function DraftsBody({ drafts: initialDrafts }: { drafts: DraftOrd
         {drafts.length === 0 ? (
           <div className="text-center pt-16">
             <p className="text-3xl mb-3">📷</p>
-            <p className="text-sm text-[#9A9A9A]">No scanned drafts waiting</p>
-            <p className="text-xs text-[#9A9A9A] mt-1">Scan an order slip to create one.</p>
+            <p className="text-sm text-[#56524A]">No scanned drafts waiting</p>
+            <p className="text-xs text-[#56524A] mt-1">Scan an order slip to create one.</p>
           </div>
         ) : (
           drafts.map((d) => (
@@ -84,7 +84,7 @@ export default function DraftsBody({ drafts: initialDrafts }: { drafts: DraftOrd
                 {d.extraction.billNo ? ` · Bill No ${d.extraction.billNo}` : ""}
               </p>
               <div className="flex items-center justify-between mt-2">
-                <p className="text-[11px] text-[#9A9A9A]">Scanned {formatScanTime(d.createdAt)}</p>
+                <p className="text-[11px] text-[#56524A]">Scanned {formatScanTime(d.createdAt)}</p>
                 <div className="flex items-center gap-3">
                   {d.warnings.length > 0 && (
                     <span className="flex items-center gap-1 text-[11px] font-medium text-[#B45309]">

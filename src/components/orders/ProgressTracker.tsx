@@ -48,7 +48,7 @@ export default function ProgressTracker({ status }: { status: OrderStatus }) {
                   "w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-bold transition-all",
                   done    && "bg-[#C9A84C] text-[#0F0F0F] shadow-[0_2px_8px_-1px_rgba(201,168,76,0.5)]",
                   active  && "bg-[#0F0F0F] text-white ring-[5px] ring-[#C9A84C]/30",
-                  !done && !active && "bg-[#E5E0D5] text-[#9A9A9A]"
+                  !done && !active && "bg-[#E5E0D5] text-[#56524A]"
                 )}
               >
                 {done ? "✓" : i + 1}
@@ -56,7 +56,7 @@ export default function ProgressTracker({ status }: { status: OrderStatus }) {
               <span
                 className={cn(
                   "text-[10px] mt-2 whitespace-nowrap font-medium",
-                  active ? "text-[#0F0F0F]" : done ? "text-[#C9A84C]" : "text-[#9A9A9A]"
+                  active ? "text-[#0F0F0F]" : done ? "text-[#6E5518]" : "text-[#56524A]"
                 )}
               >
                 {step.label}
