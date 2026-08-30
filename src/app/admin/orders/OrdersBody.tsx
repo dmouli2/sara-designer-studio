@@ -246,27 +246,35 @@ export default function OrdersBody({ initialOrders }: { initialOrders: Order[] }
             </p>
           </div>
         ) : (
-          filtered.map((o) => (
-            <OrderCard
-              key={o.id}
-              order={o}
-              onClick={() => router.push(`/admin/orders/${o.id}`)}
-            />
-          ))
+          // One column on a phone, two from `md` up. An order card is a
+          // self-contained unit, so a tablet fits roughly twice as many
+          // before scrolling. `mb-0` overrides the card's own stacking
+          // margin (twMerge keeps the later class) and the grid's gap does
+          // the spacing instead, so the columns stay aligned.
+          <div className="grid grid-cols-1 md:grid-cols-2 md:gap-3.5">
+            {filtered.map((o) => (
+              <OrderCard
+                key={o.id}
+                order={o}
+                className="md:mb-0"
+                onClick={() => router.push(`/admin/orders/${o.id}`)}
+              />
+            ))}
+          </div>
         )}
         {hasMore && (
           <button
             type="button"
             onClick={loadOlder}
             disabled={loadingMore}
-            className="w-full py-3 mb-3 text-[13px] font-medium text-fg-3 border border-border rounded-xl bg-white active:scale-[0.98] transition-all disabled:opacity-40"
+            className="w-full py-3 mt-3.5 mb-3 text-[13px] font-medium text-fg-3 border border-border rounded-xl bg-white active:scale-[0.98] transition-all disabled:opacity-40"
           >
             {loadingMore ? "Loading…" : "Load older orders"}
           </button>
         )}
       </PullToRefresh>
 
-      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-[430px] sm:max-w-[600px] md:max-w-[700px] lg:max-w-[820px] z-40 pointer-events-none">
+      <div className="app-width fixed bottom-24 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
         <div className="flex justify-end pr-5">
           <button
             type="button"

@@ -53,12 +53,20 @@ export default function ReportsBody({ orders }: { orders: Order[] }) {
       <div className="scroll-area px-4 pt-4 space-y-4">
         <ReportDateRangeFilter value={range} onChange={setRange} />
         <ReportSummaryCards summary={summary} />
+
+        {/* Six charts stacked in one column meant scrolling past most of the
+            picture on a tablet. Two across from `md` up; the revenue trend
+            keeps the full width because it is the one chart read as a shape
+            over time rather than a comparison, and it is the reason this
+            screen gets opened. Phones are unchanged: one column throughout. */}
         <RevenueTrendChart points={revenueTrend} />
-        <StatusBreakdownChart statuses={statusBreakdown} />
-        <PaymentsSummaryChart payments={payments} />
-        <DressTypeRevenueChart dresses={dressRevenue} />
-        <StaffOrderCountsChart title="Orders per Master" staff={masterCounts} />
-        <StaffOrderCountsChart title="Orders per Tailor" staff={tailorCounts} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <StatusBreakdownChart statuses={statusBreakdown} />
+          <PaymentsSummaryChart payments={payments} />
+          <DressTypeRevenueChart dresses={dressRevenue} />
+          <StaffOrderCountsChart title="Orders per Master" staff={masterCounts} />
+          <StaffOrderCountsChart title="Orders per Tailor" staff={tailorCounts} />
+        </div>
         <div className="h-6" />
       </div>
 

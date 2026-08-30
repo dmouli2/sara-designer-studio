@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, Ban, Pencil, MessageCircle } from "lucide-react";
+import { Trash2, Ban, CircleCheck, Pencil, MessageCircle } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/orders/StatusBadge";
 import MeasurementGrid from "@/components/orders/MeasurementGrid";
@@ -293,7 +293,19 @@ export default function AdminOrderDetailBody({
         onBack={() => router.push("/admin/orders")}
       />
 
-      <div className="scroll-area px-4 pt-4 space-y-4">
+      {/* Eleven sections stacked is a long scroll to do one thing, and the
+          two you look at while doing it -- measurements and the sketch --
+          were the ones you had to scroll away from.
+
+          From `md` up this splits by purpose rather than by size: the
+          left column is reference (what am I making), the right is state
+          and actions (what do I do about it), so the measurements stay in
+          view while a status or payment is recorded. Placement is explicit
+          rather than source-ordered, which keeps the DOM order exactly as
+          it is on a phone -- below `md` the grid is off and this renders
+          byte-for-byte as before. */}
+      <div className="scroll-area px-4 pt-4 space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-4 md:items-start">
+        <div className="space-y-4 md:col-start-2 md:row-start-1">
         {/* Progress */}
         <div className="card">
           <p className="section-label">Order progress</p>
@@ -348,6 +360,9 @@ export default function AdminOrderDetailBody({
           </button>
         )}
 
+        </div>
+
+        <div className="space-y-4 md:col-start-1 md:row-start-1 md:row-span-2">
         {/* Material photos */}
         <div>
           <p className="section-label">Material photos</p>
@@ -377,6 +392,9 @@ export default function AdminOrderDetailBody({
           <ReferenceImageGallery images={order.referenceImageUrls} />
         </div>
 
+        </div>
+
+        <div className="space-y-4 md:col-start-2 md:row-start-2">
         {!isCancelled && (
           <>
             {/* Assign master */}
@@ -538,7 +556,7 @@ export default function AdminOrderDetailBody({
 
         {order.status === "delivered" && !openAlteration(order) && (
           <div className="card-gold text-center py-5">
-            <p className="text-2xl mb-1">✅</p>
+            <CircleCheck size={24} className="mx-auto mb-1 text-success" aria-hidden="true" />
             <p className="text-sm font-semibold text-success">
               Order delivered{order.deliveredOn ? ` ${formatDate(order.deliveredOn)}` : ""}
             </p>
@@ -557,7 +575,7 @@ export default function AdminOrderDetailBody({
 
         {isCancelled && (
           <div className="rounded-2xl border border-danger-border bg-danger-light text-center py-5">
-            <p className="text-2xl mb-1">🚫</p>
+            <Ban size={24} className="mx-auto mb-1 text-danger" aria-hidden="true" />
             <p className="text-sm font-semibold text-danger">Order cancelled</p>
           </div>
         )}
@@ -595,7 +613,8 @@ export default function AdminOrderDetailBody({
           </p>
         </div>
 
-        <div className="h-4" />
+          <div className="h-4" />
+        </div>
       </div>
 
       <ConfirmDialog

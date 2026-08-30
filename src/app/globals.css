@@ -192,6 +192,23 @@
   }
 }
 
+/* The shell width lived in four places -- the shell itself, the bottom nav,
+   and two FAB containers -- as the same copy-pasted breakpoint chain. They
+   have to agree or the nav and the new-order button drift out of line with
+   the content under them, so the scale is stated once here and everything
+   reads it.
+
+   The steps are chosen against real iPad Air viewports rather than round
+   numbers. The 11" in portrait is exactly 820pt wide, which lands on `md`
+   and not `lg`, so it used to get the 700px width intended for a large
+   phone; 760px at `md` fixes that without touching phones. Landscape on
+   both sizes previously left 180-273px of empty ground down each side. */
+:root            { --app-w: 430px; }
+@media (min-width:  640px) { :root { --app-w:  600px; } }
+@media (min-width:  768px) { :root { --app-w:  760px; } }  /* iPad 11" portrait  */
+@media (min-width: 1024px) { :root { --app-w:  980px; } }  /* iPad 13" portrait, 11" landscape */
+@media (min-width: 1280px) { :root { --app-w: 1180px; } }  /* iPad 13" landscape */
+
 @layer components {
   /* `100vh` on mobile Safari is the height *without* the address bar, so a
      full-height screen grows and shrinks as the bar collapses. `100dvh` is
@@ -216,6 +233,8 @@
      bar in the installed PWA. `0px` fallback keeps every other platform
      exactly where it was. */
   .safe-area-pb  { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+  .app-width     { width: 100%; max-width: var(--app-w); }
 
   .card {
     @apply bg-white rounded-2xl border border-border p-4.5
@@ -285,9 +304,10 @@
   .badge-cancelled         { @apply bg-danger-light text-danger-ink; }
 
   .bottom-nav {
-    @apply fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] sm:max-w-[600px] md:max-w-[700px] lg:max-w-[820px] z-50
+    @apply fixed bottom-0 left-1/2 -translate-x-1/2 w-full z-50
            flex bg-white border-t border-border
            shadow-[0_-4px_20px_rgba(15,15,15,0.06)];
+    max-width: var(--app-w);
   }
   .nav-item       { @apply flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-[11px] text-fg-4 font-medium transition-all; }
 

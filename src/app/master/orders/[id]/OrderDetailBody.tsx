@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Scissors } from "lucide-react";
+import { Ban, Scissors } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import Toast from "@/components/layout/Toast";
 import StatusBadge from "@/components/orders/StatusBadge";
@@ -97,7 +97,7 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
         {/* Action */}
         {isCancelled ? (
           <div className="rounded-2xl border border-danger-border bg-danger-light text-center py-6">
-            <p className="text-3xl mb-1.5">🚫</p>
+            <Ban size={26} className="mx-auto mb-1.5 text-danger" aria-hidden="true" />
             <p className="text-[16px] font-semibold text-danger">Order cancelled</p>
           </div>
         ) : alreadyDone || confirmed ? (

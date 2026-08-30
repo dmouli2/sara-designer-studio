@@ -137,7 +137,7 @@ export default function DraftsBody({ drafts: initialDrafts }: { drafts: DraftOrd
         )}
       </PullToRefresh>
 
-      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-[430px] sm:max-w-[600px] md:max-w-[700px] lg:max-w-[820px] z-40 pointer-events-none">
+      <div className="app-width fixed bottom-10 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
         <div className="flex justify-end pr-5">
           <button
             type="button"
