@@ -17,7 +17,12 @@ export default function PublicOrderBody({ order }: { order: PublicOrder }) {
     <div className="screen">
       <TopBar title={`Order ${order.id}`} subtitle="Sara Designer Studio" />
 
-      <div className="scroll-area px-4 pt-4 space-y-4">
+      {/* The one screen a customer ever sees, and it arrives as a WhatsApp
+          link -- so it is a phone surface almost by definition. The shell now
+          widens to 980-1180px for the shop's iPad, which would stretch this
+          receipt to line lengths nobody wants to read. Capped at a reading
+          width and centred instead; on a phone the cap never binds. */}
+      <div className="scroll-area w-full max-w-[640px] mx-auto px-4 pt-4 space-y-4">
         <ProgressTracker status={order.status} />
 
         <div className="flex items-center gap-3">

@@ -776,26 +776,39 @@ export default function NewOrderWizard({
         {/* ── STEP 2: Measurements + Notes + Sketch + Photos ── */}
         {step === 2 && (
           <>
-            <div>
-              <p className="section-label">Measurements (in) — {dress}</p>
-              <MeasurementForm dress={dress} value={meas} onChange={setMeas} />
-            </div>
+            {/* The three wizard steps stay as they are: step 1 has to settle
+                the piece count before the fabric questions can be asked, and
+                one long form at a counter is where measurements get typed
+                wrong. This step alone gets two panes, because entering
+                measurements while the sketch sits below the fold is the one
+                place the phone layout actually fights the work. Numbers on
+                the left, the drawing and its references on the right. */}
+            <div className="space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-4 md:items-start">
+              <div className="space-y-4">
+                <div>
+                  <p className="section-label">Measurements (in) — {dress}</p>
+                  <MeasurementForm dress={dress} value={meas} onChange={setMeas} />
+                </div>
 
-            <div>
-              <p className="section-label">Style notes</p>
-              <textarea className="input resize-none" rows={3}
-                placeholder="Embroidery, piping, closures, special requests…"
-                value={notes} onChange={(e) => setNotes(e.target.value)} />
-            </div>
+                <div>
+                  <p className="section-label">Style notes</p>
+                  <textarea className="input resize-none" rows={3}
+                    placeholder="Embroidery, piping, closures, special requests…"
+                    value={notes} onChange={(e) => setNotes(e.target.value)} />
+                </div>
+              </div>
 
-            <div>
-              <p className="section-label">Garment sketch</p>
-              <SketchCanvas value={sketch} onChange={setSketch} />
-            </div>
+              <div className="space-y-4">
+                <div>
+                  <p className="section-label">Garment sketch</p>
+                  <SketchCanvas value={sketch} onChange={setSketch} />
+                </div>
 
-            <div>
-              <p className="section-label">Reference photos</p>
-              <ReferenceImageUpload value={refImages} onChange={setRefImages} />
+                <div>
+                  <p className="section-label">Reference photos</p>
+                  <ReferenceImageUpload value={refImages} onChange={setRefImages} />
+                </div>
+              </div>
             </div>
 
             <button onClick={() => setStep(3)} className="btn-primary">
