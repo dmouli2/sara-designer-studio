@@ -306,7 +306,7 @@ export default function SketchCanvas({ value, onChange }: Props) {
         {!hasStrokes && !fullscreen && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-center">
-              <p className="text-3xl mb-2">✏️</p>
+              <Pencil size={26} className="mx-auto mb-2 text-[#8E8A80]" aria-hidden="true" />
               <p className="text-sm text-[#56524A]">Draw garment sketch here</p>
               <p className="text-xs text-[#6E5518] mt-1">Finger or stylus supported</p>
             </div>

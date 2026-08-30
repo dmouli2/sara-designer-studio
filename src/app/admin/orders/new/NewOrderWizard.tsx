@@ -487,8 +487,9 @@ export default function NewOrderWizard({
     <div className="space-y-3">
       {scan.scanImageUrl && (
         <details className="rounded-2xl border border-[#E5E0D5] bg-white overflow-hidden">
-          <summary className="px-4 py-3 text-sm font-semibold text-[#0F0F0F] cursor-pointer select-none">
-            📷 View scanned slip
+          <summary className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-[#0F0F0F] cursor-pointer select-none">
+            <Camera size={16} className="shrink-0 text-[#6E5518]" aria-hidden="true" />
+            View scanned slip
           </summary>
           <a href={scan.scanImageUrl} target="_blank" rel="noreferrer">
             {/* eslint-disable-next-line @next/next/no-img-element */}

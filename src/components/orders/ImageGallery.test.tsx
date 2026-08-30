@@ -3,12 +3,16 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ImageGallery from "./ImageGallery";
 
-const props = { altPrefix: "Photo", emptyIcon: "📷", emptyText: "No photos" };
+const props = {
+  altPrefix: "Photo",
+  emptyIcon: <svg data-testid="empty-icon" />,
+  emptyText: "No photos",
+};
 
 describe("ImageGallery", () => {
   it("shows the empty state (icon + text) when there are no images", () => {
     render(<ImageGallery images={[]} {...props} />);
-    expect(screen.getByText("📷")).toBeInTheDocument();
+    expect(screen.getByTestId("empty-icon")).toBeInTheDocument();
     expect(screen.getByText("No photos")).toBeInTheDocument();
   });
 

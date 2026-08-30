@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { Scissors } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 
 export default function LogoutPage() {
@@ -15,8 +16,8 @@ export default function LogoutPage() {
   return (
     <div className="screen items-center justify-center">
       <div className="text-center">
-        <div className="w-12 h-12 rounded-full bg-[#FBF6E8] border border-[#EDD98A] flex items-center justify-center text-xl mx-auto mb-3">
-          ✂️
+        <div className="w-12 h-12 rounded-full bg-[#FBF6E8] border border-[#EDD98A] flex items-center justify-center text-[#6E5518] mx-auto mb-3">
+          <Scissors size={20} aria-hidden="true" />
         </div>
         <p className="text-sm text-[#56524A]">Signing out…</p>
       </div>

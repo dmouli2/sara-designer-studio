@@ -6,7 +6,7 @@ import { X, ChevronLeft, ChevronRight } from "lucide-react";
 interface Props {
   images: string[];
   altPrefix: string;
-  emptyIcon: string;
+  emptyIcon: React.ReactNode;
   emptyText: string;
 }
 
@@ -19,7 +19,7 @@ export default function ImageGallery({ images, altPrefix, emptyIcon, emptyText }
   if (images.length === 0) {
     return (
       <div className="border-2 border-dashed border-[#E5E0D5] rounded-2xl p-8 text-center bg-white">
-        <p className="text-3xl mb-2">{emptyIcon}</p>
+        <div className="flex justify-center mb-2 text-[#8E8A80]">{emptyIcon}</div>
         <p className="text-sm text-[#56524A]">{emptyText}</p>
       </div>
     );

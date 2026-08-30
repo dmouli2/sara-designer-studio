@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Scissors } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import Toast from "@/components/layout/Toast";
 import StatusBadge from "@/components/orders/StatusBadge";
@@ -101,7 +102,7 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
           </div>
         ) : alreadyDone || confirmed ? (
           <div className="card-gold text-center py-6">
-            <p className="text-3xl mb-1.5">✂️</p>
+            <Scissors size={26} className="mx-auto mb-1.5 text-[#6E5518]" aria-hidden="true" />
             <p className="text-[16px] font-semibold text-[#7A6020]">Cutting marked done</p>
             <p className="text-[13px] text-[#6E5518] mt-1">Admin will assign a tailor next</p>
           </div>

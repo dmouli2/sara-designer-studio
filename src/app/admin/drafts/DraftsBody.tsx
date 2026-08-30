@@ -49,7 +49,7 @@ export default function DraftsBody({ drafts: initialDrafts }: { drafts: DraftOrd
       <PullToRefresh>
         {drafts.length === 0 ? (
           <div className="text-center pt-16">
-            <p className="text-3xl mb-3">📷</p>
+            <Camera size={30} className="mx-auto mb-3 text-[#8E8A80]" aria-hidden="true" />
             <p className="text-sm text-[#56524A]">No scanned drafts waiting</p>
             <p className="text-xs text-[#56524A] mt-1">Scan an order slip to create one.</p>
           </div>
