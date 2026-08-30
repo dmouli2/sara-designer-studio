@@ -31,7 +31,7 @@ export default function MeasurementFieldRow({
         {label}
       </span>
       <input
-        className="w-16 shrink-0 text-center text-[15px] border border-border rounded-xl py-1.5 focus:outline-none focus:border-gold"
+        className="w-16 md:w-20 shrink-0 text-center text-[15px] md:text-[16px] border border-border rounded-xl py-1.5 focus:outline-none focus:border-gold"
         placeholder="in"
         type="number"
         aria-label={label}
@@ -39,7 +39,7 @@ export default function MeasurementFieldRow({
         onChange={(e) => onValueChange(e.target.value)}
       />
       <input
-        className="w-28 shrink-0 text-[13px] border border-border rounded-xl py-1.5 px-2 focus:outline-none focus:border-gold placeholder:text-placeholder"
+        className="w-28 md:w-36 shrink-0 text-[13px] md:text-[16px] border border-border rounded-xl py-1.5 px-2 focus:outline-none focus:border-gold placeholder:text-placeholder"
         placeholder="(note)"
         aria-label={`${label} note`}
         value={note}

@@ -92,7 +92,7 @@ export default function OrderPiecesCard({ order, onDeliver, onChangeDue, busyPie
                   </span>
                 ) : editing === piece.id && onChangeDue ? (
                   <input
-                    className="text-[12px] border border-border rounded-xl py-1.5 px-2 focus:outline-none focus:border-gold"
+                    className="text-[12px] md:text-[16px] border border-border rounded-xl py-1.5 px-2 focus:outline-none focus:border-gold"
                     type="date"
                     aria-label={`${piece.label} delivery date`}
                     defaultValue={piece.due}

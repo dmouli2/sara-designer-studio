@@ -93,7 +93,7 @@ export default function LineItemsEditor({ items, presetCount, onChange }: Props)
               onChange={(e) => patch(i, { amount: parseFloat(e.target.value) || 0 })}
             />
             <input
-              className="w-full min-w-0 text-[13px] border border-border rounded-xl py-1.5 px-2 focus:outline-none focus:border-gold placeholder:text-placeholder"
+              className="w-full min-w-0 text-[13px] md:text-[16px] border border-border rounded-xl py-1.5 px-2 focus:outline-none focus:border-gold placeholder:text-placeholder"
               placeholder="(…)"
               aria-label={`${name} comments`}
               value={li.note ?? ""}
