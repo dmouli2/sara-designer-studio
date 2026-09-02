@@ -248,3 +248,19 @@ describe("coerceExtraction — the advance box signal", () => {
     expect(coerceExtraction({ advanceBoxFilled: false }).advanceBoxFilled).toBe(false);
   });
 });
+
+describe("coerceExtraction — the measurement-garment mark", () => {
+  // Same rule as the advance box: absent is "the response predates the
+  // field", and normalizeExtraction must be able to tell that apart from a
+  // model that looked and saw no such note.
+  it("omits the flag when the model didn't answer it, or answered with junk", () => {
+    expect(coerceExtraction({})).not.toHaveProperty("sampleGarment");
+    expect(coerceExtraction({ sampleGarment: "yes" })).not.toHaveProperty("sampleGarment");
+    expect(coerceExtraction({ sampleGarment: 1 })).not.toHaveProperty("sampleGarment");
+  });
+
+  it("carries a real boolean through in both directions", () => {
+    expect(coerceExtraction({ sampleGarment: true }).sampleGarment).toBe(true);
+    expect(coerceExtraction({ sampleGarment: false }).sampleGarment).toBe(false);
+  });
+});

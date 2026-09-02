@@ -237,6 +237,29 @@ export function nextDueDate(order: Pick<Order, "due" | "pieces">): string {
   return pending[0] ?? order.due;
 }
 
+// ── Measurement garment ("alavu blouse") ────────────────────────────────
+// Some customers hand over a garment that already fits instead of standing
+// for measurements. Nothing is measured on those orders — the garment is the
+// measurement — so the whole measurement form is skipped and the shop holds
+// the customer's blouse/salwar until the finished work goes home.
+
+// Read the flag through this rather than touching order.sampleGarment: it is
+// optional on Order (absent on every order taken before the feature, and on
+// anything deserialized from an older payload), and absent means "measured
+// the normal way".
+export function hasSampleGarment(order: Pick<Order, "sampleGarment">): boolean {
+  return order.sampleGarment === true;
+}
+
+// What the customer actually left with us, named after the book the order is
+// in — the shop says "measurement blouse" for one and "measurement salwar"
+// for the other, never a generic "sample garment". One definition so the
+// wizard, the cards, both workshop screens and the customer's page all say
+// the same words.
+export function sampleGarmentLabel(dress: string): string {
+  return dress === "Salwar" ? "Measurement salwar" : "Measurement blouse";
+}
+
 // ── Alterations ─────────────────────────────────────────────────────────
 // The one definition of "is this order in alteration right now": the record
 // that has not been handed back yet. Everything else — badges, filters,

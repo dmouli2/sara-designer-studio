@@ -117,6 +117,9 @@ describe("createSupabaseOrderRepository", () => {
     expect(selectArg).not.toBe("*");
     expect(selectArg).not.toContain("sketch_data_url");
     expect(selectArg).not.toContain("reference_image_url");
+    // The order cards carry a "Measurement blouse" chip, so the flag has to
+    // be in the list payload — it isn't derivable from anything else there.
+    expect(selectArg).toContain("sample_garment");
     // Assigned staff come embedded in the same query — no follow-up lookup.
     expect(selectArg).toContain("master:staff!orders_master_id_fkey");
     expect(selectArg).toContain("tailor:staff!orders_tailor_id_fkey");
@@ -453,6 +456,41 @@ describe("createSupabaseOrderRepository", () => {
     expect(result?.measurements).toEqual(salwar);
   });
 
+  // Added in 0016 with a not-null default of false; every row written before
+  // it means "measured the normal way", and so does a row read back without
+  // the column at all.
+  it("findById reads the measurement-garment flag, defaulting a missing column to false", async () => {
+    mockTables({ data: { ...orderRow, sample_garment: true }, error: null });
+    const repo = createSupabaseOrderRepository();
+    expect((await repo.findById("SDS-001"))?.sampleGarment).toBe(true);
+
+    mockTables({ data: orderRow, error: null }); // pre-0016 row: no column
+    expect((await createSupabaseOrderRepository().findById("SDS-001"))?.sampleGarment).toBe(false);
+  });
+
+  it("create writes the flag, and false when the caller doesn't mention it", async () => {
+    const ordersQuery = fakeQuery({ data: orderRow, error: null });
+    from.mockImplementation(() => ordersQuery);
+    const base = {
+      id: "SDS-001", customer: "Priya", phone: "999", dress: "Blouse", material: "Silk",
+      status: "new" as const, amount: 1000, advance: 300, advanceMethod: null,
+      advanceSplit: null, finalPayment: 0, finalPaymentMethod: null, due: "2026-07-10",
+      measurements, lineItems, notes: "", sketchDataUrl: null, referenceImageUrls: [],
+      materialImageUrls: [], cancellationCharge: null, deliveredOn: null, pieces: null,
+      alterations: [], payments: [],
+    };
+
+    await createSupabaseOrderRepository().create({ ...base, sampleGarment: true });
+    expect(ordersQuery.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ sample_garment: true })
+    );
+
+    await createSupabaseOrderRepository().create(base);
+    expect(ordersQuery.insert).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sample_garment: false })
+    );
+  });
+
   it("findById returns null when not found", async () => {
     mockTables({ data: null, error: null });
     const repo = createSupabaseOrderRepository();
@@ -564,6 +602,7 @@ describe("createSupabaseOrderRepository", () => {
       masterId: "m1",
       tailorId: "t1",
       measurements,
+      sampleGarment: true,
       lineItems,
       notes: "handle with care",
       sketchDataUrl: "orders/SDS-001/sketch.png",
@@ -591,6 +630,7 @@ describe("createSupabaseOrderRepository", () => {
       master_id: "m1",
       tailor_id: "t1",
       measurements,
+      sample_garment: true,
       line_items: lineItems,
       notes: "handle with care",
       sketch_data_url: "orders/SDS-001/sketch.png",

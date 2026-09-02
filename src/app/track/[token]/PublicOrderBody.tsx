@@ -3,8 +3,9 @@ import ProgressTracker from "@/components/orders/ProgressTracker";
 import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
 import MaterialImageGallery from "@/components/orders/MaterialImageGallery";
 import OrderPiecesCard from "@/components/orders/OrderPiecesCard";
+import SampleGarmentNote from "@/components/orders/SampleGarmentNote";
 import TopBar from "@/components/layout/TopBar";
-import { formatCurrency, formatDate, isMultiPiece, orderBalance } from "@/lib/utils";
+import { formatCurrency, formatDate, hasSampleGarment, isMultiPiece, orderBalance } from "@/lib/utils";
 import type { PublicOrder } from "@/lib/db";
 
 export default function PublicOrderBody({ order }: { order: PublicOrder }) {
@@ -41,6 +42,12 @@ export default function PublicOrderBody({ order }: { order: PublicOrder }) {
             <p className="text-[13px] text-accent-ink mt-2 italic">&quot;{order.notes}&quot;</p>
           )}
         </div>
+
+        {/* Measurements are never shown to the customer, so this is the only
+            place their own garment can be accounted for — and "where is my
+            blouse?" is a question the shop would rather answer here than on
+            the phone. */}
+        {hasSampleGarment(order) && <SampleGarmentNote dress={order.dress} audience="customer" />}
 
         <div>
           <p className="section-label">Material photos</p>

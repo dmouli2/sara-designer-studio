@@ -309,6 +309,50 @@ const findPublicToken = vi.fn();
     expect(result).toEqual(order);
   });
 
+  // ── The measurement garment ("alavu blouse") ────────────────────────
+  // Nothing is measured on these orders — the garment the customer left IS
+  // the measurement — so the stored measurements must be the empty template,
+  // whatever was typed into the form before the toggle went on.
+  it("createOrder stores the empty template, not stale numbers, for a measurement-garment order", async () => {
+    create.mockResolvedValue(order);
+
+    await createOrder(
+      { ...orderInput, dress: "Blouse", sampleGarment: true, masterId: null, tailorId: null },
+      photosForm()
+    );
+
+    const written = create.mock.calls[0][0];
+    expect(written.sampleGarment).toBe(true);
+    expect(written.measurements).toEqual({
+      type: "blouse",
+      length: "", shoulder: "", hs: "", sl: "", mlos: "", tlos: "", ahs: "", ub: "",
+      bust: "", waist: "", fnNr: "", bn: "", dart: "", dbd: "", p: "", sareeFall: "", piko: "",
+    });
+  });
+
+  it("createOrder builds the salwar template for a measurement-salwar order", async () => {
+    create.mockResolvedValue(order);
+
+    await createOrder(
+      { ...orderInput, dress: "Salwar", sampleGarment: true, masterId: null, tailorId: null },
+      photosForm()
+    );
+
+    expect(create.mock.calls[0][0].measurements).toMatchObject({ type: "salwar", shawl: "" });
+  });
+
+  // An ordinary order is byte-for-byte what it always was: the measurements
+  // it was given, and no flag riding along uninvited.
+  it("createOrder leaves an ordinary order's measurements exactly as supplied", async () => {
+    create.mockResolvedValue(order);
+
+    await createOrder({ ...orderInput, masterId: null, tailorId: null }, photosForm());
+
+    const written = create.mock.calls[0][0];
+    expect(written.measurements).toEqual(measurements);
+    expect(written.sampleGarment).toBeUndefined();
+  });
+
   it("createOrder rejects a missing delivery date without allocating an id or touching the database", async () => {
     await expect(
       createOrder({ ...orderInput, due: "", masterId: null, tailorId: null }, photosForm())
@@ -472,6 +516,24 @@ const findPublicToken = vi.fn();
       } as OrderEditInput;
       await updateOrder("SDS-001", smuggled);
       expect(update).toHaveBeenCalledWith("SDS-001", { customer: "Meena" });
+    });
+
+    // A customer who was measured can come back with a garment to copy, and
+    // one whose blouse we hold can be measured after all — both directions
+    // travel, and neither touches the stored measurements.
+    it("carries the measurement-garment flag in both directions", async () => {
+      await updateOrder("SDS-001", { sampleGarment: true });
+      expect(update).toHaveBeenCalledWith("SDS-001", { sampleGarment: true });
+
+      await updateOrder("SDS-001", { sampleGarment: false });
+      expect(update).toHaveBeenLastCalledWith("SDS-001", { sampleGarment: false });
+    });
+
+    it("never clears the stored measurements when the flag goes on", async () => {
+      await updateOrder("SDS-001", { sampleGarment: true });
+      // Nothing about `measurements` rides along — the numbers stay put,
+      // just unused, so switching the flag back off restores the order.
+      expect(update.mock.calls[0][1]).not.toHaveProperty("measurements");
     });
 
     it("rejects clearing the delivery date", async () => {

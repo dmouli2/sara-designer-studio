@@ -7,11 +7,12 @@ import TopBar from "@/components/layout/TopBar";
 import Toast from "@/components/layout/Toast";
 import StatusBadge from "@/components/orders/StatusBadge";
 import MeasurementGrid from "@/components/orders/MeasurementGrid";
+import SampleGarmentNote from "@/components/orders/SampleGarmentNote";
 import OrderPiecesCard from "@/components/orders/OrderPiecesCard";
 import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
 import MaterialImageGallery from "@/components/orders/MaterialImageGallery";
 import { updateOrderStatus } from "@/app/actions/orders";
-import { formatDate, isMultiPiece } from "@/lib/utils";
+import { formatDate, hasSampleGarment, isMultiPiece } from "@/lib/utils";
 import type { Order } from "@/types";
 
 export default function OrderDetailBody({ order: initialOrder }: { order: Order }) {
@@ -71,10 +72,15 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
             its own date — read-only here: handing them over is the admin's. */}
         {isMultiPiece(order) && <OrderPiecesCard order={order} />}
 
-        {/* Measurements */}
+        {/* Measurements — an empty grid here used to be ambiguous: nothing
+            said whether the numbers were missing or never taken. */}
         <div>
           <p className="section-label">Measurements</p>
-          <MeasurementGrid measurements={order.measurements} />
+          {hasSampleGarment(order) ? (
+            <SampleGarmentNote dress={order.dress} audience="workshop" />
+          ) : (
+            <MeasurementGrid measurements={order.measurements} />
+          )}
         </div>
 
         {/* Sketch */}

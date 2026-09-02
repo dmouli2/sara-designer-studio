@@ -6,6 +6,8 @@ import { AlertTriangle, Camera, CheckCircle2, MessageCircle } from "lucide-react
 import TopBar from "@/components/layout/TopBar";
 import Toast from "@/components/layout/Toast";
 import MeasurementForm, { emptyMeasurementsForDress } from "@/components/orders/MeasurementForm";
+import SampleGarmentToggle from "@/components/orders/SampleGarmentToggle";
+import SampleGarmentNote from "@/components/orders/SampleGarmentNote";
 import SketchCanvas from "@/components/orders/SketchCanvas";
 import ReferenceImageUpload from "@/components/orders/ReferenceImageUpload";
 import MaterialImageUpload from "@/components/orders/MaterialImageUpload";
@@ -79,6 +81,9 @@ interface OrderDraft {
   custFabric: string;
   materialImages: string[];
   meas: GarmentMeasurements;
+  // Absent on drafts saved before this existed — resumed as an ordinary
+  // measured order, which is what they were.
+  sampleGarment?: boolean;
   notes: string;
   sketch: string | null;
   refImages: string[];
@@ -187,6 +192,10 @@ export default function NewOrderWizard({
   const [meas, setMeas]             = useState<GarmentMeasurements>(
     () => scanPrefill?.meas ?? emptyMeasurementsForDress(DRESS_TYPES[0])
   );
+  // The customer left a garment of their own to cut to, so there is nothing
+  // to measure — see SampleGarmentToggle. A scan sets it when the slip is
+  // marked that way; otherwise it starts off, as it does for most orders.
+  const [sampleGarment, setSampleGarment] = useState(scanPrefill?.sampleGarment ?? false);
   const [notes, setNotes]           = useState(scanPrefill?.notes ?? "");
   const [sketch, setSketch]         = useState<string | null>(null);
   const [refImages, setRefImages]   = useState<string[]>(scan?.scanImageUrl ? [scan.scanImageUrl] : []);
@@ -272,7 +281,7 @@ export default function NewOrderWizard({
       const data: OrderDraft = {
         step, dress, name, phone, matSource,
         fabricName: fabric?.name ?? "", metres, custFabric, materialImages,
-        meas, notes, sketch, refImages, lineItems, delivery, advance, advanceSplit, pieceCount,
+        meas, sampleGarment, notes, sketch, refImages, lineItems, delivery, advance, advanceSplit, pieceCount,
         uniformMaterial, pieceSources,
       };
       try {
@@ -289,7 +298,7 @@ export default function NewOrderWizard({
       }
     }, DRAFT_SAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [dress, step, name, phone, matSource, fabric, metres, custFabric, materialImages, meas, notes, sketch, refImages, lineItems, delivery, advance, advanceSplit, pieceCount, uniformMaterial, pieceSources, placedOrder, scan]);
+  }, [dress, step, name, phone, matSource, fabric, metres, custFabric, materialImages, meas, sampleGarment, notes, sketch, refImages, lineItems, delivery, advance, advanceSplit, pieceCount, uniformMaterial, pieceSources, placedOrder, scan]);
 
   function resumeDraft() {
     if (!draft) return;
@@ -304,6 +313,7 @@ export default function NewOrderWizard({
     setCustFabric(draft.custFabric);
     setMaterialImages(draft.materialImages ?? []);
     setMeas(draft.meas);
+    setSampleGarment(draft.sampleGarment ?? false);
     setNotes(draft.notes);
     setSketch(draft.sketch);
     setRefImages(draft.refImages);
@@ -427,7 +437,10 @@ export default function NewOrderWizard({
           due: delivery,
           masterId: null,
           tailorId: null,
-          measurements: meas,
+          // Nothing was measured, so nothing is stored: the empty template
+          // rather than whatever was typed before the toggle went on.
+          measurements: sampleGarment ? emptyMeasurementsForDress(dress) : meas,
+          sampleGarment,
           lineItems: activeItems,
           notes,
           // Only sent for a genuinely split order; createOrder stores null
@@ -787,7 +800,21 @@ export default function NewOrderWizard({
               <div className="space-y-4">
                 <div>
                   <p className="section-label">Measurements (in) — {dress}</p>
-                  <MeasurementForm dress={dress} value={meas} onChange={setMeas} />
+                  {/* The question comes before the boxes: if the customer
+                      brought a garment to cut to, there is nothing to
+                      measure and the form below is not rendered at all. */}
+                  <SampleGarmentToggle
+                    dress={dress}
+                    checked={sampleGarment}
+                    onChange={setSampleGarment}
+                  />
+                  <div className="mt-3">
+                    {sampleGarment ? (
+                      <SampleGarmentNote dress={dress} />
+                    ) : (
+                      <MeasurementForm dress={dress} value={meas} onChange={setMeas} />
+                    )}
+                  </div>
                 </div>
 
                 <div>

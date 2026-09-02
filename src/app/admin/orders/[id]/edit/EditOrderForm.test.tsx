@@ -68,6 +68,73 @@ describe("EditOrderForm", () => {
     );
   });
 
+  // ── The measurement garment ("alavu blouse") ────────────────────────
+  // Editable after the fact in both directions: a customer who was measured
+  // can come back with a garment to copy, and one whose blouse we hold can
+  // be measured after all.
+  describe("measurement garment", () => {
+    const toggle = () => screen.getByLabelText(/customer gave a measurement blouse/i);
+
+    it("opens unticked for an ordinary order, with the measurements showing", () => {
+      render(<EditOrderForm order={order} />);
+      expect(toggle()).not.toBeChecked();
+      expect(screen.getByLabelText("Length")).toHaveValue(15);
+    });
+
+    it("opens ticked for an order the customer left a garment for, with no form", () => {
+      render(<EditOrderForm order={{ ...order, sampleGarment: true }} />);
+      expect(toggle()).toBeChecked();
+      expect(screen.queryByLabelText("Length")).not.toBeInTheDocument();
+      expect(screen.getByText("Measurement blouse with us")).toBeInTheDocument();
+    });
+
+    it("sends the flag on, and never touches the stored measurements", async () => {
+      const user = userEvent.setup();
+      render(<EditOrderForm order={order} />);
+
+      await user.click(toggle());
+      await user.click(saveButton());
+
+      await waitFor(() => expect(updateOrder).toHaveBeenCalled());
+      const [, patch] = vi.mocked(updateOrder).mock.calls[0];
+      expect(patch).toEqual({ sampleGarment: true });
+      // The 15" length recorded earlier is left in the order untouched — the
+      // whole point of not deleting it is that unticking brings it back.
+      expect(patch).not.toHaveProperty("measurements");
+    });
+
+    it("sends the flag off, bringing the stored measurements back into view", async () => {
+      const user = userEvent.setup();
+      render(<EditOrderForm order={{ ...order, sampleGarment: true }} />);
+
+      await user.click(toggle());
+      expect(screen.getByLabelText("Length")).toHaveValue(15);
+
+      await user.click(saveButton());
+      await waitFor(() => expect(updateOrder).toHaveBeenCalled());
+      expect(vi.mocked(updateOrder).mock.calls[0][1]).toEqual({ sampleGarment: false });
+    });
+
+    it("sends nothing at all when the tick is left as it was", async () => {
+      const user = userEvent.setup();
+      render(<EditOrderForm order={{ ...order, sampleGarment: true }} />);
+
+      await user.click(saveButton());
+
+      // No patch, no photos — an untouched form is not an edit.
+      await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith("/admin/orders/B2401"));
+      expect(updateOrder).not.toHaveBeenCalled();
+    });
+
+    // An order stored before the column existed carries no field at all.
+    it("treats an order with no flag as measured the normal way", () => {
+      const legacy = { ...order } as Order;
+      delete (legacy as { sampleGarment?: boolean }).sampleGarment;
+      render(<EditOrderForm order={legacy} />);
+      expect(toggle()).not.toBeChecked();
+    });
+  });
+
   it("prefills every field from the order, including stored photos and sketch", () => {
     render(<EditOrderForm order={order} />);
     expect(screen.getByText("Edit B2401")).toBeInTheDocument();
@@ -327,6 +394,8 @@ describe("EditOrderForm", () => {
 
     // A mixed order is rare, so the per-garment rows stay hidden unless the
     // stored pieces actually disagree about where the cloth came from.
+    // Queried by name: the form also carries the measurement-garment tick,
+    // so a bare getByRole("checkbox") would be ambiguous.
     describe("per-garment material source", () => {
       const twoPieces = [
         { id: "p1", label: "Blouse 1", due: "2026-07-10", status: "pending" as const, deliveredAt: null },
@@ -335,7 +404,7 @@ describe("EditOrderForm", () => {
 
       it("opens uniform for an order whose garments all match", () => {
         renderWith({ pieces: twoPieces });
-        expect(screen.getByRole("checkbox")).toBeChecked();
+        expect(screen.getByRole("checkbox", { name: /same material/i })).toBeChecked();
       });
 
       it("opens un-uniform when the stored garments differ", () => {
@@ -345,7 +414,7 @@ describe("EditOrderForm", () => {
             { ...twoPieces[1], materialSource: "customer" as const },
           ],
         });
-        expect(screen.getByRole("checkbox")).not.toBeChecked();
+        expect(screen.getByRole("checkbox", { name: /same material/i })).not.toBeChecked();
         expect(screen.getByLabelText("Blouse 1 material shop")).toHaveAttribute("aria-pressed", "true");
       });
 
@@ -353,7 +422,7 @@ describe("EditOrderForm", () => {
         const user = userEvent.setup();
         renderWith({ pieces: twoPieces });
 
-        await user.click(screen.getByRole("checkbox"));
+        await user.click(screen.getByRole("checkbox", { name: /same material/i }));
         await user.click(screen.getByLabelText("Blouse 1 material shop"));
         await user.click(saveButton());
 

@@ -177,4 +177,39 @@ describe("DeliverPieceDialog", () => {
 
     expect(onConfirm).toHaveBeenCalledWith({ cash: 300, upi: 200 }, expect.any(String));
   });
+
+  // Only the last garment out takes the customer's own blouse with it —
+  // AdminOrderDetailBody is what decides that; the dialog just says it.
+  it("reminds the admin to return the customer's garment when told to", () => {
+    render(
+      <DeliverPieceDialog
+        open
+        piece={piece}
+        balance={0}
+        isLast
+        returnLabel="Measurement salwar"
+        pending={false}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByText(/give the measurement salwar back with the order/i)
+    ).toBeInTheDocument();
+  });
+
+  it("stays quiet when there is no such garment to return", () => {
+    render(
+      <DeliverPieceDialog
+        open
+        piece={piece}
+        balance={0}
+        isLast={false}
+        pending={false}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+    expect(screen.queryByText(/back with the order/i)).not.toBeInTheDocument();
+  });
 });

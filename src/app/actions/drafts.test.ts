@@ -30,7 +30,9 @@ const extraction: SlipExtraction = {
   customerNameConfidence: "high",
   phone: "9876543210",
   phoneConfidence: "high",
-  measurements: [],
+  // A readable box, so this fixture is a warning-free slip — an extraction
+  // with no measurements at all raises one of its own (see normalize).
+  measurements: [{ key: "length", value: "14", confidence: "high" }],
   lineItems: [{ particulars: "Blouse", qty: 1, amount: 400, confidence: "high" }],
   advance: "",
   advanceConfidence: "high",

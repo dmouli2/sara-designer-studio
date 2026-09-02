@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Shirt } from "lucide-react";
 import { formatCurrency, shopToday, splitTotal } from "@/lib/utils";
 import EventDateField, { isInvalidEventDate } from "./EventDateField";
 import PaymentSplitPicker from "./PaymentSplitPicker";
@@ -15,6 +16,10 @@ interface Props {
   // True when this is the only piece still in the shop. The hand-over then
   // settles the order, so the amount stops being a choice.
   isLast: boolean;
+  // The customer's own garment, when one is with this order AND this is the
+  // garment it leaves with — see AdminOrderDetailBody, which only sets it
+  // for the last piece. Null otherwise.
+  returnLabel?: string | null;
   pending: boolean;
   onConfirm: (collect: PaymentSplit | undefined, handedOverOn: string) => void;
   onCancel: () => void;
@@ -35,6 +40,7 @@ export default function DeliverPieceDialog({
   piece,
   balance,
   isLast,
+  returnLabel = null,
   pending,
   onConfirm,
   onCancel,
@@ -133,6 +139,19 @@ export default function DeliverPieceDialog({
         ) : (
           <p className="text-[14px] text-success mt-3">Nothing left to collect on this order.</p>
 
+        )}
+
+        {returnLabel && (
+          // The customer's own garment is in the shop for this order. It is
+          // theirs, and the hand-over is the last moment anyone will think
+          // about it — so it is said here, where the admin is already
+          // standing at the counter with the customer.
+          <div className="mt-4 rounded-xl border border-gold-edge bg-gold-25 px-4 py-3 flex gap-2.5">
+            <Shirt size={16} className="shrink-0 mt-0.5 text-accent-ink" aria-hidden="true" />
+            <p className="text-[13px] text-accent-ink">
+              Give the {returnLabel.toLowerCase()} back with the order — it belongs to the customer.
+            </p>
+          </div>
         )}
 
         <div className="flex gap-2 mt-6">

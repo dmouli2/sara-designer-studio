@@ -71,6 +71,9 @@ export function coerceExtraction(raw: unknown): SlipExtraction {
     // otherwise so normalizeExtraction can tell "the model said the box is
     // blank" apart from "this response predates the field".
     ...(typeof r.advanceBoxFilled === "boolean" ? { advanceBoxFilled: r.advanceBoxFilled } : {}),
+    // Absent (an older model response, or one that skipped the field) reads
+    // as "not marked" downstream — never as true.
+    ...(typeof r.sampleGarment === "boolean" ? { sampleGarment: r.sampleGarment } : {}),
     writtenTotal: str(r.writtenTotal),
     writtenTotalConfidence: conf(r.writtenTotalConfidence),
     extraNotes: (Array.isArray(r.extraNotes) ? r.extraNotes : []).filter(

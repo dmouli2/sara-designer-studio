@@ -20,6 +20,9 @@ export interface ScanPrefill {
   name: string;
   phone: string; // bare 10 digits when valid, raw digits otherwise
   meas: GarmentMeasurements | null; // null when dress is null
+  // The slip says the customer left a garment to cut to. Prefills the
+  // wizard's toggle, which hides the measurement form entirely.
+  sampleGarment: boolean;
   notes: string;
   lineItems: OrderLineItem[]; // preset rows with extracted values merged in
   advance: string;
@@ -270,6 +273,13 @@ export function isBookkeepingNote(note: string): boolean {
   });
 }
 
+// True when the slip came back with no measurement value anywhere. On its
+// own that means nothing — a faint or cropped photo reads the same way — so
+// it is never used to SET the measurement-garment flag, only to ask.
+export function hasNoMeasurements(extraction: SlipExtraction): boolean {
+  return !extraction.measurements.some((f) => f.value.trim());
+}
+
 export function normalizeExtraction(extraction: SlipExtraction, now: Date = new Date()): NormalizedScan {
   const warnings: string[] = [];
 
@@ -296,6 +306,23 @@ export function normalizeExtraction(extraction: SlipExtraction, now: Date = new 
   const meas = dress ? measurementsForDress(extraction, dress) : null;
   const ubBust = ubBustWarning(meas);
   if (ubBust) warnings.push(ubBust);
+
+  // A slip with no measurements is either a measurement-garment order or a
+  // photo the model couldn't read — and those two look identical here. So
+  // the flag is only ever set by an explicit note on the slip, and the empty
+  // case is always raised as a question for the admin, who has the book in
+  // front of them.
+  const sampleGarment = extraction.sampleGarment === true;
+  const noMeasurements = hasNoMeasurements(extraction);
+  if (sampleGarment) {
+    warnings.push(
+      "The slip is marked as a measurement blouse/salwar — no measurements will be recorded. Untick it in step 2 if that's wrong."
+    );
+  } else if (noMeasurements && dress) {
+    warnings.push(
+      "No measurements could be read from the slip. If the customer gave a measurement blouse/salwar, tick that in step 2 — otherwise enter the measurements from the photo."
+    );
+  }
 
   const lowMeasurements = extraction.measurements
     .filter((f) => f.confidence === "low" && (f.value || f.note))
@@ -374,6 +401,7 @@ export function normalizeExtraction(extraction: SlipExtraction, now: Date = new 
       name,
       phone,
       meas,
+      sampleGarment,
       notes,
       lineItems,
       advance,

@@ -6,6 +6,8 @@ import { Trash2 } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import Toast from "@/components/layout/Toast";
 import MeasurementForm from "@/components/orders/MeasurementForm";
+import SampleGarmentToggle from "@/components/orders/SampleGarmentToggle";
+import SampleGarmentNote from "@/components/orders/SampleGarmentNote";
 import SketchCanvas from "@/components/orders/SketchCanvas";
 import ReferenceImageUpload from "@/components/orders/ReferenceImageUpload";
 import MaterialImageUpload from "@/components/orders/MaterialImageUpload";
@@ -17,6 +19,7 @@ import { canDressHavePieces, LINE_ITEM_PRESETS, lineItemCategoryForDress } from 
 import {
   advanceSplitOf,
   formatCurrency,
+  hasSampleGarment,
   isSplitPayment,
   isValidIndianMobile,
   splitTotal,
@@ -61,6 +64,11 @@ export default function EditOrderForm({ order }: { order: Order }) {
   const [phone, setPhone]       = useState(order.phone);
   const [material, setMaterial] = useState(order.material);
   const [meas, setMeas]         = useState<GarmentMeasurements>(order.measurements);
+  // Editable on an order taken either way — a customer who was measured can
+  // come back with a garment to copy, and one whose blouse we hold can be
+  // measured after all. Switching it on never deletes what was measured:
+  // `meas` is left exactly as it was, so switching back off restores it.
+  const [sampleGarment, setSampleGarment] = useState(hasSampleGarment(order));
   const [notes, setNotes]       = useState(order.notes);
   const [due, setDue]           = useState(order.due?.slice(0, 10) ?? "");
   const [advance, setAdvance]   = useState(String(order.advance));
@@ -151,6 +159,7 @@ export default function EditOrderForm({ order }: { order: Order }) {
     if (notes !== order.notes)       patch.notes = notes;
     if (due !== (order.due?.slice(0, 10) ?? "")) patch.due = due;
     if (JSON.stringify(meas) !== JSON.stringify(order.measurements)) patch.measurements = meas;
+    if (sampleGarment !== hasSampleGarment(order)) patch.sampleGarment = sampleGarment;
 
     const advanceNum = parseFloat(advance || "0");
     if (advanceNum !== order.advance) patch.advance = advanceNum;
@@ -291,7 +300,18 @@ export default function EditOrderForm({ order }: { order: Order }) {
 
         <div>
           <p className="section-label">Measurements (in) — {order.dress}</p>
-          <MeasurementForm dress={order.dress} value={meas} onChange={setMeas} />
+          <SampleGarmentToggle
+            dress={order.dress}
+            checked={sampleGarment}
+            onChange={setSampleGarment}
+          />
+          <div className="mt-3">
+            {sampleGarment ? (
+              <SampleGarmentNote dress={order.dress} />
+            ) : (
+              <MeasurementForm dress={order.dress} value={meas} onChange={setMeas} />
+            )}
+          </div>
         </div>
 
         <div>

@@ -52,6 +52,24 @@ describe("PublicOrderBody", () => {
     expect(screen.queryByText("Measurements")).not.toBeInTheDocument();
   });
 
+  // This page never shows measurements, so it is the only place the
+  // customer's own garment can be accounted for to them.
+  it("tells the customer their own garment is with us and is coming back", () => {
+    render(<PublicOrderBody order={{ ...baseOrder, sampleGarment: true }} />);
+    expect(screen.getByText("Measurement blouse with us")).toBeInTheDocument();
+    expect(screen.getByText(/safe with us and comes back to you/i)).toBeInTheDocument();
+  });
+
+  it("names it after the customer's own order type", () => {
+    render(<PublicOrderBody order={{ ...baseOrder, dress: "Salwar", sampleGarment: true }} />);
+    expect(screen.getByText("Measurement salwar with us")).toBeInTheDocument();
+  });
+
+  it("says nothing about it on an ordinary order", () => {
+    render(<PublicOrderBody order={baseOrder} />);
+    expect(screen.queryByText(/Measurement blouse with us/)).not.toBeInTheDocument();
+  });
+
   it("shows notes when present", () => {
     render(<PublicOrderBody order={baseOrder} />);
     expect(screen.getByText('"Handle with care"')).toBeInTheDocument();

@@ -23,6 +23,8 @@ import {
   orderDisplayStatus,
   shopToday,
   buildMaterialLabel,
+  hasSampleGarment,
+  sampleGarmentLabel,
   splitTotal,
   addSplits,
   isSplitPayment,
@@ -119,6 +121,24 @@ describe("multi-piece helpers", () => {
         nextDueDate({ due: "2026-09-30", pieces: [piece({ due: "" })] })
       ).toBe("2026-09-30");
     });
+  });
+});
+
+describe("measurement garment", () => {
+  it("reads absent as an ordinary measured order", () => {
+    // Every order taken before the flag existed, and anything deserialized
+    // from an older payload, arrives without the field at all.
+    expect(hasSampleGarment({} as { sampleGarment?: boolean })).toBe(false);
+    expect(hasSampleGarment({ sampleGarment: undefined })).toBe(false);
+    expect(hasSampleGarment({ sampleGarment: false })).toBe(false);
+    expect(hasSampleGarment({ sampleGarment: true })).toBe(true);
+  });
+
+  it("names the garment after the order's book", () => {
+    expect(sampleGarmentLabel("Blouse")).toBe("Measurement blouse");
+    expect(sampleGarmentLabel("Salwar")).toBe("Measurement salwar");
+    // Anything else is a blouse order in this shop's two books.
+    expect(sampleGarmentLabel("Pattu Saree Blouse")).toBe("Measurement blouse");
   });
 });
 

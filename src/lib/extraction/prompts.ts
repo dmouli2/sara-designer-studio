@@ -48,6 +48,12 @@ PANT section: Height→pant.height, Hip→pant.hip, Waist→pant.waist, TL→pan
 SHAWL box→shawl
 (The pant section prints TL twice; if both are filled, put the first in pant.tl's value and mention the second in its note.)
 
+THE MEASUREMENT GARMENT ("alavu blouse") — why a slip can legitimately have NO measurements:
+- Customers often hand over a blouse or salwar of their own for the shop to copy, instead of being measured. When they do, the measurement boxes are left blank on purpose and the shop writes a note somewhere on the slip.
+- Set sampleGarment true ONLY if you can actually see such a note — Tamil "அளவு" / "அளவு பிளவுஸ்", or written in English as "alavu", "alavu blouse", "measurement blouse", "sample blouse", "sample", "M.B", "model blouse", "as per blouse", or the measurement block struck through with such a note beside it.
+- Blank measurement boxes ALONE are NOT enough: a slip can be blank because the pen writing is faint or the page is cropped. No note visible → sampleGarment false.
+- This is not a reason to stop reading: still extract the name, phone, items, amounts and dates exactly as usual.
+
 FROM THE BILL COUNTERFOIL (right side):
 - customerName: the handwritten Name. It usually also appears on the measurement slip's Name line — read BOTH and compare; if they disagree or either is unclear, mark confidence "low". Tamil names are often long compounds (e.g. Priyadharshini, Dharshini, Lavanya) — transcribe every letter, do not shorten.
 - phone: the handwritten Phone digits only (see the shop-phone warning above).
@@ -118,6 +124,11 @@ export const SLIP_RESPONSE_SCHEMA = {
     // still has to assert, separately, that the box was written in at all.
     // normalizeExtraction refuses to prefill the advance unless this is true.
     advanceBoxFilled: { type: "BOOLEAN" },
+    // True only when the slip carries an explicit "alavu blouse"/"measurement
+    // blouse" note — blank measurement boxes on their own never set it. See
+    // normalizeExtraction, which warns about a measurement-less slip either
+    // way, so a missed note costs a tick rather than a wrong order.
+    sampleGarment: { type: "BOOLEAN" },
     writtenTotal: { type: "STRING" },
     writtenTotalConfidence: CONFIDENCE,
     extraNotes: { type: "ARRAY", items: { type: "STRING" } },
@@ -140,6 +151,7 @@ export const SLIP_RESPONSE_SCHEMA = {
     "advance",
     "advanceConfidence",
     "advanceBoxFilled",
+    "sampleGarment",
     "writtenTotal",
     "writtenTotalConfidence",
     "extraNotes",
