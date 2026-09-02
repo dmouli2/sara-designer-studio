@@ -34,6 +34,10 @@ yarn-error.log*
 .env*
 !.env.example
 
+# database backups (npm run backup) — customer names, phone numbers,
+# measurements and payments. THIS REPOSITORY IS PUBLIC: never commit these.
+/backups
+
 # vercel
 .vercel
 

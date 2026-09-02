@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "backup": "node scripts/backup.mjs",
+    "restore": "node scripts/restore.mjs",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
