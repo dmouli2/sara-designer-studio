@@ -318,11 +318,13 @@ export interface Order {
   // order and the shape of every order placed before this existed, so the
   // whole measurement flow behaves exactly as it always has for them.
   //
-  // When true the measurement form is not shown at all and `measurements`
-  // holds the empty template for the dress; anything a previous edit had
-  // recorded is left in place, so turning the flag back off brings it back.
-  // Read it through hasSampleGarment() in src/lib/utils.ts rather than
-  // touching the field, so an order deserialized without it still answers.
+  // Measuring is OPTIONAL on these orders rather than forbidden: the form is
+  // folded away, not removed, because "same blouse, two inches longer" is a
+  // real order. Anything recorded is an adjustment to the garment the
+  // customer left, and `measurements` is never cleared by this flag in either
+  // direction. Read it through hasSampleGarment() in src/lib/utils.ts rather
+  // than touching the field, so an order deserialized without it still
+  // answers.
   sampleGarment?: boolean;
   lineItems: OrderLineItem[];
   notes: string;

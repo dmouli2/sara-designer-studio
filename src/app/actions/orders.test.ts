@@ -310,10 +310,11 @@ const findPublicToken = vi.fn();
   });
 
   // ── The measurement garment ("alavu blouse") ────────────────────────
-  // Nothing is measured on these orders — the garment the customer left IS
-  // the measurement — so the stored measurements must be the empty template,
-  // whatever was typed into the form before the toggle went on.
-  it("createOrder stores the empty template, not stale numbers, for a measurement-garment order", async () => {
+  // Measuring is optional on these orders, not forbidden: the garment the
+  // customer left is what we cut to, and a figure recorded beside it is an
+  // adjustment to that garment. So the server stores exactly what it was
+  // given and never blanks the measurements on the strength of the flag.
+  it("createOrder keeps the measurements entered on a measurement-garment order", async () => {
     create.mockResolvedValue(order);
 
     await createOrder(
@@ -323,22 +324,30 @@ const findPublicToken = vi.fn();
 
     const written = create.mock.calls[0][0];
     expect(written.sampleGarment).toBe(true);
-    expect(written.measurements).toEqual({
+    expect(written.measurements).toEqual(measurements);
+  });
+
+  it("createOrder stores an untouched form as the empty template it already is", async () => {
+    create.mockResolvedValue(order);
+    const blank: GarmentMeasurements = {
       type: "blouse",
       length: "", shoulder: "", hs: "", sl: "", mlos: "", tlos: "", ahs: "", ub: "",
       bust: "", waist: "", fnNr: "", bn: "", dart: "", dbd: "", p: "", sareeFall: "", piko: "",
-    });
-  });
-
-  it("createOrder builds the salwar template for a measurement-salwar order", async () => {
-    create.mockResolvedValue(order);
+    };
 
     await createOrder(
-      { ...orderInput, dress: "Salwar", sampleGarment: true, masterId: null, tailorId: null },
+      {
+        ...orderInput,
+        dress: "Blouse",
+        sampleGarment: true,
+        measurements: blank,
+        masterId: null,
+        tailorId: null,
+      },
       photosForm()
     );
 
-    expect(create.mock.calls[0][0].measurements).toMatchObject({ type: "salwar", shawl: "" });
+    expect(create.mock.calls[0][0].measurements).toEqual(blank);
   });
 
   // An ordinary order is byte-for-byte what it always was: the measurements

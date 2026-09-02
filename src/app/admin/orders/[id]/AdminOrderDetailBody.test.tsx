@@ -326,6 +326,23 @@ describe("AdminOrderDetailBody", () => {
       renderBody(order({ sampleGarment: true }));
       expect(screen.getByText("Measurement blouse with us")).toBeInTheDocument();
       expect(screen.getByText(/hand it back with the order/i)).toBeInTheDocument();
+      expect(screen.queryByText("No measurements recorded.")).not.toBeInTheDocument();
+    });
+
+    it("shows the note AND the figures when the order carries some", () => {
+      renderBody(order({ sampleGarment: true, measurements: {
+            type: "blouse",
+            length: "16", shoulder: "", hs: "", sl: "", mlos: "", tlos: "", ahs: "", ub: "",
+            bust: "", waist: "", fnNr: "", bn: "", dart: "", dbd: "", p: "", sareeFall: "", piko: "",
+          } }));
+      expect(screen.getByText("Measurement blouse with us")).toBeInTheDocument();
+      expect(screen.getByText(/anything below is an adjustment to it/i)).toBeInTheDocument();
+      expect(screen.getByText("16 in")).toBeInTheDocument();
+    });
+
+    it("says plainly when an ordinary order was never measured", () => {
+      renderBody(order({}));
+      expect(screen.getByText("No measurements recorded.")).toBeInTheDocument();
     });
 
     it("shows the measurement grid as before on an ordinary order", () => {

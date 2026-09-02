@@ -33,4 +33,32 @@ describe("SampleGarmentNote", () => {
     // The customer is never told what the shop should do with it.
     expect(screen.queryByText(/cut to it/i)).not.toBeInTheDocument();
   });
+
+  // Measuring is optional on these orders, so a flat "no measurements were
+  // taken" would be a lie sitting directly above a list of them.
+  describe("when the order also carries measurements", () => {
+    it("calls them adjustments for the shop", () => {
+      render(<SampleGarmentNote dress="Blouse" hasMeasurements />);
+      expect(screen.getByText(/anything below is an adjustment to it/i)).toBeInTheDocument();
+      expect(screen.queryByText(/no measurements were taken/i)).not.toBeInTheDocument();
+      // The garment is still the customer's, and still has to go back.
+      expect(screen.getByText(/hand it back with the order/i)).toBeInTheDocument();
+    });
+
+    it("tells the workshop the figures are adjustments, not the whole garment", () => {
+      render(<SampleGarmentNote dress="Salwar" audience="workshop" hasMeasurements />);
+      expect(screen.getByText(/adjustments to it, not the whole garment/i)).toBeInTheDocument();
+      expect(screen.getByText(/cut to it/i)).toBeInTheDocument();
+      expect(screen.queryByText(/no measurements were taken/i)).not.toBeInTheDocument();
+    });
+
+    it("says exactly the same thing to the customer, who never sees measurements", () => {
+      const { container } = render(<SampleGarmentNote dress="Blouse" audience="customer" />);
+      const without = container.textContent;
+      const { container: withMeas } = render(
+        <SampleGarmentNote dress="Blouse" audience="customer" hasMeasurements />
+      );
+      expect(withMeas.textContent).toBe(without);
+    });
+  });
 });

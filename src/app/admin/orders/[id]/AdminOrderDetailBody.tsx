@@ -7,6 +7,7 @@ import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/orders/StatusBadge";
 import MeasurementGrid from "@/components/orders/MeasurementGrid";
 import SampleGarmentNote from "@/components/orders/SampleGarmentNote";
+import { hasAnyMeasurement } from "@/lib/measurements";
 import ProgressTracker from "@/components/orders/ProgressTracker";
 import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
 import MaterialImageGallery from "@/components/orders/MaterialImageGallery";
@@ -109,6 +110,10 @@ export default function AdminOrderDetailBody({
   // The customer's own garment is here with the order and has to leave with
   // it — which is why the hand-over dialogs below get told about it too.
   const sampleGarment = hasSampleGarment(order);
+  // Measuring is optional on a measurement-garment order, so the two are not
+  // alternatives: the note explains the garment, the grid shows whatever was
+  // written down as adjustments to it.
+  const anyMeasurements = hasAnyMeasurement(order.measurements);
   // Re-shareable at any point in the order's life, not just at placement.
   // Hidden for a cancelled order, where a progress update makes no sense.
   const canShareStatus = !isCancelled && !!shareToken;
@@ -375,13 +380,14 @@ export default function AdminOrderDetailBody({
           <MaterialImageGallery images={order.materialImageUrls} />
         </div>
 
-        {/* Measurements — or, when the customer left a garment to cut to,
-            the note that says why there aren't any. */}
-        <div>
-          <p className="section-label">Measurements</p>
-          {sampleGarment ? (
-            <SampleGarmentNote dress={order.dress} />
-          ) : (
+        {/* Measurements, headed by the measurement-garment note when there
+            is one — see anyMeasurements above. */}
+        <div className="space-y-3">
+          <p className="section-label mb-0">Measurements</p>
+          {sampleGarment && (
+            <SampleGarmentNote dress={order.dress} hasMeasurements={anyMeasurements} />
+          )}
+          {(!sampleGarment || anyMeasurements) && (
             <MeasurementGrid measurements={order.measurements} />
           )}
         </div>

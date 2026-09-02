@@ -1,4 +1,5 @@
 import type { GarmentMeasurements } from "@/types";
+import { hasAnyMeasurement } from "@/lib/measurements";
 
 function Cell({ label, value, note }: { label: string; value?: string; note?: string }) {
   if (!value && !note) return null;
@@ -18,6 +19,17 @@ function SectionLabel({ children }: { children: string }) {
 }
 
 export default function MeasurementGrid({ measurements }: { measurements: GarmentMeasurements }) {
+  // Every cell is hidden when its field is blank, so an order nobody measured
+  // used to render as an empty box — which reads as a page that failed to
+  // load rather than as an order with nothing written on it. Say so instead.
+  if (!hasAnyMeasurement(measurements)) {
+    return (
+      <p className="rounded-xl border border-border bg-surface px-4 py-3 text-[13px] text-fg-2">
+        No measurements recorded.
+      </p>
+    );
+  }
+
   if (measurements.type === "blouse") {
     const m = measurements;
     const n = m.fieldNotes;

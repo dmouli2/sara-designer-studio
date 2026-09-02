@@ -8,6 +8,7 @@ import Toast from "@/components/layout/Toast";
 import MeasurementForm from "@/components/orders/MeasurementForm";
 import SampleGarmentToggle from "@/components/orders/SampleGarmentToggle";
 import SampleGarmentNote from "@/components/orders/SampleGarmentNote";
+import CollapsibleMeasurements from "@/components/orders/CollapsibleMeasurements";
 import SketchCanvas from "@/components/orders/SketchCanvas";
 import ReferenceImageUpload from "@/components/orders/ReferenceImageUpload";
 import MaterialImageUpload from "@/components/orders/MaterialImageUpload";
@@ -25,6 +26,7 @@ import {
   splitTotal,
 } from "@/lib/utils";
 import { galleryEntryToFile, MAX_PHOTO_PAYLOAD_BYTES } from "@/lib/image";
+import { hasAnyMeasurement } from "@/lib/measurements";
 import { updateOrder, type OrderEditInput } from "@/app/actions/orders";
 import type { GarmentMeasurements, MaterialSource, Order, OrderLineItem, PaymentSplit } from "@/types";
 
@@ -305,9 +307,22 @@ export default function EditOrderForm({ order }: { order: Order }) {
             checked={sampleGarment}
             onChange={setSampleGarment}
           />
-          <div className="mt-3">
+          <div className="mt-3 space-y-3">
             {sampleGarment ? (
-              <SampleGarmentNote dress={order.dress} />
+              <>
+                <SampleGarmentNote
+                  dress={order.dress}
+                  hasMeasurements={hasAnyMeasurement(meas)}
+                />
+                {/* Opens already unfolded when the order carries figures, so
+                    ticking the box never hides what somebody entered. */}
+                <CollapsibleMeasurements
+                  dress={order.dress}
+                  value={meas}
+                  onChange={setMeas}
+                  defaultOpen={hasAnyMeasurement(order.measurements)}
+                />
+              </>
             ) : (
               <MeasurementForm dress={order.dress} value={meas} onChange={setMeas} />
             )}

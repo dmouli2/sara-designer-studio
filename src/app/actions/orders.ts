@@ -28,7 +28,6 @@ import {
   ZERO_SPLIT,
 } from "@/lib/utils";
 import { buildPieces, reconcilePieces, type OrderPieceDraft } from "@/lib/pieces";
-import { emptyMeasurementsForDress } from "@/lib/measurements";
 import { assertAlterationsEnabled } from "@/lib/features";
 
 const ALL_ROLES = ["admin", "master", "tailor"] as const;
@@ -160,14 +159,6 @@ export async function createOrder(
   const { pieces: pieceDrafts, advanceSplit, ...orderInput } = input;
   const pieces = buildPieces(pieceDrafts, input.due);
 
-  // A measurement-garment order is not measured at all — the blouse the
-  // customer left IS the measurement. The wizard hides the form, so anything
-  // still sitting in `measurements` is a leftover from before the toggle was
-  // switched on; store the empty template instead of half-typed numbers no
-  // screen will ever show.
-  const measurements = orderInput.sampleGarment
-    ? emptyMeasurementsForDress(orderInput.dress)
-    : orderInput.measurements;
 
   // A split advance has no single method, so advanceMethod is cleared and the
   // split carries the truth — see advanceSplitOf.
@@ -200,7 +191,6 @@ export async function createOrder(
   // cancelOrder below — never something a new order carries in.
   const created = await getDb().orders.create({
     ...orderInput,
-    measurements,
     id,
     sketchDataUrl,
     referenceImageUrls,
@@ -234,10 +224,10 @@ export interface OrderEditInput {
   advanceSplit?: PaymentSplit | null;
   due?: string;
   measurements?: GarmentMeasurements;
-  // The customer left a garment to cut to instead of being measured. Stored
-  // measurements are deliberately NOT cleared when this is switched on — the
-  // numbers stay put (just unused and unshown), so switching it back off
-  // returns the order exactly to what it was.
+  // The customer left a garment to cut to instead of being measured.
+  // Measuring stays possible either way — the flag only says the garment is
+  // what we cut to, so stored measurements are never cleared by it and read
+  // as adjustments to that garment.
   sampleGarment?: boolean;
   lineItems?: OrderLineItem[];
   notes?: string;

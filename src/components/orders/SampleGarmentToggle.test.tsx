@@ -23,7 +23,9 @@ describe("SampleGarmentToggle", () => {
     rerender(<SampleGarmentToggle dress="Blouse" checked onChange={vi.fn()} />);
     expect(screen.getByRole("checkbox")).toBeChecked();
     expect(screen.getByText(/no measurements needed/i)).toBeInTheDocument();
-    expect(screen.getByText(/return it with the order/i)).toBeInTheDocument();
+    expect(screen.getByText(/goes back with the order/i)).toBeInTheDocument();
+    // "not needed" is not "not allowed" — the form below is optional, not gone.
+    expect(screen.getByText(/add any below only if something differs/i)).toBeInTheDocument();
   });
 
   it("reports both directions to its owner", async () => {
