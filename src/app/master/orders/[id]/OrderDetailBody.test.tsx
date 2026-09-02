@@ -94,6 +94,23 @@ describe("OrderDetailBody", () => {
     expect(photos.compareDocumentPosition(measurements) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  // An empty measurement grid used to be ambiguous here: nothing said
+  // whether the numbers were missing or never taken at all.
+  it("says to cut to the customer's own garment instead of showing an empty grid", () => {
+    render(<OrderDetailBody order={order({ sampleGarment: true })} />);
+    expect(screen.getByText("Measurement blouse with us")).toBeInTheDocument();
+    expect(screen.getByText(/cut to it/i)).toBeInTheDocument();
+  });
+
+  it("shows the measurement grid as before on an ordinary order", () => {
+    render(<OrderDetailBody order={order({ measurements: {
+      type: "generic", bust: "34", waist: "", hip: "", length: "", shoulder: "",
+      sleeve: "", neckDepth: "", armRound: "",
+    } })} />);
+    expect(screen.getByText("34 in")).toBeInTheDocument();
+    expect(screen.queryByText(/Measurement blouse with us/)).not.toBeInTheDocument();
+  });
+
   it("shows a placeholder when there are no material photos", () => {
     render(<OrderDetailBody order={order({ status: "new", materialImageUrls: [] })} />);
     expect(screen.getByText("No material photos")).toBeInTheDocument();

@@ -6,6 +6,7 @@ import { Trash2, Ban, CircleCheck, Pencil, MessageCircle } from "lucide-react";
 import TopBar from "@/components/layout/TopBar";
 import StatusBadge from "@/components/orders/StatusBadge";
 import MeasurementGrid from "@/components/orders/MeasurementGrid";
+import SampleGarmentNote from "@/components/orders/SampleGarmentNote";
 import ProgressTracker from "@/components/orders/ProgressTracker";
 import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
 import MaterialImageGallery from "@/components/orders/MaterialImageGallery";
@@ -37,11 +38,13 @@ import {
   describePaymentSplit,
   formatCurrency,
   formatDate,
+  hasSampleGarment,
   isMultiPiece,
   openAlteration,
   orderDisplayStatus,
   orderBalance,
   pendingPieces,
+  sampleGarmentLabel,
   PAYMENT_METHOD_LABELS,
   buildOrderStatusWhatsAppMessage,
   buildWhatsAppShareUrl,
@@ -103,6 +106,9 @@ export default function AdminOrderDetailBody({
 
   const isCancelled = order.status === "cancelled";
   const multiPiece = isMultiPiece(order);
+  // The customer's own garment is here with the order and has to leave with
+  // it — which is why the hand-over dialogs below get told about it too.
+  const sampleGarment = hasSampleGarment(order);
   // Re-shareable at any point in the order's life, not just at placement.
   // Hidden for a cancelled order, where a progress update makes no sense.
   const canShareStatus = !isCancelled && !!shareToken;
@@ -369,10 +375,15 @@ export default function AdminOrderDetailBody({
           <MaterialImageGallery images={order.materialImageUrls} />
         </div>
 
-        {/* Measurements */}
+        {/* Measurements — or, when the customer left a garment to cut to,
+            the note that says why there aren't any. */}
         <div>
           <p className="section-label">Measurements</p>
-          <MeasurementGrid measurements={order.measurements} />
+          {sampleGarment ? (
+            <SampleGarmentNote dress={order.dress} />
+          ) : (
+            <MeasurementGrid measurements={order.measurements} />
+          )}
         </div>
 
         {/* Sketch */}
@@ -633,6 +644,7 @@ export default function AdminOrderDetailBody({
         open={deliverOpen}
         orderId={order.id}
         balance={balance}
+        returnLabel={sampleGarment ? sampleGarmentLabel(order.dress) : null}
         pending={delivering}
         onConfirm={handleDeliver}
         onCancel={() => setDeliverOpen(false)}
@@ -645,6 +657,14 @@ export default function AdminOrderDetailBody({
           piece={deliverPieceTarget}
           balance={balance}
           isLast={pendingPieces(order).length === 1}
+          // Only the last garment out takes the customer's own blouse home
+          // with it — reminding them at every earlier hand-over would have
+          // the shop giving it back while it is still needed.
+          returnLabel={
+            sampleGarment && pendingPieces(order).length === 1
+              ? sampleGarmentLabel(order.dress)
+              : null
+          }
           pending={busyPieceId === deliverPieceTarget.id}
           onConfirm={handleDeliverPiece}
           onCancel={() => setDeliverPieceTarget(null)}

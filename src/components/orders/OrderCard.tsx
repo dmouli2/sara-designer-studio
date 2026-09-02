@@ -4,10 +4,12 @@ import {
   deliveredPieceCount,
   formatCurrency,
   formatDate,
+  hasSampleGarment,
   isMultiPiece,
   isOrderOverdue,
   nextDueDate,
   orderBalance,
+  sampleGarmentLabel,
 } from "@/lib/utils";
 import StatusBadge from "./StatusBadge";
 import type { Order } from "@/types";
@@ -47,12 +49,16 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
   const due = nextDueDate(order);
   const overdue = isOrderOverdue(due, order.status);
   const multiPiece = isMultiPiece(order);
+  // The customer's own garment is physically in the shop for this order —
+  // worth seeing from the list, both to spot it while cutting and because it
+  // has to go home again.
+  const sampleGarment = hasSampleGarment(order);
   // This shop does not use the master/tailor assignment, so on almost every
   // card both of these are empty. Rendering "Not assigned" twice in alarm-red
   // on every row turned the normal state into a page full of warnings and
   // pushed the due date and balance further down. The row now appears only
   // when there is a real name (or a piece count) to show.
-  const showChips = multiPiece || !!order.master || !!order.tailor;
+  const showChips = multiPiece || sampleGarment || !!order.master || !!order.tailor;
 
   // A card is the only way into an order, so it has to be reachable by
   // keyboard and announced as a control — as a bare div it was invisible to
@@ -130,6 +136,12 @@ export default function OrderCard({ order, onClick, className, showPrice = true 
               <span className="tabular-nums">
                 {deliveredPieceCount(order)} of {order.pieces.length} handed over
               </span>
+            </span>
+          )}
+          {sampleGarment && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md bg-gold-50 text-gold-900">
+              <Shirt size={12} className="shrink-0" aria-hidden="true" />
+              {sampleGarmentLabel(order.dress)}
             </span>
           )}
           {order.master && (

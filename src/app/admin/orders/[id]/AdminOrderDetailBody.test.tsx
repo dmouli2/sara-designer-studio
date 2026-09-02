@@ -321,6 +321,27 @@ describe("AdminOrderDetailBody", () => {
     expect(photos.compareDocumentPosition(measurements) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  describe("measurement garment", () => {
+    it("stands in for the measurement grid, and says whose garment it is", () => {
+      renderBody(order({ sampleGarment: true }));
+      expect(screen.getByText("Measurement blouse with us")).toBeInTheDocument();
+      expect(screen.getByText(/hand it back with the order/i)).toBeInTheDocument();
+    });
+
+    it("shows the measurement grid as before on an ordinary order", () => {
+      renderBody(
+        order({
+          measurements: {
+            type: "generic", bust: "34", waist: "", hip: "", length: "", shoulder: "",
+            sleeve: "", neckDepth: "", armRound: "",
+          },
+        })
+      );
+      expect(screen.getByText("34 in")).toBeInTheDocument();
+      expect(screen.queryByText(/Measurement blouse with us/)).not.toBeInTheDocument();
+    });
+  });
+
   it("shows a placeholder when there are no material photos", () => {
     renderBody(order({ status: "new", materialImageUrls: [] }));
     expect(screen.getByText("No material photos")).toBeInTheDocument();

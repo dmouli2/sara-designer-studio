@@ -44,6 +44,9 @@ interface OrderRow {
   master?: EmbeddedStaff | null;
   tailor?: EmbeddedStaff | null;
   measurements: GarmentMeasurements;
+  // Added in 0016 with a not-null default of false — the column is only ever
+  // absent on a row read back by a client older than the migration.
+  sample_garment: boolean | null;
   line_items: OrderLineItem[];
   notes: string;
   sketch_data_url: string | null;
@@ -68,7 +71,7 @@ const STAFF_EMBEDS =
 // the wire. material_image_urls is the one exception: it's just short
 // Storage paths (cheap), needed to resolve each row's single main-photo
 // thumbnail for the order card (see list() below).
-const LIST_COLUMNS = `id, customer, phone, dress, material, status, amount, advance, advance_method, final_payment, final_payment_method, due, measurements, line_items, notes, cancellation_charge, delivered_on, advance_split, pieces, alterations, payments, created_at, material_image_urls, ${STAFF_EMBEDS}`;
+const LIST_COLUMNS = `id, customer, phone, dress, material, status, amount, advance, advance_method, final_payment, final_payment_method, due, measurements, sample_garment, line_items, notes, cancellation_charge, delivered_on, advance_split, pieces, alterations, payments, created_at, material_image_urls, ${STAFF_EMBEDS}`;
 
 const DETAIL_COLUMNS = `*, ${STAFF_EMBEDS}`;
 
@@ -149,6 +152,9 @@ function toOrder(row: OrderRow): Order {
     master: row.master ?? null,
     tailor: row.tailor ?? null,
     measurements: normalizeMeasurements(row.measurements),
+    // Absent reads as false — an order measured the normal way, which is
+    // what every row written before 0016 is.
+    sampleGarment: row.sample_garment ?? false,
     lineItems: row.line_items,
     notes: row.notes,
     sketchDataUrl: row.sketch_data_url,
@@ -217,6 +223,7 @@ function toInsertRow(input: OrderWriteInput) {
     master_id: input.masterId ?? null,
     tailor_id: input.tailorId ?? null,
     measurements: input.measurements,
+    sample_garment: input.sampleGarment ?? false,
     line_items: input.lineItems,
     notes: input.notes,
     sketch_data_url: input.sketchDataUrl,
@@ -247,6 +254,7 @@ function toUpdateRow(patch: OrderUpdateInput): Record<string, unknown> {
   if (patch.masterId !== undefined) row.master_id = patch.masterId;
   if (patch.tailorId !== undefined) row.tailor_id = patch.tailorId;
   if (patch.measurements !== undefined) row.measurements = patch.measurements;
+  if (patch.sampleGarment !== undefined) row.sample_garment = patch.sampleGarment;
   if (patch.lineItems !== undefined) row.line_items = patch.lineItems;
   if (patch.notes !== undefined) row.notes = patch.notes;
   if (patch.sketchDataUrl !== undefined) row.sketch_data_url = patch.sketchDataUrl;

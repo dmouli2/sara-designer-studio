@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Shirt } from "lucide-react";
 import { formatCurrency, shopToday, splitTotal } from "@/lib/utils";
 import EventDateField, { isInvalidEventDate } from "./EventDateField";
 import PaymentSplitPicker from "./PaymentSplitPicker";
@@ -10,6 +11,10 @@ interface Props {
   open: boolean;
   orderId: string;
   balance: number;
+  // Set to the garment's label ("Measurement blouse") when the customer left
+  // one of their own with this order, so the hand-over says to give it back.
+  // Null on every ordinary order.
+  returnLabel?: string | null;
   pending: boolean;
   onConfirm: (collected: PaymentSplit, deliveredOn: string) => void;
   onCancel: () => void;
@@ -27,6 +32,7 @@ export default function DeliverOrderDialog({
   open,
   orderId,
   balance,
+  returnLabel = null,
   pending,
   onConfirm,
   onCancel,
@@ -86,6 +92,19 @@ export default function DeliverOrderDialog({
               onChange={setCollected}
             />
           </>
+        )}
+
+        {returnLabel && (
+          // The customer's own garment is in the shop for this order. It is
+          // theirs, and the hand-over is the last moment anyone will think
+          // about it — so it is said here, where the admin is already
+          // standing at the counter with the customer.
+          <div className="mt-4 rounded-xl border border-gold-edge bg-gold-25 px-4 py-3 flex gap-2.5">
+            <Shirt size={16} className="shrink-0 mt-0.5 text-accent-ink" aria-hidden="true" />
+            <p className="text-[13px] text-accent-ink">
+              Give the {returnLabel.toLowerCase()} back with the order — it belongs to the customer.
+            </p>
+          </div>
         )}
 
         <div className="flex gap-2 mt-6">

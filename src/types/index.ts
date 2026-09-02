@@ -172,6 +172,11 @@ export interface SlipExtraction {
   // drafts scanned before this field existed still parse (they fall back to
   // "the advance is filled if a value came back").
   advanceBoxFilled?: boolean;
+  // The slip says the customer left a garment to cut to ("அளவு blouse",
+  // "alavu", "M.B", "sample") rather than being measured — which is why the
+  // measurement boxes are blank. Optional so drafts scanned before this
+  // existed still parse; absent reads as "not marked".
+  sampleGarment?: boolean;
   writtenTotal: string; // the handwritten Total — compared, never trusted
   writtenTotalConfidence: ExtractionConfidence;
   // Pen writing with no matching app field: Given/L.B/O.B boxes, Reminder
@@ -308,6 +313,17 @@ export interface Order {
   master: AssignedStaff | null;
   tailor: AssignedStaff | null;
   measurements: GarmentMeasurements;
+  // The customer brought a garment of their own to cut to — the shop's
+  // "alavu blouse" — instead of being measured. Absent/false is the ordinary
+  // order and the shape of every order placed before this existed, so the
+  // whole measurement flow behaves exactly as it always has for them.
+  //
+  // When true the measurement form is not shown at all and `measurements`
+  // holds the empty template for the dress; anything a previous edit had
+  // recorded is left in place, so turning the flag back off brings it back.
+  // Read it through hasSampleGarment() in src/lib/utils.ts rather than
+  // touching the field, so an order deserialized without it still answers.
+  sampleGarment?: boolean;
   lineItems: OrderLineItem[];
   notes: string;
   sketchDataUrl: string | null;

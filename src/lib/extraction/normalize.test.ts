@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { SlipExtraction } from "@/types";
 import {
+  hasNoMeasurements,
   isBookkeepingNote,
   lineItemsForDress,
   measurementsForDress,
@@ -20,7 +21,10 @@ function extraction(overrides: Partial<SlipExtraction> = {}): SlipExtraction {
     customerNameConfidence: "high",
     phone: "9876543210",
     phoneConfidence: "high",
-    measurements: [],
+    // One readable box, so the shared fixture is an ordinary measured slip —
+    // a slip with NO measurements is its own case (a measurement garment, or
+    // a photo nothing could be read from) and warns accordingly.
+    measurements: [{ key: "length", value: "14", confidence: "high" }],
     lineItems: [],
     advance: "200",
     advanceConfidence: "high",
@@ -504,5 +508,64 @@ describe("isBookkeepingNote", () => {
     ]) {
       expect(isBookkeepingNote(note), note).toBe(false);
     }
+  });
+});
+
+// ── The measurement garment ("alavu blouse") ─────────────────────────────
+// A slip with no measurements is either a customer who left a garment to cut
+// to, or a photo nothing could be read from. Those look identical from here,
+// so the flag is only ever set by an explicit note the model saw — the empty
+// case is raised as a question instead.
+describe("measurement garment", () => {
+  it("hasNoMeasurements is true only when no box carries a value", () => {
+    expect(hasNoMeasurements(extraction({ measurements: [] }))).toBe(true);
+    // A box with only a pen remark beside it still has no measurement.
+    expect(
+      hasNoMeasurements(
+        extraction({ measurements: [{ key: "length", value: " ", note: "loose", confidence: "low" }] })
+      )
+    ).toBe(true);
+    expect(
+      hasNoMeasurements(extraction({ measurements: [{ key: "length", value: "14", confidence: "high" }] }))
+    ).toBe(false);
+  });
+
+  it("prefills the flag when the slip is marked, and says so", () => {
+    const result = normalizeExtraction(extraction({ sampleGarment: true, measurements: [] }));
+    expect(result.prefill.sampleGarment).toBe(true);
+    expect(result.warnings).toContain(
+      "The slip is marked as a measurement blouse/salwar — no measurements will be recorded. Untick it in step 2 if that's wrong."
+    );
+    // Only one of the two — the marked slip explains its own empty boxes.
+    expect(result.warnings.filter((w) => w.includes("measurement blouse/salwar"))).toHaveLength(1);
+  });
+
+  it("asks rather than assumes when the boxes are simply empty", () => {
+    const result = normalizeExtraction(extraction({ measurements: [] }));
+    expect(result.prefill.sampleGarment).toBe(false);
+    expect(result.warnings).toContain(
+      "No measurements could be read from the slip. If the customer gave a measurement blouse/salwar, tick that in step 2 — otherwise enter the measurements from the photo."
+    );
+  });
+
+  it("stays quiet on an ordinary slip that has measurements", () => {
+    const result = normalizeExtraction(extraction());
+    expect(result.prefill.sampleGarment).toBe(false);
+    expect(result.warnings.some((w) => w.includes("measurement blouse/salwar"))).toBe(false);
+  });
+
+  // The book type gates the question: an undetected book already tells the
+  // admin to verify every field, so a second warning about the blank
+  // measurement boxes only adds noise.
+  it("skips the empty-measurements question when the book type is unknown", () => {
+    const result = normalizeExtraction(extraction({ bookType: "unknown", measurements: [] }));
+    expect(result.warnings.some((w) => w.includes("No measurements could be read"))).toBe(false);
+  });
+
+  // Drafts scanned before the field existed carry nothing — and absent must
+  // never read as true, which would silently drop a real measurement.
+  it("treats an absent flag as not marked", () => {
+    expect(normalizeExtraction(extraction()).prefill.sampleGarment).toBe(false);
+    expect(normalizeExtraction(extraction({ sampleGarment: false })).prefill.sampleGarment).toBe(false);
   });
 });

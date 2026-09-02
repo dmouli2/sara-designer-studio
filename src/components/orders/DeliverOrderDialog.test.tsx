@@ -173,4 +173,37 @@ describe("DeliverOrderDialog", () => {
       expect(screen.getByText(/₹800 more than the ₹1,000 due/)).toBeInTheDocument();
     });
   });
+
+  // The customer's own garment is in the shop for these orders, and the
+  // hand-over is the last moment anybody will think about it.
+  it("reminds the admin to give the customer's own garment back", () => {
+    render(
+      <DeliverOrderDialog
+        open
+        orderId="B2401"
+        balance={500}
+        returnLabel="Measurement blouse"
+        pending={false}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByText(/give the measurement blouse back with the order/i)
+    ).toBeInTheDocument();
+  });
+
+  it("says nothing of the sort on an ordinary order", () => {
+    render(
+      <DeliverOrderDialog
+        open
+        orderId="B2401"
+        balance={500}
+        pending={false}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+    expect(screen.queryByText(/back with the order/i)).not.toBeInTheDocument();
+  });
 });

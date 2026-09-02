@@ -631,6 +631,125 @@ describe("NewOrderWizard", () => {
     });
   });
 
+  // ── The measurement garment ("alavu blouse") ────────────────────────
+  // The customer hands over a blouse of their own instead of standing for
+  // measurements, so step 2 has nothing to ask.
+  describe("measurement garment", () => {
+    it("asks the question above the measurement form, unticked", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await chooseOrderType(user);
+      await fillStep1AndAdvance(user, container);
+
+      expect(screen.getByLabelText(/customer gave a measurement blouse/i)).not.toBeChecked();
+      expect(screen.getByLabelText("Length")).toBeInTheDocument();
+    });
+
+    it("names the garment after the book the order is in", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await chooseOrderType(user, "Salwar");
+      await fillStep1AndAdvance(user, container);
+
+      expect(screen.getByLabelText(/customer gave a measurement salwar/i)).toBeInTheDocument();
+    });
+
+    it("replaces the whole measurement form with the note once ticked", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await chooseOrderType(user);
+      await fillStep1AndAdvance(user, container);
+
+      await user.click(screen.getByLabelText(/customer gave a measurement blouse/i));
+
+      expect(screen.queryByLabelText("Length")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Bust")).not.toBeInTheDocument();
+      expect(screen.getByText("Measurement blouse with us")).toBeInTheDocument();
+      // Everything else on the step is untouched — the sketch and the
+      // reference photos still matter for a garment we are copying.
+      expect(screen.getByText("Garment sketch")).toBeInTheDocument();
+    });
+
+    it("sends the flag and an empty measurement template, not the numbers typed before it", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await chooseOrderType(user);
+      await fillStep1AndAdvance(user, container);
+
+      // Typed first, then the customer produces a blouse from their bag.
+      await user.type(screen.getByLabelText("Length"), "15");
+      await user.click(screen.getByLabelText(/customer gave a measurement blouse/i));
+
+      await user.click(screen.getByText("Next: Pricing →"));
+      await fillDeliveryDate(user);
+      await user.click(screen.getByText("✓ Confirm & Place Order"));
+
+      await waitFor(() => expect(createOrder).toHaveBeenCalled());
+      const [input] = vi.mocked(createOrder).mock.calls[0];
+      expect(input.sampleGarment).toBe(true);
+      expect(input.measurements).toMatchObject({ type: "blouse", length: "", bust: "" });
+    });
+
+    it("sends the measurements untouched, and the flag off, for an ordinary order", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await chooseOrderType(user);
+      await fillStep1AndAdvance(user, container);
+
+      await user.type(screen.getByLabelText("Length"), "15");
+      await user.click(screen.getByText("Next: Pricing →"));
+      await fillDeliveryDate(user);
+      await user.click(screen.getByText("✓ Confirm & Place Order"));
+
+      await waitFor(() => expect(createOrder).toHaveBeenCalled());
+      const [input] = vi.mocked(createOrder).mock.calls[0];
+      expect(input.sampleGarment).toBe(false);
+      expect(input.measurements).toMatchObject({ length: "15" });
+    });
+
+    // A half-entered order has to survive the PWA being killed by a call.
+    it("keeps the tick in the saved draft and restores it on resume", async () => {
+      const user = userEvent.setup();
+      window.localStorage.clear();
+      const { container, unmount } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await chooseOrderType(user);
+      await fillStep1AndAdvance(user, container);
+      await user.click(screen.getByLabelText(/customer gave a measurement blouse/i));
+
+      await waitFor(() =>
+        expect(JSON.parse(window.localStorage.getItem(DRAFT_KEY)!)).toMatchObject({
+          sampleGarment: true,
+        })
+      );
+      unmount();
+
+      render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await user.click(await screen.findByText("Resume draft"));
+      expect(screen.getByLabelText(/customer gave a measurement blouse/i)).toBeChecked();
+    });
+
+    it("resumes a draft saved before the field existed as the measured order it was", async () => {
+      const user = userEvent.setup();
+      window.localStorage.clear();
+      const { container, unmount } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await chooseOrderType(user);
+      await fillStep1AndAdvance(user, container);
+      await waitFor(() => expect(window.localStorage.getItem(DRAFT_KEY)).toBeTruthy());
+
+      // The same draft object with the key simply absent, which is exactly
+      // what every draft written before this feature holds.
+      const legacy = JSON.parse(window.localStorage.getItem(DRAFT_KEY)!);
+      delete legacy.sampleGarment;
+      unmount();
+      window.localStorage.setItem(DRAFT_KEY, JSON.stringify(legacy));
+
+      render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await user.click(await screen.findByText("Resume draft"));
+      expect(screen.getByLabelText(/customer gave a measurement blouse/i)).not.toBeChecked();
+      expect(screen.getByLabelText("Length")).toBeInTheDocument();
+    });
+  });
+
   describe("scan entry point", () => {
     it("offers the slip scanner from the order-type screen", async () => {
       const user = userEvent.setup();
@@ -686,6 +805,27 @@ describe("NewOrderWizard", () => {
     beforeEach(() => {
       vi.mocked(confirmDraft).mockReset();
       vi.mocked(confirmDraft).mockResolvedValue(undefined);
+    });
+
+    it("arrives with the measurement-garment tick already set when the slip was marked", async () => {
+      render(
+        <NewOrderWizard
+          fabrics={TEST_FABRICS}
+          scan={scanSource({ sampleGarment: true, measurements: [] })}
+        />
+      );
+
+      await userEvent.setup().click(screen.getByText("Next: Measurements →"));
+      expect(screen.getByLabelText(/customer gave a measurement blouse/i)).toBeChecked();
+      expect(screen.queryByLabelText("Length")).not.toBeInTheDocument();
+    });
+
+    it("leaves the tick off for an ordinary slip, so the read measurements stand", async () => {
+      render(<NewOrderWizard fabrics={TEST_FABRICS} scan={scanSource()} />);
+
+      await userEvent.setup().click(screen.getByText("Next: Measurements →"));
+      expect(screen.getByLabelText(/customer gave a measurement blouse/i)).not.toBeChecked();
+      expect(screen.getByLabelText("Length")).toHaveValue(14);
     });
 
     it("skips the gate and prefills every step from the extraction", async () => {

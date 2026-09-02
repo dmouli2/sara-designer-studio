@@ -124,6 +124,35 @@ describe("OrderCard", () => {
     expect(screen.getByText(/0 of 2 handed over/)).toBeInTheDocument();
   });
 
+  // The customer's own garment is in the shop for these orders, and the list
+  // is where the shop goes looking for it.
+  it("flags an order the customer left a garment for, named after the book", () => {
+    render(<OrderCard order={{ ...baseOrder, sampleGarment: true }} />);
+    expect(screen.getByText("Measurement blouse")).toBeInTheDocument();
+
+    render(<OrderCard order={{ ...baseOrder, dress: "Salwar", sampleGarment: true }} />);
+    expect(screen.getByText("Measurement salwar")).toBeInTheDocument();
+  });
+
+  it("shows no such chip on an ordinary measured order", () => {
+    render(<OrderCard order={baseOrder} />);
+    expect(screen.queryByText(/Measurement blouse/)).not.toBeInTheDocument();
+    // …including one stored before the flag existed, which carries no field.
+    const legacy = { ...baseOrder } as Order;
+    delete (legacy as { sampleGarment?: boolean }).sampleGarment;
+    render(<OrderCard order={legacy} />);
+    expect(screen.queryByText(/Measurement blouse/)).not.toBeInTheDocument();
+  });
+
+  it("brings the chip row back for it even with nobody assigned and no pieces", () => {
+    render(
+      <OrderCard
+        order={{ ...baseOrder, master: null, tailor: null, pieces: null, sampleGarment: true }}
+      />
+    );
+    expect(screen.getByText("Measurement blouse")).toBeInTheDocument();
+  });
+
   // A card is the only route into an order, so it has to be operable by
   // keyboard — as a bare div it was skipped by tab entirely.
   it("is a real button when clickable, so it can be tabbed to and activated", async () => {
