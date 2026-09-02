@@ -8,6 +8,7 @@ import Toast from "@/components/layout/Toast";
 import StatusBadge from "@/components/orders/StatusBadge";
 import MeasurementGrid from "@/components/orders/MeasurementGrid";
 import SampleGarmentNote from "@/components/orders/SampleGarmentNote";
+import { hasAnyMeasurement } from "@/lib/measurements";
 import OrderPiecesCard from "@/components/orders/OrderPiecesCard";
 import ReferenceImageGallery from "@/components/orders/ReferenceImageGallery";
 import MaterialImageGallery from "@/components/orders/MaterialImageGallery";
@@ -73,12 +74,19 @@ export default function OrderDetailBody({ order: initialOrder }: { order: Order 
         {isMultiPiece(order) && <OrderPiecesCard order={order} />}
 
         {/* Measurements — an empty grid here used to be ambiguous: nothing
-            said whether the numbers were missing or never taken. */}
-        <div>
-          <p className="section-label">Measurements</p>
-          {hasSampleGarment(order) ? (
-            <SampleGarmentNote dress={order.dress} audience="workshop" />
-          ) : (
+            said whether the numbers were missing or never taken. On a
+            measurement-garment order the note comes first and whatever WAS
+            written down follows it, as adjustments to the garment. */}
+        <div className="space-y-3">
+          <p className="section-label mb-0">Measurements</p>
+          {hasSampleGarment(order) && (
+            <SampleGarmentNote
+              dress={order.dress}
+              audience="workshop"
+              hasMeasurements={hasAnyMeasurement(order.measurements)}
+            />
+          )}
+          {(!hasSampleGarment(order) || hasAnyMeasurement(order.measurements)) && (
             <MeasurementGrid measurements={order.measurements} />
           )}
         </div>

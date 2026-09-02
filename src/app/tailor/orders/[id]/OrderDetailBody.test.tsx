@@ -134,6 +134,30 @@ describe("OrderDetailBody", () => {
     render(<OrderDetailBody order={order({ sampleGarment: true })} />);
     expect(screen.getByText("Measurement blouse with us")).toBeInTheDocument();
     expect(screen.getByText(/cut to it/i)).toBeInTheDocument();
+    // Nothing was measured, and the note already says so — no second line
+    // underneath repeating it.
+    expect(screen.queryByText("No measurements recorded.")).not.toBeInTheDocument();
+  });
+
+  // Measuring is optional on these orders, not forbidden.
+  it("shows the note AND the figures when a measurement-garment order has some", () => {
+    render(
+      <OrderDetailBody
+        order={order({ sampleGarment: true, measurements: {
+            type: "blouse",
+            length: "16", shoulder: "", hs: "", sl: "", mlos: "", tlos: "", ahs: "", ub: "",
+            bust: "", waist: "", fnNr: "", bn: "", dart: "", dbd: "", p: "", sareeFall: "", piko: "",
+          } })}
+      />
+    );
+    expect(screen.getByText("Measurement blouse with us")).toBeInTheDocument();
+    expect(screen.getByText(/adjustments to it, not the whole garment/i)).toBeInTheDocument();
+    expect(screen.getByText("16 in")).toBeInTheDocument();
+  });
+
+  it("says plainly when an ordinary order was never measured", () => {
+    render(<OrderDetailBody order={order({})} />);
+    expect(screen.getByText("No measurements recorded.")).toBeInTheDocument();
   });
 
   it("shows the measurement grid as before on an ordinary order", () => {

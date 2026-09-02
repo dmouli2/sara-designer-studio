@@ -8,6 +8,7 @@ import Toast from "@/components/layout/Toast";
 import MeasurementForm, { emptyMeasurementsForDress } from "@/components/orders/MeasurementForm";
 import SampleGarmentToggle from "@/components/orders/SampleGarmentToggle";
 import SampleGarmentNote from "@/components/orders/SampleGarmentNote";
+import CollapsibleMeasurements from "@/components/orders/CollapsibleMeasurements";
 import SketchCanvas from "@/components/orders/SketchCanvas";
 import ReferenceImageUpload from "@/components/orders/ReferenceImageUpload";
 import MaterialImageUpload from "@/components/orders/MaterialImageUpload";
@@ -26,6 +27,7 @@ import {
   buildWhatsAppShareUrl,
 } from "@/lib/utils";
 import { dataUrlToFile, galleryEntryToFile, MAX_PHOTO_PAYLOAD_BYTES } from "@/lib/image";
+import { hasAnyMeasurement } from "@/lib/measurements";
 import { FEATURE_MULTI_PIECE, FEATURE_SCAN_ORDERS } from "@/lib/features";
 import { lineItemsForDress, measurementsForDress, normalizeExtraction } from "@/lib/extraction/normalize";
 import { createOrder } from "@/app/actions/orders";
@@ -437,9 +439,9 @@ export default function NewOrderWizard({
           due: delivery,
           masterId: null,
           tailorId: null,
-          // Nothing was measured, so nothing is stored: the empty template
-          // rather than whatever was typed before the toggle went on.
-          measurements: sampleGarment ? emptyMeasurementsForDress(dress) : meas,
+          // Sent as entered either way — a measurement-garment order may
+          // still carry a figure or two, recorded as adjustments to it.
+          measurements: meas,
           sampleGarment,
           lineItems: activeItems,
           notes,
@@ -808,9 +810,18 @@ export default function NewOrderWizard({
                     checked={sampleGarment}
                     onChange={setSampleGarment}
                   />
-                  <div className="mt-3">
+                  <div className="mt-3 space-y-3">
                     {sampleGarment ? (
-                      <SampleGarmentNote dress={dress} />
+                      <>
+                        <SampleGarmentNote
+                          dress={dress}
+                          hasMeasurements={hasAnyMeasurement(meas)}
+                        />
+                        {/* Optional, not gone: the garment is the
+                            measurement, but one figure is sometimes worth
+                            writing down ("same blouse, two inches longer"). */}
+                        <CollapsibleMeasurements dress={dress} value={meas} onChange={setMeas} />
+                      </>
                     ) : (
                       <MeasurementForm dress={dress} value={meas} onChange={setMeas} />
                     )}

@@ -15,23 +15,39 @@ import { sampleGarmentLabel } from "@/lib/utils";
 //             coming back.
 export type SampleGarmentAudience = "shop" | "workshop" | "customer";
 
-function bodyFor(audience: SampleGarmentAudience, label: string): string {
+// `hasMeasurements` changes the sentence, not the panel: measuring is optional
+// on these orders, so a flat "no measurements were taken" would be a lie
+// sitting directly above a list of them. When figures exist they are
+// adjustments to the garment, and that is what the workshop needs to be told.
+function bodyFor(
+  audience: SampleGarmentAudience,
+  label: string,
+  hasMeasurements: boolean
+): string {
   const lower = label.toLowerCase();
   if (audience === "workshop") {
-    return `No measurements were taken for this order — the customer's own ${lower} is with the order. Cut to it.`;
+    return hasMeasurements
+      ? `The customer's own ${lower} is with the order — cut to it. The measurements below are adjustments to it, not the whole garment.`
+      : `No measurements were taken for this order — the customer's own ${lower} is with the order. Cut to it.`;
   }
   if (audience === "customer") {
+    // The customer never sees measurements either way, so nothing changes here.
     return `You gave us your own ${lower} to stitch to. It is safe with us and comes back to you with your order.`;
   }
-  return `The customer left their own ${lower} instead of being measured, so no measurements were taken. It is the customer's garment — hand it back with the order.`;
+  return hasMeasurements
+    ? `The customer left their own ${lower} instead of being measured — anything below is an adjustment to it. It is the customer's garment — hand it back with the order.`
+    : `The customer left their own ${lower} instead of being measured, so no measurements were taken. It is the customer's garment — hand it back with the order.`;
 }
 
 export default function SampleGarmentNote({
   dress,
   audience = "shop",
+  hasMeasurements = false,
 }: {
   dress: string;
   audience?: SampleGarmentAudience;
+  // Whether the order carries any measurement at all — see bodyFor.
+  hasMeasurements?: boolean;
 }) {
   const label = sampleGarmentLabel(dress);
   return (
@@ -41,7 +57,7 @@ export default function SampleGarmentNote({
       </span>
       <div className="min-w-0">
         <p className="text-[15px] font-semibold text-gold-800">{label} with us</p>
-        <p className="text-[13px] text-accent-ink mt-0.5">{bodyFor(audience, label)}</p>
+        <p className="text-[13px] text-accent-ink mt-0.5">{bodyFor(audience, label, hasMeasurements)}</p>
       </div>
     </div>
   );

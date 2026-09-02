@@ -172,4 +172,42 @@ describe("MeasurementGrid", () => {
     expect(screen.getByText("36 in")).toBeInTheDocument();
     expect(screen.queryByText("waist", { exact: false })).not.toBeInTheDocument();
   });
+
+  // Every cell hides itself when blank, so an unmeasured order used to render
+  // as an empty box — indistinguishable from a page that failed to load.
+  it("says so plainly when nothing was measured, for every garment type", () => {
+    const blank: BlouseMeasurements = {
+      type: "blouse",
+      length: "", shoulder: "", hs: "", sl: "", mlos: "", tlos: "", ahs: "", ub: "",
+      bust: "", waist: "", fnNr: "", bn: "", dart: "", dbd: "", p: "", sareeFall: "", piko: "",
+    };
+    const { unmount } = render(<MeasurementGrid measurements={blank} />);
+    expect(screen.getByText("No measurements recorded.")).toBeInTheDocument();
+    unmount();
+
+    const blankSalwar: SalwarMeasurements = {
+      type: "salwar",
+      top: {
+        length: "", shoulder: "", hs: "", sl: "", tlcs: "", ah: "", ub: "",
+        bust: "", waist: "", hip: "", fnNr: "", bn: "",
+      },
+      pant: { height: "", hip: "", waist: "", kl: "", tl: "", fullLength: "", yoke: "" },
+      shawl: "",
+    };
+    render(<MeasurementGrid measurements={blankSalwar} />);
+    // No "M. Top"/"M. Pant" headings over nothing, either.
+    expect(screen.getByText("No measurements recorded.")).toBeInTheDocument();
+    expect(screen.queryByText("M. Top")).not.toBeInTheDocument();
+  });
+
+  it("draws the grid, not the empty line, as soon as one field is filled", () => {
+    const m: BlouseMeasurements = {
+      type: "blouse",
+      length: "", shoulder: "", hs: "", sl: "", mlos: "", tlos: "", ahs: "", ub: "",
+      bust: "", waist: "", fnNr: "", bn: "", dart: "", dbd: "", p: "", sareeFall: "16",
+    };
+    render(<MeasurementGrid measurements={m} />);
+    expect(screen.queryByText("No measurements recorded.")).not.toBeInTheDocument();
+    expect(screen.getByText("16 in")).toBeInTheDocument();
+  });
 });

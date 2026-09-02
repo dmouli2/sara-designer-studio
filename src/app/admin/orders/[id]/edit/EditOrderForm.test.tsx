@@ -81,11 +81,36 @@ describe("EditOrderForm", () => {
       expect(screen.getByLabelText("Length")).toHaveValue(15);
     });
 
-    it("opens ticked for an order the customer left a garment for, with no form", () => {
+    it("opens ticked for an order the customer left a garment for", () => {
       render(<EditOrderForm order={{ ...order, sampleGarment: true }} />);
       expect(toggle()).toBeChecked();
-      expect(screen.queryByLabelText("Length")).not.toBeInTheDocument();
       expect(screen.getByText("Measurement blouse with us")).toBeInTheDocument();
+      // The form is folded away, not gone — measuring stays possible.
+      expect(screen.getByText("Add measurements (optional)")).toBeInTheDocument();
+    });
+
+    // The stored order already carries a 15" length, so folding it out of
+    // sight on open would hide a figure somebody entered on purpose.
+    it("opens the form already unfolded when the order carries measurements", () => {
+      render(<EditOrderForm order={{ ...order, sampleGarment: true }} />);
+      expect(screen.getByLabelText("Length")).toBeVisible();
+      expect(screen.getByLabelText("Length")).toHaveValue(15);
+      expect(screen.getByText(/anything below is an adjustment to it/i)).toBeInTheDocument();
+    });
+
+    it("keeps it folded away on an order nobody measured", () => {
+      const blank: Order = {
+        ...order,
+        sampleGarment: true,
+        measurements: {
+          type: "blouse",
+          length: "", shoulder: "", hs: "", sl: "", mlos: "", tlos: "", ahs: "", ub: "",
+          bust: "", waist: "", fnNr: "", bn: "", dart: "", dbd: "", p: "", sareeFall: "", piko: "",
+        },
+      };
+      render(<EditOrderForm order={blank} />);
+      expect(screen.getByLabelText("Length")).not.toBeVisible();
+      expect(screen.getByText(/so no measurements were taken/i)).toBeInTheDocument();
     });
 
     it("sends the flag on, and never touches the stored measurements", async () => {
@@ -108,6 +133,7 @@ describe("EditOrderForm", () => {
       render(<EditOrderForm order={{ ...order, sampleGarment: true }} />);
 
       await user.click(toggle());
+      expect(screen.getByLabelText("Length")).toBeVisible();
       expect(screen.getByLabelText("Length")).toHaveValue(15);
 
       await user.click(saveButton());

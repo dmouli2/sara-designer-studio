@@ -35,7 +35,7 @@ export default function SampleGarmentToggle({
         </span>
         <span className="block text-[12px] text-fg-2 mt-0.5">
           {checked
-            ? "No measurements needed — we stitch to the garment they left. Remember to return it with the order."
+            ? "No measurements needed — we stitch to the garment they left, and it goes back with the order. Add any below only if something differs."
             : "Tick if they left one of their own to stitch to instead of being measured."}
         </span>
       </span>

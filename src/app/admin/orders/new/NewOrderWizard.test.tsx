@@ -654,7 +654,9 @@ describe("NewOrderWizard", () => {
       expect(screen.getByLabelText(/customer gave a measurement salwar/i)).toBeInTheDocument();
     });
 
-    it("replaces the whole measurement form with the note once ticked", async () => {
+    // Folded away, not removed: the fast path is one tick and on to the
+    // items, but "same blouse, two inches longer" is a real order.
+    it("folds the measurement form away behind the note once ticked", async () => {
       const user = userEvent.setup();
       const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
       await chooseOrderType(user);
@@ -662,21 +664,39 @@ describe("NewOrderWizard", () => {
 
       await user.click(screen.getByLabelText(/customer gave a measurement blouse/i));
 
-      expect(screen.queryByLabelText("Length")).not.toBeInTheDocument();
-      expect(screen.queryByLabelText("Bust")).not.toBeInTheDocument();
       expect(screen.getByText("Measurement blouse with us")).toBeInTheDocument();
+      expect(screen.getByText("Add measurements (optional)")).toBeInTheDocument();
+      // Still in the page, just not on screen until asked for.
+      expect(screen.getByLabelText("Length")).not.toBeVisible();
       // Everything else on the step is untouched — the sketch and the
       // reference photos still matter for a garment we are copying.
       expect(screen.getByText("Garment sketch")).toBeInTheDocument();
     });
 
-    it("sends the flag and an empty measurement template, not the numbers typed before it", async () => {
+    it("opens the form on request and keeps what is typed into it", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await chooseOrderType(user);
+      await fillStep1AndAdvance(user, container);
+      await user.click(screen.getByLabelText(/customer gave a measurement blouse/i));
+
+      await user.click(screen.getByText("Add measurements (optional)"));
+      expect(screen.getByLabelText("Length")).toBeVisible();
+
+      await user.type(screen.getByLabelText("Length"), "16");
+      // Once a figure exists the note says what it is — an adjustment to the
+      // garment, not the garment's whole measurement.
+      expect(screen.getByText(/anything below is an adjustment to it/i)).toBeInTheDocument();
+    });
+
+    // Measurements survive the tick now — a length noted before the customer
+    // produced their blouse is still a length that has to be honoured.
+    it("sends the flag alongside whatever measurements were entered", async () => {
       const user = userEvent.setup();
       const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
       await chooseOrderType(user);
       await fillStep1AndAdvance(user, container);
 
-      // Typed first, then the customer produces a blouse from their bag.
       await user.type(screen.getByLabelText("Length"), "15");
       await user.click(screen.getByLabelText(/customer gave a measurement blouse/i));
 
@@ -687,6 +707,22 @@ describe("NewOrderWizard", () => {
       await waitFor(() => expect(createOrder).toHaveBeenCalled());
       const [input] = vi.mocked(createOrder).mock.calls[0];
       expect(input.sampleGarment).toBe(true);
+      expect(input.measurements).toMatchObject({ type: "blouse", length: "15" });
+    });
+
+    it("sends an empty template when nothing was measured", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NewOrderWizard fabrics={TEST_FABRICS} />);
+      await chooseOrderType(user);
+      await fillStep1AndAdvance(user, container);
+      await user.click(screen.getByLabelText(/customer gave a measurement blouse/i));
+
+      await user.click(screen.getByText("Next: Pricing →"));
+      await fillDeliveryDate(user);
+      await user.click(screen.getByText("✓ Confirm & Place Order"));
+
+      await waitFor(() => expect(createOrder).toHaveBeenCalled());
+      const [input] = vi.mocked(createOrder).mock.calls[0];
       expect(input.measurements).toMatchObject({ type: "blouse", length: "", bust: "" });
     });
 
@@ -817,7 +853,7 @@ describe("NewOrderWizard", () => {
 
       await userEvent.setup().click(screen.getByText("Next: Measurements →"));
       expect(screen.getByLabelText(/customer gave a measurement blouse/i)).toBeChecked();
-      expect(screen.queryByLabelText("Length")).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Length")).not.toBeVisible();
     });
 
     it("leaves the tick off for an ordinary slip, so the read measurements stand", async () => {
